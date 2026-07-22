@@ -59,7 +59,7 @@ square-moshi = "1.15.2"
 square-okio = "3.17.0"
 square-retrofit = "3.0.0"
 startup-runtime = "1.2.0"
-testcontainers = "1.21.4"
+testcontainers = "2.0.5"
 zstd-kmp-okio = "0.4.0"
 
 # Set to lower version than KGP version to maximize compatibility
