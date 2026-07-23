@@ -29,7 +29,7 @@ import kotlin.time.TimeSource
  * This evicts in big batches because each eviction must traverse the entire cache.
  */
 abstract class MemoryCache<K : Any, V : Any>(
-  private val timeSource: TimeSource.WithComparableMarks,
+  val timeSource: TimeSource.WithComparableMarks,
   val maxSize: Int,
 ) {
   private val entries = ConcurrentHashMap<K, V>()
@@ -42,7 +42,7 @@ abstract class MemoryCache<K : Any, V : Any>(
    * Returns the time this value was most recently used, in order to make an eviction decision. This
    * should return null if this element should be evicted immediately.
    */
-  abstract fun lastRequestedAt(
+  protected abstract fun lastRequestedAt(
     now: Time,
     value: V,
   ): Time?

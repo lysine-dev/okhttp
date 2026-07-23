@@ -45,9 +45,9 @@ class StateMachineDnsCallTest {
         )
       call.enqueue()
 
-      val query0 = transport.takeQuery("lysine.dev", TYPE_HTTPS)
-      val query1 = transport.takeQuery("lysine.dev", TYPE_AAAA)
-      val query2 = transport.takeQuery("lysine.dev", TYPE_A)
+      val query0 = queryFactory.takeQuery("lysine.dev", TYPE_HTTPS)
+      val query1 = queryFactory.takeQuery("lysine.dev", TYPE_AAAA)
+      val query2 = queryFactory.takeQuery("lysine.dev", TYPE_A)
 
       query1.respondIpAddresses(
         addresses = blueIpv6s,
@@ -84,7 +84,7 @@ class StateMachineDnsCallTest {
           caching = true,
         )
       lysineCall0.enqueue()
-      transport.respondToQuery(
+      queryFactory.respondToQuery(
         hostname = "lysine.dev",
         type = TYPE_A,
         addresses = blueIpv4s,
@@ -100,7 +100,7 @@ class StateMachineDnsCallTest {
           caching = true,
         )
       commonhausCall0.enqueue()
-      transport.respondToQuery(
+      queryFactory.respondToQuery(
         hostname = "commonhaus.org",
         type = TYPE_A,
         addresses = greenIpv4s,
@@ -143,8 +143,8 @@ class StateMachineDnsCallTest {
         )
       call0.enqueue()
 
-      val call0QueryIpv6 = transport.takeQuery("lysine.dev", TYPE_AAAA)
-      val call0QueryIpv4 = transport.takeQuery("lysine.dev", TYPE_A)
+      val call0QueryIpv6 = queryFactory.takeQuery("lysine.dev", TYPE_AAAA)
+      val call0QueryIpv4 = queryFactory.takeQuery("lysine.dev", TYPE_A)
 
       call0QueryIpv6.respondIpAddresses(
         addresses = blueIpv6s,
@@ -177,7 +177,7 @@ class StateMachineDnsCallTest {
           caching = true,
         )
       call0.enqueue()
-      transport.respondToQuery(
+      queryFactory.respondToQuery(
         hostname = "lysine.dev",
         type = TYPE_A,
         timeToLive = 30.seconds,
@@ -208,7 +208,7 @@ class StateMachineDnsCallTest {
           caching = true,
         )
       call2.enqueue()
-      transport.respondToQuery(
+      queryFactory.respondToQuery(
         hostname = "lysine.dev",
         type = TYPE_A,
         addresses = greenIpv4s,
@@ -233,7 +233,7 @@ class StateMachineDnsCallTest {
         )
       call0.enqueue()
       sleep(30.seconds)
-      transport.respondToQuery(
+      queryFactory.respondToQuery(
         hostname = "lysine.dev",
         type = TYPE_A,
         timeToLive = 30.seconds,
@@ -251,7 +251,7 @@ class StateMachineDnsCallTest {
           caching = true,
         )
       call1.enqueue()
-      transport.respondToQuery(
+      queryFactory.respondToQuery(
         hostname = "lysine.dev",
         type = TYPE_A,
         timeToLive = 30.seconds,
@@ -272,7 +272,7 @@ class StateMachineDnsCallTest {
           caching = true,
         )
       call0.enqueue()
-      transport.respondToQuery(
+      queryFactory.respondToQuery(
         hostname = "lysine.dev",
         type = TYPE_A,
         timeToLive = 1.seconds,
@@ -306,7 +306,7 @@ class StateMachineDnsCallTest {
           caching = true,
         )
       call0.enqueue()
-      transport.respondToQuery(
+      queryFactory.respondToQuery(
         hostname = "lysine.dev",
         type = TYPE_A,
         timeToLive = 100.seconds,
@@ -325,7 +325,7 @@ class StateMachineDnsCallTest {
           caching = true,
         )
       call1.enqueue()
-      transport.respondToQuery(
+      queryFactory.respondToQuery(
         hostname = "lysine.dev",
         type = TYPE_A,
         timeToLive = 1.seconds,
@@ -347,8 +347,8 @@ class StateMachineDnsCallTest {
         )
       call0.enqueue()
 
-      val call0QueryIpv6 = transport.takeQuery("lysine.dev", TYPE_AAAA)
-      val call0QueryIpv4 = transport.takeQuery("lysine.dev", TYPE_A)
+      val call0QueryIpv6 = queryFactory.takeQuery("lysine.dev", TYPE_AAAA)
+      val call0QueryIpv4 = queryFactory.takeQuery("lysine.dev", TYPE_A)
 
       val call1 =
         newCall(
@@ -393,13 +393,13 @@ class StateMachineDnsCallTest {
         )
       call0.enqueue()
 
-      transport.respondToQuery(
+      queryFactory.respondToQuery(
         hostname = "lysine.dev",
         type = TYPE_AAAA,
         timeToLive = 10.seconds,
         addresses = blueIpv6s,
       )
-      transport.respondToQuery(
+      queryFactory.respondToQuery(
         hostname = "lysine.dev",
         type = TYPE_A,
         timeToLive = 10.seconds,
@@ -420,12 +420,12 @@ class StateMachineDnsCallTest {
       call1.enqueue()
       assertThat(call1.takeAllRecords().addresses())
         .isEqualTo(blueIpv6s + blueIpv4s)
-      transport.respondToQuery(
+      queryFactory.respondToQuery(
         hostname = "lysine.dev",
         type = TYPE_AAAA,
         addresses = greenIpv6s,
       )
-      transport.respondToQuery(
+      queryFactory.respondToQuery(
         hostname = "lysine.dev",
         type = TYPE_A,
         addresses = greenIpv4s,
@@ -455,13 +455,13 @@ class StateMachineDnsCallTest {
         )
       call0.enqueue()
 
-      transport.respondToQuery(
+      queryFactory.respondToQuery(
         hostname = "lysine.dev",
         type = TYPE_AAAA,
         timeToLive = 10.seconds,
         addresses = blueIpv6s,
       )
-      transport.respondToQuery(
+      queryFactory.respondToQuery(
         hostname = "lysine.dev",
         type = TYPE_A,
         timeToLive = 10.seconds,
@@ -484,12 +484,12 @@ class StateMachineDnsCallTest {
         .isEqualTo(blueIpv6s + blueIpv4s)
       // Note this doesn't respond to TYPE_AAAA yet.
       val revalidateQuery0 =
-        transport.takeQuery(
+        queryFactory.takeQuery(
           hostname = "lysine.dev",
           type = TYPE_AAAA,
         )
       val revalidateQuery1 =
-        transport.takeQuery(
+        queryFactory.takeQuery(
           hostname = "lysine.dev",
           type = TYPE_A,
         )
@@ -527,9 +527,9 @@ class StateMachineDnsCallTest {
         )
       call.enqueue()
 
-      val query0 = transport.takeQuery("lysine.dev", TYPE_HTTPS)
-      val query1 = transport.takeQuery("lysine.dev", TYPE_AAAA)
-      val query2 = transport.takeQuery("lysine.dev", TYPE_A)
+      val query0 = queryFactory.takeQuery("lysine.dev", TYPE_HTTPS)
+      val query1 = queryFactory.takeQuery("lysine.dev", TYPE_AAAA)
+      val query2 = queryFactory.takeQuery("lysine.dev", TYPE_A)
 
       query1.respondFailure("boom!")
 
@@ -561,8 +561,8 @@ class StateMachineDnsCallTest {
         )
       call0.enqueue()
 
-      val queryIpv6 = transport.takeQuery("lysine.dev", TYPE_AAAA)
-      val queryIpv4 = transport.takeQuery("lysine.dev", TYPE_A)
+      val queryIpv6 = queryFactory.takeQuery("lysine.dev", TYPE_AAAA)
+      val queryIpv4 = queryFactory.takeQuery("lysine.dev", TYPE_A)
 
       queryIpv6.respondFailure("boom!")
       queryIpv4.respondIpAddresses(
@@ -599,7 +599,7 @@ class StateMachineDnsCallTest {
           includeServiceMetadata = false,
         )
       call0.enqueue()
-      transport
+      queryFactory
         .takeQuery("lysine.dev", TYPE_A)
         .respondFailure("boom!")
       call0.takeOnFailure("boom!")
@@ -614,7 +614,7 @@ class StateMachineDnsCallTest {
           includeServiceMetadata = false,
         )
       call1.enqueue()
-      transport.respondToQuery(
+      queryFactory.respondToQuery(
         hostname = "lysine.dev",
         type = TYPE_A,
         addresses = greenIpv4s,
@@ -634,7 +634,7 @@ class StateMachineDnsCallTest {
           includeServiceMetadata = false,
         )
       call0.enqueue()
-      transport
+      queryFactory
         .takeQuery("lysine.dev", TYPE_A)
         .respondFailure("boom!")
       call0.takeOnFailure("boom!")
@@ -650,7 +650,7 @@ class StateMachineDnsCallTest {
         )
       call1.enqueue()
       call1.takeOnFailure("boom!")
-      transport.respondToQuery(
+      queryFactory.respondToQuery(
         hostname = "lysine.dev",
         type = TYPE_A,
         addresses = blueIpv4s,
@@ -686,9 +686,9 @@ class StateMachineDnsCallTest {
         )
       call.enqueue()
 
-      val query0 = transport.takeQuery("lysine.dev", TYPE_HTTPS)
-      val query1 = transport.takeQuery("lysine.dev", TYPE_AAAA)
-      val query2 = transport.takeQuery("lysine.dev", TYPE_A)
+      val query0 = queryFactory.takeQuery("lysine.dev", TYPE_HTTPS)
+      val query1 = queryFactory.takeQuery("lysine.dev", TYPE_AAAA)
+      val query2 = queryFactory.takeQuery("lysine.dev", TYPE_A)
 
       onNextEvent = {
         query2.respondIpAddresses(
@@ -729,12 +729,12 @@ class StateMachineDnsCallTest {
       call.cancel()
       call.enqueue()
 
-      transport.takeCancel("lysine.dev", TYPE_HTTPS)
-      val query0 = transport.takeQuery("lysine.dev", TYPE_HTTPS)
-      transport.takeCancel("lysine.dev", TYPE_AAAA)
-      val query1 = transport.takeQuery("lysine.dev", TYPE_AAAA)
-      transport.takeCancel("lysine.dev", TYPE_A)
-      val query2 = transport.takeQuery("lysine.dev", TYPE_A)
+      queryFactory.takeCancel("lysine.dev", TYPE_HTTPS)
+      val query0 = queryFactory.takeQuery("lysine.dev", TYPE_HTTPS)
+      queryFactory.takeCancel("lysine.dev", TYPE_AAAA)
+      val query1 = queryFactory.takeQuery("lysine.dev", TYPE_AAAA)
+      queryFactory.takeCancel("lysine.dev", TYPE_A)
+      val query2 = queryFactory.takeQuery("lysine.dev", TYPE_A)
 
       query0.respondFailure("canceled")
       query1.respondFailure("canceled")
@@ -754,9 +754,9 @@ class StateMachineDnsCallTest {
       call.cancel()
       call.enqueue()
 
-      val query0 = transport.takeQuery("lysine.dev", TYPE_HTTPS)
-      val query1 = transport.takeQuery("lysine.dev", TYPE_AAAA)
-      val query2 = transport.takeQuery("lysine.dev", TYPE_A)
+      val query0 = queryFactory.takeQuery("lysine.dev", TYPE_HTTPS)
+      val query1 = queryFactory.takeQuery("lysine.dev", TYPE_AAAA)
+      val query2 = queryFactory.takeQuery("lysine.dev", TYPE_A)
 
       query0.respondFailure("canceled")
       query1.respondFailure("canceled")
@@ -776,9 +776,9 @@ class StateMachineDnsCallTest {
         )
       call.enqueue()
 
-      val query0 = transport.takeQuery("lysine.dev", TYPE_HTTPS)
-      val query1 = transport.takeQuery("lysine.dev", TYPE_AAAA)
-      val query2 = transport.takeQuery("lysine.dev", TYPE_A)
+      val query0 = queryFactory.takeQuery("lysine.dev", TYPE_HTTPS)
+      val query1 = queryFactory.takeQuery("lysine.dev", TYPE_AAAA)
+      val query2 = queryFactory.takeQuery("lysine.dev", TYPE_A)
 
       query1.respondIpAddresses(
         addresses = blueIpv6s,
@@ -789,8 +789,8 @@ class StateMachineDnsCallTest {
 
       call.cancel()
 
-      transport.takeCancel("lysine.dev", TYPE_HTTPS)
-      transport.takeCancel("lysine.dev", TYPE_A)
+      queryFactory.takeCancel("lysine.dev", TYPE_HTTPS)
+      queryFactory.takeCancel("lysine.dev", TYPE_A)
 
       query2.respondIpAddresses(
         addresses = blueIpv4s,
@@ -819,9 +819,9 @@ class StateMachineDnsCallTest {
         )
       call.enqueue()
 
-      val query0 = transport.takeQuery("lysine.dev", TYPE_HTTPS)
-      val query1 = transport.takeQuery("lysine.dev", TYPE_AAAA)
-      val query2 = transport.takeQuery("lysine.dev", TYPE_A)
+      val query0 = queryFactory.takeQuery("lysine.dev", TYPE_HTTPS)
+      val query1 = queryFactory.takeQuery("lysine.dev", TYPE_AAAA)
+      val query2 = queryFactory.takeQuery("lysine.dev", TYPE_A)
 
       query1.respondIpAddresses(
         addresses = blueIpv6s,

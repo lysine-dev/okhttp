@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@file:Suppress("ktlint:standard:filename")
+
 package okhttp3.dnsoverhttps.internal
 
 import java.io.IOException
@@ -25,60 +27,24 @@ import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.Response
-import okhttp3.dnsoverhttps.DnsOverHttps
 import okhttp3.dnsoverhttps.DnsOverHttps.Companion.DNS_MESSAGE
 import okhttp3.dnsoverhttps.DnsOverHttps.Companion.MAX_RESPONSE_SIZE
 import okhttp3.internal.OkHttpInternalApi
 import okhttp3.internal.dns.DnsMessage
 import okhttp3.internal.dns.DnsMessageReader
 import okhttp3.internal.dns.DnsMessageWriter
+import okhttp3.internal.dns.DnsQuery
 import okhttp3.internal.dns.Question
-import okhttp3.internal.dns.StateMachineDnsCall
 import okhttp3.internal.platform.Platform
 import okio.Buffer
 import okio.BufferedSink
 
 @OkHttpInternalApi
-internal class DnsOverHttpsTransport(
-  private val client: OkHttpClient,
-  private val dnsUrl: HttpUrl,
-  private val post: Boolean,
-) : StateMachineDnsCall.Transport<Call> {
-  override fun newQuery(question: Question): Call {
-    val dnsMessage = DnsMessage.query(question)
-    return client.newCall(
-      request =
-        Request
-          .Builder()
-          .header("Accept", DnsOverHttps.DNS_MESSAGE.toString())
-          .apply {
-            if (post) {
-              url(dnsUrl)
-              cacheUrlOverride(
-                dnsUrl
-                  .newBuilder()
-                  .addQueryParameter("hostname", question.name)
-                  .addQueryParameter("type", question.type.toString())
-                  .build(),
-              )
-              post(QueryRequestBody(dnsMessage))
-            } else {
-              val requestUrl =
-                dnsUrl
-                  .newBuilder()
-                  .addQueryParameter("dns", dnsMessage.asQueryParameter())
-                  .build()
-              url(requestUrl)
-            }
-          }.build(),
-    )
-  }
-
-  override fun enqueue(
-    query: Call,
-    callback: StateMachineDnsCall.Transport.Callback<Call>,
-  ) {
-    query.enqueue(
+internal class DnsOverHttpsQuery(
+  val call: Call,
+) : DnsQuery {
+  override fun enqueue(callback: DnsQuery.Callback) {
+    call.enqueue(
       object : Callback {
         override fun onFailure(
           call: Call,
@@ -104,8 +70,47 @@ internal class DnsOverHttpsTransport(
     )
   }
 
-  override fun cancel(query: Call) {
-    query.cancel()
+  override fun cancel() {
+    call.cancel()
+  }
+
+  class Factory(
+    private val client: OkHttpClient,
+    private val dnsUrl: HttpUrl,
+    private val post: Boolean,
+  ) : DnsQuery.Factory {
+    override fun newQuery(question: Question): DnsQuery {
+      val dnsMessage = DnsMessage.query(question)
+      return DnsOverHttpsQuery(
+        call =
+          client.newCall(
+            request =
+              Request
+                .Builder()
+                .header("Accept", DNS_MESSAGE.toString())
+                .apply {
+                  if (post) {
+                    url(dnsUrl)
+                    cacheUrlOverride(
+                      dnsUrl
+                        .newBuilder()
+                        .addQueryParameter("hostname", question.name)
+                        .addQueryParameter("type", question.type.toString())
+                        .build(),
+                    )
+                    post(QueryRequestBody(dnsMessage))
+                  } else {
+                    val requestUrl =
+                      dnsUrl
+                        .newBuilder()
+                        .addQueryParameter("dns", dnsMessage.asQueryParameter())
+                        .build()
+                    url(requestUrl)
+                  }
+                }.build(),
+          ),
+      )
+    }
   }
 }
 
