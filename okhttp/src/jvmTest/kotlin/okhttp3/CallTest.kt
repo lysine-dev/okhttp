@@ -3960,7 +3960,85 @@ open class CallTest {
     val request = Request("https://android.com/foo".toHttpUrl())
     assertFailsWith<ProtocolException> {
       client.newCall(request).execute()
+    }.also { expected ->
+      assertThat(expected).hasMessage("Too many tunnel connections attempted: 21")
     }
+  }
+
+  /**
+   * A proxy that keeps the connection open and always returns 407 must not trap OkHttp in an
+   * infinite loop. https://github.com/square/okhttp/issues/9477
+   */
+  @Test
+  fun tooManyProxyAuthFailuresWithoutConnectionClose() {
+    server.useHttps(handshakeCertificates.sslSocketFactory())
+    server.protocols = listOf(Protocol.HTTP_1_1)
+    for (i in 0..20) {
+      server.enqueue(
+        MockResponse
+          .Builder()
+          .code(407)
+          .headers(headersOf("Proxy-Authenticate", "Basic realm=\"localhost\""))
+          .inTunnel()
+          .build(),
+      )
+    }
+    val authenticator = RecordingOkAuthenticator("password", "Basic")
+    client =
+      client
+        .newBuilder()
+        .sslSocketFactory(
+          handshakeCertificates.sslSocketFactory(),
+          handshakeCertificates.trustManager,
+        ).proxy(server.proxyAddress)
+        .proxyAuthenticator(authenticator)
+        .hostnameVerifier(RecordingHostnameVerifier())
+        .build()
+    val request = Request("https://android.com/foo".toHttpUrl())
+    assertFailsWith<ProtocolException> {
+      client.newCall(request).execute()
+    }.also { expected ->
+      assertThat(expected).hasMessage("Too many tunnel connections attempted: 21")
+    }
+    // Preemptive challenge + 21 reactive 407s, but only 21 CONNECT attempts are allowed.
+    assertThat(authenticator.responses.size).isEqualTo(22)
+  }
+
+  /** Confirm we still succeed after several keep-alive proxy auth challenges (under the limit). */
+  @Test
+  fun proxyAuthenticateOnConnectSucceedsAfterManyChallenges() {
+    server.useHttps(handshakeCertificates.sslSocketFactory())
+    server.protocols = listOf(Protocol.HTTP_1_1)
+    for (i in 0..19) {
+      server.enqueue(
+        MockResponse
+          .Builder()
+          .code(407)
+          .headers(headersOf("Proxy-Authenticate", "Basic realm=\"localhost\""))
+          .inTunnel()
+          .build(),
+      )
+    }
+    server.enqueue(
+      MockResponse
+        .Builder()
+        .inTunnel()
+        .build(),
+    )
+    server.enqueue(MockResponse(body = "response body"))
+    client =
+      client
+        .newBuilder()
+        .sslSocketFactory(
+          handshakeCertificates.sslSocketFactory(),
+          handshakeCertificates.trustManager,
+        ).proxy(server.proxyAddress)
+        .proxyAuthenticator(RecordingOkAuthenticator("password", "Basic"))
+        .hostnameVerifier(RecordingHostnameVerifier())
+        .build()
+    val request = Request("https://android.com/foo".toHttpUrl())
+    val response = client.newCall(request).execute()
+    assertThat(response.body.string()).isEqualTo("response body")
   }
 
   /**

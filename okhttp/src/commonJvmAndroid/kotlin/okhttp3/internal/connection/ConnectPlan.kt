@@ -422,6 +422,10 @@ class ConnectPlan internal constructor(
   /**
    * To make an HTTPS connection over an HTTP proxy, send an unencrypted CONNECT request to create
    * the proxy connection. This may need to be retried if the proxy requires authorization.
+   *
+   * Retries on the same connection (when the proxy does not send `Connection: close`) share the
+   * same [MAX_TUNNEL_ATTEMPTS] budget as reconnects after `Connection: close`, so a misbehaving
+   * proxy cannot trap this loop indefinitely. See https://github.com/square/okhttp/issues/9477.
    */
   @Throws(IOException::class)
   private fun createTunnel(): Request? {
@@ -429,6 +433,8 @@ class ConnectPlan internal constructor(
     // Make an SSL Tunnel on the first message pair of each SSL + proxy connection.
     val url = route.address.url
     val requestLine = "CONNECT ${url.toHostHeader(includeDefaultPort = true)} HTTP/1.1"
+    // Count prior reconnects so keep-alive and Connection: close retries share one budget.
+    var tunnelAttempts = attempt
     while (true) {
       val tunnelCodec =
         Http1ExchangeCodec(
@@ -459,6 +465,13 @@ class ConnectPlan internal constructor(
 
           if ("close".equals(response.header("Connection"), ignoreCase = true)) {
             return nextRequest
+          }
+
+          tunnelAttempts++
+          if (tunnelAttempts >= MAX_TUNNEL_ATTEMPTS) {
+            throw ProtocolException(
+              "Too many tunnel connections attempted: $MAX_TUNNEL_ATTEMPTS",
+            )
           }
         }
 
