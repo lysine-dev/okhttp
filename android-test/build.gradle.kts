@@ -8,7 +8,9 @@ plugins {
 }
 
 android {
-  compileSdk = 36
+  compileSdk {
+    version = release(37)
+  }
 
   namespace = "okhttp.android.test"
 
@@ -39,8 +41,24 @@ android {
   }
 
   testOptions {
-    targetSdk = 34
+    targetSdk = 37
     unitTests.isIncludeAndroidResources = true
+
+    // Robolectric 4.17 reflects into JDK internals, which JDK 17+ blocks by default.
+    // https://robolectric.org/getting-started/
+    unitTests.all {
+      it.jvmArgs(
+        "--add-opens=java.base/java.lang=ALL-UNNAMED",
+        "--add-opens=java.base/java.util=ALL-UNNAMED",
+        "--add-opens=java.base/java.io=ALL-UNNAMED",
+        "--add-opens=java.base/java.net=ALL-UNNAMED",
+        "--add-opens=java.base/java.security=ALL-UNNAMED",
+        "--add-opens=java.base/java.text=ALL-UNNAMED",
+        "--add-opens=java.base/jdk.internal.access=ALL-UNNAMED",
+        "--add-opens=java.desktop/java.awt.font=ALL-UNNAMED",
+        "--add-opens=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
+      )
+    }
   }
 
 

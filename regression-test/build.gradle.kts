@@ -4,7 +4,9 @@ plugins {
 }
 
 android {
-  compileSdk = 36
+  compileSdk {
+    version = release(37)
+  }
 
   namespace = "okhttp.android.regression"
 

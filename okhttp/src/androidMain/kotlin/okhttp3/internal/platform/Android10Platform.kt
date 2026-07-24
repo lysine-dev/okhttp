@@ -30,6 +30,7 @@ import okhttp3.Protocol
 import okhttp3.internal.SuppressSignatureCheck
 import okhttp3.internal.platform.AndroidPlatform.Companion.Tag
 import okhttp3.internal.platform.android.Android10SocketAdapter
+import okhttp3.internal.platform.android.Android17SocketAdapter
 import okhttp3.internal.platform.android.AndroidCertificateChainCleaner
 import okhttp3.internal.platform.android.AndroidSocketAdapter
 import okhttp3.internal.platform.android.BouncyCastleSocketAdapter
@@ -48,6 +49,7 @@ class Android10Platform :
 
   private val socketAdapters =
     listOfNotNull(
+      Android17SocketAdapter.buildIfSupported(),
       Android10SocketAdapter.buildIfSupported(),
       DeferredSocketAdapter(AndroidSocketAdapter.playProviderFactory),
       // Delay and Defer any initialisation of Conscrypt and BouncyCastle
