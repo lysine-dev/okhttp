@@ -74,10 +74,28 @@ class DnsCache(
   private val failureTimeToLive: Duration = 10.seconds,
   private val revalidateBeforeExpire: Duration = 5.seconds,
   maxEntryCount: Int = 1000,
-) : MemoryCache<Question, DnsCache.Entry>(
-    timeSource = timeSource,
-    maxSize = maxEntryCount,
-  ) {
+) {
+  private val cache =
+    object : MemoryCache<Question, Entry>(
+      timeSource = timeSource,
+      maxSize = maxEntryCount,
+    ) {
+      override fun lastRequestedAt(
+        now: Time,
+        value: Entry,
+      ): Time? {
+        val state = value.state.get()
+
+        // If it's already expired, evict immediately.
+        if (state.inFlightCall == null) {
+          val expireAt = state.result?.expireAt ?: return null
+          if (expireAt <= now) return null
+        }
+
+        return state.lastRequestedAt
+      }
+    }
+
   init {
     require(failureTimeToLive >= 0.seconds)
     require(minimumTimeToLive >= 0.seconds)
@@ -87,30 +105,15 @@ class DnsCache(
 
   fun wrap(delegate: DnsQuery.Factory) =
     DnsQuery.Factory { question ->
-      val entry = computeIfAbsent(question) { Entry() }
+      val entry = cache.computeIfAbsent(question) { Entry() }
       CacheQuery(question, delegate, entry)
     }
-
-  override fun lastRequestedAt(
-    now: Time,
-    value: Entry,
-  ): Time? {
-    val state = value.state.get()
-
-    // If it's already expired, evict immediately.
-    if (state.inFlightCall == null) {
-      val expireAt = state.result?.expireAt ?: return null
-      if (expireAt <= now) return null
-    }
-
-    return state.lastRequestedAt
-  }
 
   /**
    * An application-layer DNS query that is served by cached data in [entry] or by a new call to the
    * underlying transport via [delegate]. If a new call is made, its result is stored in [entry].
    */
-  internal inner class CacheQuery(
+  private inner class CacheQuery(
     val question: Question,
     val delegate: DnsQuery.Factory,
     val entry: Entry,
@@ -122,7 +125,7 @@ class DnsCache(
       check(this.callback == null) { "already enqueued" }
       this.callback = callback
 
-      val now = timeSource.markNow()
+      val now = cache.timeSource.markNow()
       while (true) {
         val previous = entry.state.get()
         val result = previous.result
@@ -271,19 +274,19 @@ class DnsCache(
     }
   }
 
-  class Entry {
-    internal val state = AtomicReference(State())
+  private class Entry {
+    val state = AtomicReference(State())
   }
 
   /** A snapshot of the state of a single entry. */
-  internal data class State(
+  private data class State(
     val lastRequestedAt: Time? = null,
     val inFlightCall: InFlightCall? = null,
     val result: Result? = null,
   )
 
   /** A call to the underlying transport. */
-  internal data class InFlightCall(
+  private data class InFlightCall(
     val query: DnsQuery,
     val sentAt: Time,
     /** The possibly-empty set of queries to notify when this call is complete. */
@@ -291,7 +294,7 @@ class DnsCache(
   )
 
   /** A cached result. */
-  internal sealed interface Result {
+  private sealed interface Result {
     val revalidateAt: Time
     val expireAt: Time
 
