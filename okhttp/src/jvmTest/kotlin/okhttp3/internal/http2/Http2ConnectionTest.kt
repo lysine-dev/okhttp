@@ -194,7 +194,8 @@ class Http2ConnectionTest {
    * Confirm that we account for discarded data frames. It's possible that data frames are in-flight
    * just prior to us canceling a stream.
    */
-  @Test fun discardedDataFramesAreCounted() {
+  @Test
+  fun discardedDataFramesAreCounted() {
     // Write the mocking script.
     peer.sendFrame().settings(Settings())
     peer.acceptFrame() // ACK

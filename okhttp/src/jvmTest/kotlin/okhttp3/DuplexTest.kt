@@ -71,6 +71,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Disabled
+import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
@@ -492,7 +493,7 @@ class DuplexTest {
    * Auth requires follow-ups. Unlike redirects, the auth follow-up also has a request body. This
    * test makes a single call with two duplex requests!
    */
-  @Test
+  @RepeatedTest(1000)
   fun duplexWithAuthChallenge() {
     enableProtocol(Protocol.HTTP_2)
     val credential = basic("jesse", "secret")

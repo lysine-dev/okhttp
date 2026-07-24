@@ -52,7 +52,7 @@ open class EventRecorder(
   private val forbiddenLocks = mutableListOf<Any>()
 
   /** The timestamp of the last taken event, used to measure elapsed time between events. */
-  private var lastTimestampNs: Long? = null
+  var lastTimestampNs: Long? = null
 
   /** Confirm that the thread does not hold a lock on `lock` during the callback. */
   fun forbidLock(lock: Any) {

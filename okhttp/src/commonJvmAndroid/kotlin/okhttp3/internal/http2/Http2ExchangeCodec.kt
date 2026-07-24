@@ -90,6 +90,7 @@ class Http2ExchangeCodec(
     }
     stream!!.readTimeout().timeout(chain.readTimeoutMillis.toLong(), TimeUnit.MILLISECONDS)
     stream!!.writeTimeout().timeout(chain.writeTimeoutMillis.toLong(), TimeUnit.MILLISECONDS)
+    http2Connection.flush()
   }
 
   override fun flushRequest() {

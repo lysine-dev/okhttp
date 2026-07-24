@@ -94,6 +94,7 @@ import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Disabled
+import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
@@ -541,7 +542,7 @@ class HttpOverHttp2Test(
     inputStream.close()
   }
 
-  @Test
+  @RepeatedTest(100)
   fun readResponseHeaderTimeout() {
     server.enqueue(MockResponse.Builder().onResponseStart(Stall).build())
     server.enqueue(MockResponse(body = "A"))
@@ -601,7 +602,7 @@ class HttpOverHttp2Test(
    * second.  If our implementation is acting correctly, it will throw, as a byte doesn't arrive in
    * time.
    */
-  @Test
+  @RepeatedTest(100)
   fun readTimeoutOnSlowConnection() {
     val body = repeat('y', 2048)
     server.enqueue(
@@ -639,7 +640,7 @@ class HttpOverHttp2Test(
     assertThat(server.takeRequest().exchangeIndex).isEqualTo(1)
   }
 
-  @Test
+  @RepeatedTest(100)
   fun connectionTimeout() {
     server.enqueue(
       MockResponse
@@ -1216,7 +1217,7 @@ class HttpOverHttp2Test(
     responseDequeuedLatch!!.await()
     call.cancel()
     // Avoid flaky race conditions
-    Thread.sleep(100)
+    Thread.sleep(500)
     requestCanceledLatch!!.countDown()
     latch.await()
   }
@@ -1528,7 +1529,7 @@ class HttpOverHttp2Test(
       .isEqualTo(0)
   }
 
-  @Test
+  @RepeatedTest(100)
   fun streamTimeoutDegradesConnectionAfterNoPong() {
     assumeNotWindows()
     client =
@@ -1575,7 +1576,7 @@ class HttpOverHttp2Test(
     }
   }
 
-  @Test
+  @RepeatedTest(100)
   fun oneStreamTimeoutDoesNotBreakConnection() {
     client =
       client

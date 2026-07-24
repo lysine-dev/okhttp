@@ -43,7 +43,9 @@ import java.time.Duration
 import java.util.Arrays
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import kotlin.math.absoluteValue
 import kotlin.test.assertFailsWith
+import kotlin.test.fail
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import mockwebserver3.SocketEffect.CloseSocket
@@ -98,8 +100,10 @@ import org.hamcrest.Matcher
 import org.hamcrest.MatcherAssert
 import org.junit.Assume.assumeThat
 import org.junit.Assume.assumeTrue
+import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
@@ -139,6 +143,8 @@ class EventListenerTest(
     platform.assumeNotOpenJSSE()
     eventRecorder.forbidLock(get(client.connectionPool))
     eventRecorder.forbidLock(client.dispatcher)
+
+    tests++
   }
 
   @AfterEach
@@ -235,7 +241,7 @@ class EventListenerTest(
     )
   }
 
-  @Test
+  @RepeatedTest(100)
   fun successfulCallEventSequenceForEnqueue() {
     server.enqueue(
       MockResponse
@@ -1746,7 +1752,7 @@ class EventListenerTest(
     timeToFirstByte()
   }
 
-  @Test
+  @RepeatedTest(100)
   fun timeToFirstByteHttp2OverHttps() {
     platform.assumeHttp2Support()
     enableTlsWithTunnel()
@@ -1843,19 +1849,19 @@ class EventListenerTest(
     }
 
     // Confirm the events occur when expected.
-    eventRecorder.takeEvent(CallStart::class.java, 0L)
-    eventRecorder.takeEvent(ConnectionAcquired::class.java, applicationInterceptorDelay)
-    eventRecorder.takeEvent(RequestHeadersStart::class.java, networkInterceptorDelay)
-    eventRecorder.takeEvent(RequestHeadersEnd::class.java, 0L)
-    eventRecorder.takeEvent(RequestBodyStart::class.java, 0L)
-    eventRecorder.takeEvent(RequestBodyEnd::class.java, requestBodyDelay)
-    eventRecorder.takeEvent(ResponseHeadersStart::class.java, responseHeadersStartDelay)
-    eventRecorder.takeEvent(ResponseHeadersEnd::class.java, 0L)
-    eventRecorder.takeEvent(FollowUpDecision::class.java, 0L)
-    eventRecorder.takeEvent(ResponseBodyStart::class.java, responseBodyStartDelay)
-    eventRecorder.takeEvent(ResponseBodyEnd::class.java, responseBodyEndDelay)
-    eventRecorder.takeEvent(ConnectionReleased::class.java, 0L)
-    eventRecorder.takeEvent(CallEnd::class.java, 0L)
+    takeEvent(CallStart::class.java, 0L)
+    takeEvent(ConnectionAcquired::class.java, applicationInterceptorDelay)
+    takeEvent(RequestHeadersStart::class.java, networkInterceptorDelay)
+    takeEvent(RequestHeadersEnd::class.java, 0L)
+    takeEvent(RequestBodyStart::class.java, 0L)
+    takeEvent(RequestBodyEnd::class.java, requestBodyDelay)
+    takeEvent(ResponseHeadersStart::class.java, responseHeadersStartDelay)
+    takeEvent(ResponseHeadersEnd::class.java, 0L)
+    takeEvent(FollowUpDecision::class.java, 0L)
+    takeEvent(ResponseBodyStart::class.java, responseBodyStartDelay)
+    takeEvent(ResponseBodyEnd::class.java, responseBodyEndDelay)
+    takeEvent(ConnectionReleased::class.java, 0L)
+    takeEvent(CallEnd::class.java, 0L)
   }
 
   private fun enableTlsWithTunnel() {
@@ -2102,9 +2108,9 @@ class EventListenerTest(
       .execute()
       .use { response -> assertThat(response.body.string()).isEqualTo("") }
     eventRecorder.removeUpToEvent<ResponseHeadersStart>()
-    eventRecorder.takeEvent(RequestBodyStart::class.java, 0L)
-    eventRecorder.takeEvent(RequestBodyEnd::class.java, 0L)
-    eventRecorder.takeEvent(ResponseHeadersEnd::class.java, responseHeadersStartDelay)
+    takeEvent(RequestBodyStart::class.java, 0L)
+    takeEvent(RequestBodyEnd::class.java, 0L)
+    takeEvent(ResponseHeadersEnd::class.java, responseHeadersStartDelay)
   }
 
   @Test
@@ -2531,7 +2537,44 @@ class EventListenerTest(
     Relay,
   }
 
+  fun takeEvent(
+    eventClass: Class<out CallEvent>? = null,
+    elapsedMs: Long = -1L,
+  ): CallEvent {
+    val previousTimestamp = eventRecorder.lastTimestampNs
+
+    val result = eventRecorder.takeEvent(eventClass, elapsedMs)
+
+    val took = result.timestampNs - (previousTimestamp ?: result.timestampNs)
+    val deltaMs = TimeUnit.NANOSECONDS
+      .toMillis(took) - elapsedMs
+    deltas.compute(deltaMs) { _, count -> (count ?: 0) + 1 }
+
+    return result
+  }
+
   companion object {
     val anyResponse = CoreMatchers.any(Response::class.java)
+
+    @AfterAll
+    @JvmStatic
+    fun checkDistribution() {
+      var closeToFailing = 0
+
+      deltas.entries.sortedBy { it.key.absoluteValue }.forEach { (millis, count) ->
+        println("$millis $count")
+
+        if (millis > 75) {
+          closeToFailing += count
+        }
+      }
+
+      if (closeToFailing > 0) {
+        fail("Found $closeToFailing events above 75ms")
+      }
+    }
+
+    var tests = 0
+    var deltas = HashMap<Long, Int>()
   }
 }

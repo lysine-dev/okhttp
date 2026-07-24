@@ -71,6 +71,7 @@ import okio.ByteString.Companion.encodeUtf8
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Disabled
+import org.junit.jupiter.api.RepeatedTest
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -1053,6 +1054,7 @@ class WebSocketHttpTest {
     val webSocket = client.newWebSocket(request, clientListener)
     webSocket.send("hello")
     webSocket.close(1000, null)
+    clientListener.assertFailure()
   }
 
   /** https://github.com/lysine-dev/okhttp/issues/7768  */

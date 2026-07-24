@@ -15,6 +15,8 @@
  */
 package okhttp3
 
+import java.util.concurrent.atomic.AtomicInteger
+
 /**
  * A special [EventListener] for testing the mechanics of event listeners.
  *
@@ -37,10 +39,10 @@ class EventListenerRelay(
   val eventListener: EventListener
     get() = eventListenerAdapter
 
-  var eventCount = 0
+  var eventCount = AtomicInteger()
 
   private fun onEvent(callEvent: CallEvent) {
-    if (eventCount++ == 0) {
+    if (eventCount.getAndIncrement() == 0) {
       eventRecorder.logEvent(callEvent)
       val next = EventListenerRelay(call, eventRecorder)
       call.addEventListener(next.eventListener)
