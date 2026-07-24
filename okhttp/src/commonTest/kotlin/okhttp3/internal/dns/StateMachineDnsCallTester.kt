@@ -58,6 +58,7 @@ class StateMachineDnsCallTester internal constructor() {
       maximumTimeToLive = 60.seconds,
       failureTimeToLive = 5.seconds,
       revalidateBeforeExpire = 2.seconds,
+      maxEntryCount = 4,
     )
 
   fun newCall(

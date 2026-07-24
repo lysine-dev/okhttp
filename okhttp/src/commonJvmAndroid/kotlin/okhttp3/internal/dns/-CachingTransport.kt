@@ -18,7 +18,6 @@
 package okhttp3.internal.dns
 
 import java.io.IOException
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.ComparableTimeMark as Time
 import kotlin.time.Duration
@@ -29,11 +28,12 @@ import okhttp3.internal.OkHttpInternalApi
 import okhttp3.internal.concurrent.TaskRunner
 import okhttp3.internal.dns.StateMachineDnsCall.Transport
 
-// TODO: evict old entries from cache using State.lastRequestedAt
-
 /**
  * A DNS transport that caches responses according to their [ResourceRecord.timeToLive], bounded by
  * a user-supplied minimum and maximum cache duration.
+ *
+ * Cache Hits
+ * ----------
  *
  * The age of the result impacts how queries are satisfied:
  *
@@ -51,6 +51,18 @@ import okhttp3.internal.dns.StateMachineDnsCall.Transport
  *
  * If this receives multiple equivalent queries, it combines them into a single query on the
  * underlying transport.
+ *
+ * Memory Usage
+ * ------------
+ *
+ * By default, this retains the 1,000 most recently accessed entries. Most hostnames will require 3
+ * entries (`TYPE_A`, `TYPE_AAAA`, and `TYPE_HTTPS`).
+ *
+ * Between evictions the memory cache will grow to double that max, 2,000 entries.
+ *
+ * Each entry consumes about 400 bytes of memory.
+ *
+ * In total, the default cache will use about 800 KiB of memory.
  */
 @OkHttpInternalApi
 @OptIn(ExperimentalTime::class) // We know Clock and Instant will be stable in Kotlin 2.3.
@@ -62,8 +74,28 @@ class CachingTransport<Q>(
   private val maximumTimeToLive: Duration = 300.seconds,
   private val failureTimeToLive: Duration = 10.seconds,
   private val revalidateBeforeExpire: Duration = 5.seconds,
+  maxEntryCount: Int = 1000,
 ) : Transport<CachingTransport.Query<Q>> {
-  private val entries = ConcurrentHashMap<Question, Entry>()
+  private val cache =
+    object : MemoryCache<Question, Entry>(
+      timeSource = timeSource,
+      maxSize = maxEntryCount,
+    ) {
+      override fun lastRequestedAt(
+        now: Time,
+        value: CachingTransport<Q>.Entry,
+      ): Time? {
+        val state = value.state.get()
+
+        // If it's already expired, evict immediately.
+        if (state.inFlightCall == null) {
+          val expireAt = state.result?.expireAt ?: return null
+          if (expireAt <= now) return null
+        }
+
+        return state.lastRequestedAt
+      }
+    }
 
   init {
     require(failureTimeToLive >= 0.seconds)
@@ -73,8 +105,7 @@ class CachingTransport<Q>(
   }
 
   override fun newQuery(question: Question): Query<Q> {
-    val inserted = Entry(question)
-    val entry = entries.putIfAbsent(question, inserted) ?: inserted
+    val entry = cache.computeIfAbsent(question) { Entry(question) }
     return Query(entry)
   }
 
