@@ -18,7 +18,6 @@ import okhttp3.dnsResponse
 import okhttp3.internal.OkHttpInternalApi
 import okhttp3.internal.concurrent.TaskFaker
 import okhttp3.internal.dns.DnsMessage.Companion.query
-import okhttp3.internal.dns.StateMachineDnsCall.Transport
 import okhttp3.internal.dns.StateMachineDnsCallTester.CallEvent.OnFailure
 import okhttp3.internal.dns.StateMachineDnsCallTester.CallEvent.OnRecords
 import okhttp3.internal.dns.StateMachineDnsCallTester.TransportEvent.QueryCanceled
@@ -36,7 +35,7 @@ import okio.ByteString
 fun testStateMachineDnsCall(block: StateMachineDnsCallTester.() -> Unit) {
   val tester = StateMachineDnsCallTester()
   tester.block()
-  assertThat(tester.transport.events.poll(), "unexpected transport event").isNull()
+  assertThat(tester.queryFactory.events.poll(), "unexpected transport event").isNull()
 }
 
 class StateMachineDnsCallTester internal constructor() {
@@ -45,14 +44,11 @@ class StateMachineDnsCallTester internal constructor() {
   /** Defend against re-entrant calls. */
   private var acceptCallbacks: Boolean = true
 
-  val transport = Transport()
-
   private val taskFaker = TaskFaker()
 
-  private val cachingTransport =
-    CachingTransport<Query>(
+  private val dnsCache =
+    DnsCache(
       taskRunner = taskFaker.taskRunner,
-      delegate = transport,
       timeSource = taskFaker.timeSource,
       minimumTimeToLive = 10.seconds,
       maximumTimeToLive = 60.seconds,
@@ -60,6 +56,8 @@ class StateMachineDnsCallTester internal constructor() {
       revalidateBeforeExpire = 2.seconds,
       maxEntryCount = 4,
     )
+
+  val queryFactory = QueryFactory()
 
   fun newCall(
     request: Dns.Request,
@@ -77,11 +75,20 @@ class StateMachineDnsCallTester internal constructor() {
     taskFaker.advanceUntil(taskFaker.nanoTime + duration.inWholeNanoseconds)
   }
 
-  /** Scriptable transport for testing. */
-  inner class Transport : StateMachineDnsCall.Transport<Query> {
+  /** Scriptable query factory for testing. */
+  inner class QueryFactory : DnsQuery.Factory {
     val events = LinkedBlockingDeque<TransportEvent>()
 
-    override fun newQuery(question: Question) = Query(question)
+    override fun newQuery(question: Question): DnsQuery =
+      object : DnsQuery {
+        override fun enqueue(callback: DnsQuery.Callback) {
+          postEvent(QueryEnqueued(question, callback))
+        }
+
+        override fun cancel() {
+          postEvent(QueryCanceled(question))
+        }
+      }
 
     private fun postEvent(e: TransportEvent) {
       events.put(e)
@@ -100,7 +107,7 @@ class StateMachineDnsCallTester internal constructor() {
       hostname: String,
       type: Int,
     ): QueryEnqueued {
-      val event = transport.takeEvent() as QueryEnqueued
+      val event = queryFactory.takeEvent() as QueryEnqueued
       assertThat(event.hostname).isEqualTo(hostname)
       assertThat(event.type).isEqualTo(type)
       return event
@@ -123,21 +130,10 @@ class StateMachineDnsCallTester internal constructor() {
       hostname: String,
       type: Int,
     ): QueryCanceled {
-      val event = transport.takeEvent() as QueryCanceled
+      val event = queryFactory.takeEvent() as QueryCanceled
       assertThat(event.hostname).isEqualTo(hostname)
       assertThat(event.type).isEqualTo(type)
       return event
-    }
-
-    override fun enqueue(
-      query: Query,
-      callback: Transport.Callback<Query>,
-    ) {
-      postEvent(QueryEnqueued(query, callback))
-    }
-
-    override fun cancel(query: Query) {
-      postEvent(QueryCanceled(query))
     }
   }
 
@@ -153,10 +149,10 @@ class StateMachineDnsCallTester internal constructor() {
     val call =
       StateMachineDnsCall(
         request = request,
-        transport =
+        queryFactory =
           when {
-            caching -> cachingTransport
-            else -> transport
+            caching -> dnsCache.wrap(queryFactory)
+            else -> queryFactory
           },
         canceledException = null,
         includeIPv6 = includeIPv6,
@@ -272,19 +268,15 @@ class StateMachineDnsCallTester internal constructor() {
     }
   }
 
-  class Query(
-    val question: Question,
-  )
-
   sealed interface TransportEvent {
     class QueryEnqueued(
-      val query: Query,
-      val callback: Transport.Callback<Query>,
+      val question: Question,
+      val callback: DnsQuery.Callback,
     ) : TransportEvent {
       val hostname: String
-        get() = query.question.name
+        get() = question.name
       val type: Int
-        get() = query.question.type
+        get() = question.type
 
       /** Respond to a [TYPE_HTTPS] query with service metadata. */
       fun respondServiceMetadata(
@@ -294,10 +286,10 @@ class StateMachineDnsCallTester internal constructor() {
       ) {
         callback.onResponse(
           dnsResponse(
-            query(query.question),
+            query(question),
             listOf(
               ResourceRecord.Https(
-                name = query.question.name,
+                name = question.name,
                 timeToLive = timeToLive.inWholeSeconds.toInt(),
                 alpnIds = alpnIds,
                 echConfigList = echConfigList,
@@ -319,10 +311,10 @@ class StateMachineDnsCallTester internal constructor() {
       ) {
         callback.onResponse(
           dnsResponse(
-            query(query.question),
+            query(question),
             addresses.map { address ->
               ResourceRecord.IpAddress(
-                name = query.question.name,
+                name = question.name,
                 timeToLive = timeToLive.inWholeSeconds.toInt(),
                 address = address,
               )
@@ -333,12 +325,12 @@ class StateMachineDnsCallTester internal constructor() {
     }
 
     class QueryCanceled(
-      val query: Query,
+      val question: Question,
     ) : TransportEvent {
       val hostname: String
-        get() = query.question.name
+        get() = question.name
       val type: Int
-        get() = query.question.type
+        get() = question.type
     }
   }
 

@@ -26,18 +26,17 @@ import okhttp3.Protocol
 import okhttp3.internal.OkHttpInternalApi
 
 /**
- * An application-layer DNS call that performs multiple transport-layer DNS queries in parallel.
- * This delegates to an arbitrary transport  like UDP or DNS over HTTPS.
+ * An application-layer [Dns.Call] that performs multiple transport-layer [DnsQuery]s in parallel.
+ * This delegates to a query factory for the transport, like UDP or DNS over HTTPS.
  *
  * Concurrency
  * -----------
  *
  * A few things conspire to make concurrency tricky:
  *
- *  * Each DNS record type is queried in parallel; [Transport.Callback.onResponse] and
- *    [Transport.Callback.onFailure] may be called concurrently.
- *  * Calls to [okhttp3.Dns.Callback] must be serialized.
- *  * We don't want to use locks to guard access to [okhttp3.Dns.Callback] functions.
+ *  * Each transport-layer [DnsQuery.Callback]s are executed in parallel.
+ *  * Application layer [Dns.Callback]s must be serialized.
+ *  * We don't want to use locks to guard access to [Dns.Callback] functions.
  *
  * Each time we receive data for the callback (in the form of records or an exception), we either
  * immediately call the callback with that data (on a dispatcher thread), or queue it for the thread
@@ -53,14 +52,14 @@ import okhttp3.internal.OkHttpInternalApi
  * that call is executing.
  */
 @OkHttpInternalApi
-class StateMachineDnsCall<Q>(
+class StateMachineDnsCall(
   override val request: Dns.Request,
-  private val transport: Transport<Q>,
+  private val queryFactory: DnsQuery.Factory,
   private val canceledException: IOException?,
   private val includeIPv6: Boolean,
   private val includeServiceMetadata: Boolean,
 ) : Dns.Call {
-  private val state = AtomicReference<State<Q>>(State.Idle())
+  private val state = AtomicReference<State>(State.Idle())
 
   override fun isCanceled() = state.get().canceled
 
@@ -78,7 +77,7 @@ class StateMachineDnsCall<Q>(
 
     val queries =
       questions.map { question ->
-        transport.newQuery(question)
+        queryFactory.newQuery(question)
       }
 
     while (true) {
@@ -87,7 +86,7 @@ class StateMachineDnsCall<Q>(
           ?: error("already enqueued")
 
       val next =
-        State.Running<Q>(
+        State.Running(
           canceled = previous.canceled,
           callback = callback,
           runningQueries = queries,
@@ -97,13 +96,12 @@ class StateMachineDnsCall<Q>(
 
       for (query in queries) {
         if (previous.canceled || canceledException != null) {
-          transport.cancel(query)
+          query.cancel()
         }
 
-        transport.enqueue(
-          query = query,
+        query.enqueue(
           callback =
-            object : Transport.Callback<Q> {
+            object : DnsQuery.Callback {
               override fun onResponse(dnsResponse: DnsMessage) {
                 updateStateAndCallCallbacks(
                   completedQuery = query,
@@ -133,7 +131,7 @@ class StateMachineDnsCall<Q>(
 
       if (previous is State.Running) {
         for (query in previous.runningQueries) {
-          transport.cancel(query)
+          query.cancel()
         }
       }
       return
@@ -141,7 +139,7 @@ class StateMachineDnsCall<Q>(
   }
 
   private fun updateStateAndCallCallbacks(
-    completedQuery: Q,
+    completedQuery: DnsQuery,
     dnsResponse: DnsMessage,
   ) {
     val resourceRecords =
@@ -194,7 +192,7 @@ class StateMachineDnsCall<Q>(
   }
 
   private tailrec fun updateStateAndCallCallbacks(
-    completedQuery: Q? = null,
+    completedQuery: DnsQuery? = null,
     newRecords: List<Dns.Record> = listOf(),
     newException: IOException? = null,
     lockHeldByThisThread: Boolean = false,
@@ -232,7 +230,7 @@ class StateMachineDnsCall<Q>(
       // In such cases, hand off any new work to that other thread and be done.
       if ((!last && allRecords.isEmpty()) || lockHeldByAnotherThread) {
         val next =
-          State.Running<Q>(
+          State.Running(
             canceled = previous.canceled,
             callback = previous.callback,
             runningQueries = newRunningQueries,
@@ -288,23 +286,23 @@ class StateMachineDnsCall<Q>(
     }
   }
 
-  private sealed interface State<out Q> {
+  private sealed interface State {
     val canceled: Boolean
 
     class Idle(
       override val canceled: Boolean = false,
-    ) : State<Nothing> {
+    ) : State {
       override fun cancel() = Idle(canceled = true)
     }
 
-    class Running<Q>(
+    class Running(
       override val canceled: Boolean,
       val callback: Dns.Callback,
       val lockHeld: Boolean = false,
-      val runningQueries: List<Q>,
+      val runningQueries: List<DnsQuery>,
       val pendingRecords: List<Dns.Record> = listOf(),
       val pendingExceptions: List<IOException> = listOf(),
-    ) : State<Q> {
+    ) : State {
       init {
         check(pendingRecords.isEmpty() || lockHeld)
       }
@@ -322,28 +320,11 @@ class StateMachineDnsCall<Q>(
 
     class Complete(
       override val canceled: Boolean,
-    ) : State<Nothing> {
+    ) : State {
       override fun cancel() = Idle(canceled = true)
     }
 
-    fun cancel(): State<Q>
-  }
-
-  interface Transport<Q> {
-    fun newQuery(question: Question): Q
-
-    fun enqueue(
-      query: Q,
-      callback: Callback<Q>,
-    )
-
-    fun cancel(query: Q)
-
-    interface Callback<Q> {
-      fun onFailure(e: IOException)
-
-      fun onResponse(dnsResponse: DnsMessage)
-    }
+    fun cancel(): State
   }
 }
 

@@ -26,11 +26,11 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.TimeSource
 import okhttp3.internal.OkHttpInternalApi
 import okhttp3.internal.concurrent.TaskRunner
-import okhttp3.internal.dns.StateMachineDnsCall.Transport
 
 /**
- * A DNS transport that caches responses according to their [ResourceRecord.timeToLive], bounded by
- * a user-supplied minimum and maximum cache duration.
+ * A DNS query cache that stores responses according to their [ResourceRecord.timeToLive]. Each
+ * entry's lifetime is bounded between [minimumTimeToLive] and [maximumTimeToLive]. The cache's size
+ * is bounded by a [maxEntryCount].
  *
  * Cache Hits
  * ----------
@@ -66,16 +66,15 @@ import okhttp3.internal.dns.StateMachineDnsCall.Transport
  */
 @OkHttpInternalApi
 @OptIn(ExperimentalTime::class) // We know Clock and Instant will be stable in Kotlin 2.3.
-class CachingTransport<Q>(
+class DnsCache(
   private val taskRunner: TaskRunner,
-  private val delegate: Transport<Q>,
-  private val timeSource: TimeSource.WithComparableMarks,
+  timeSource: TimeSource.WithComparableMarks,
   private val minimumTimeToLive: Duration = 10.seconds,
   private val maximumTimeToLive: Duration = 300.seconds,
   private val failureTimeToLive: Duration = 10.seconds,
   private val revalidateBeforeExpire: Duration = 5.seconds,
   maxEntryCount: Int = 1000,
-) : Transport<CachingTransport.Query<Q>> {
+) {
   private val cache =
     object : MemoryCache<Question, Entry>(
       timeSource = timeSource,
@@ -83,7 +82,7 @@ class CachingTransport<Q>(
     ) {
       override fun lastRequestedAt(
         now: Time,
-        value: CachingTransport<Q>.Entry,
+        value: Entry,
       ): Time? {
         val state = value.state.get()
 
@@ -104,146 +103,110 @@ class CachingTransport<Q>(
     require(revalidateBeforeExpire >= 0.seconds)
   }
 
-  override fun newQuery(question: Question): Query<Q> {
-    val entry = cache.computeIfAbsent(question) { Entry(question) }
-    return Query(entry)
-  }
+  fun wrap(delegate: DnsQuery.Factory) =
+    DnsQuery.Factory { question ->
+      val entry = cache.computeIfAbsent(question) { Entry() }
+      CacheQuery(question, delegate, entry)
+    }
 
-  override fun enqueue(
-    query: Query<Q>,
-    callback: Transport.Callback<Query<Q>>,
-  ) {
-    check(query.callback == null) { "already enqueued" }
-    query.callback = callback
+  /**
+   * An application-layer DNS query that is served by cached data in [entry] or by a new call to the
+   * underlying transport via [delegate]. If a new call is made, its result is stored in [entry].
+   */
+  private inner class CacheQuery(
+    val question: Question,
+    val delegate: DnsQuery.Factory,
+    val entry: Entry,
+  ) : DnsQuery,
+    DnsQuery.Callback {
+    var callback: DnsQuery.Callback? = null
 
-    val entry = query.entry
-    val now = timeSource.markNow()
-    while (true) {
-      val previous = entry.state.get()
-      val result = previous.result
-      val inFlightCall = previous.inFlightCall
+    override fun enqueue(callback: DnsQuery.Callback) {
+      check(this.callback == null) { "already enqueued" }
+      this.callback = callback
 
-      // We use a cached value unless it's expired.
-      val useCached = result != null && now < result.expireAt
+      val now = cache.timeSource.markNow()
+      while (true) {
+        val previous = entry.state.get()
+        val result = previous.result
+        val inFlightCall = previous.inFlightCall
 
-      // Revalidate the cache if necessary. Note that we might revalidate the cache without any
-      // particular callback waiting for that response.
-      val next =
-        previous.copy(
-          lastRequestedAt = now,
-          inFlightCall =
-            when {
-              inFlightCall != null && useCached -> {
-                inFlightCall
-              }
+        // We use a cached value unless it's expired.
+        val useCached = result != null && now < result.expireAt
 
-              inFlightCall != null -> {
-                inFlightCall.copy(queries = inFlightCall.queries + query)
-              }
+        // Revalidate the cache if necessary. Note that we might revalidate the cache without any
+        // particular callback waiting for that response.
+        val next =
+          previous.copy(
+            lastRequestedAt = now,
+            inFlightCall =
+              when {
+                inFlightCall != null && useCached -> {
+                  inFlightCall
+                }
 
-              result == null || now >= result.revalidateAt -> {
-                InFlightCall(
-                  query = delegate.newQuery(entry.question),
-                  sentAt = now,
-                  queries = if (useCached) listOf() else listOf(query),
-                )
-              }
+                inFlightCall != null -> {
+                  inFlightCall.copy(queries = inFlightCall.queries + this)
+                }
 
-              else -> {
-                null
-              }
-            },
-        )
+                result == null || now >= result.revalidateAt -> {
+                  InFlightCall(
+                    query = delegate.newQuery(question),
+                    sentAt = now,
+                    queries = if (useCached) listOf() else listOf(this),
+                  )
+                }
 
-      if (!entry.state.compareAndSet(previous, next)) continue // Lost a race, retry.
+                else -> {
+                  null
+                }
+              },
+          )
 
-      if (inFlightCall == null && next.inFlightCall != null) {
-        delegate.enqueue(next.inFlightCall.query, entry)
-      }
+        if (!entry.state.compareAndSet(previous, next)) continue // Lost a race, retry.
 
-      if (useCached) {
-        taskRunner.newQueue().execute("${query.entry.question.name} dns") {
-          when (result) {
-            is Result.Success -> callback.onResponse(result.message)
-            is Result.Failure -> callback.onFailure(result.exception)
+        if (inFlightCall == null && next.inFlightCall != null) {
+          next.inFlightCall.query.enqueue(this)
+        }
+
+        if (useCached) {
+          taskRunner.newQueue().execute("${question.name} dns") {
+            when (result) {
+              is Result.Success -> callback.onResponse(result.message)
+              is Result.Failure -> callback.onFailure(result.exception)
+            }
           }
         }
+
+        return
       }
-
-      return
     }
-  }
 
-  /**
-   * Note that we don't cancel the query even if nothing is waiting on it. We assume there's still
-   * value in updating the cache!
-   */
-  override fun cancel(query: Query<Q>) {
-    while (true) {
-      val entry = query.entry
-      val previous = entry.state.get()
-      val inFlightCall = previous.inFlightCall ?: return
-
-      // If we've already called the callback, there's nothing to do.
-      val newQueries = inFlightCall.queries - query
-      if (newQueries.size == inFlightCall.queries.size) return
-
-      val next =
-        previous.copy(
-          inFlightCall =
-            inFlightCall.copy(
-              queries = newQueries,
-            ),
-        )
-
-      if (!entry.state.compareAndSet(previous, next)) continue // Lost a race, retry.
-
-      taskRunner.newQueue().execute("${query.entry.question.name} dns") {
-        query.callback!!.onFailure(IOException("canceled"))
-      }
-
-      return
-    }
-  }
-
-  /** A query on this transport. */
-  class Query<Q>(
-    val entry: CachingTransport<Q>.Entry,
-  ) {
-    var callback: Transport.Callback<Query<Q>>? = null
-  }
-
-  /**
-   * Transforms a series of queries on this transport to a smaller (or at least not larger) series
-   * of queries on the underlying transport.
-   */
-  inner class Entry(
-    val question: Question,
-  ) : Transport.Callback<Q> {
-    val state = AtomicReference(State<Q>())
-
-    override fun onFailure(e: IOException) {
+    /**
+     * Note that we don't cancel the query even if nothing is waiting on it. We assume there's still
+     * value in updating the cache!
+     */
+    override fun cancel() {
       while (true) {
-        val previous = state.get()
-        val sentAt = previous.inFlightCall!!.sentAt
-        val revalidateDelay = (failureTimeToLive - revalidateBeforeExpire).coerceAtLeast(0.seconds)
+        val previous = entry.state.get()
+        val inFlightCall = previous.inFlightCall ?: return
+
+        // If we've already called the callback, there's nothing to do.
+        val newQueries = inFlightCall.queries - this
+        if (newQueries.size == inFlightCall.queries.size) return
 
         val next =
           previous.copy(
-            inFlightCall = null,
-            result =
-              Result.Failure(
-                exception = e,
-                revalidateAt = sentAt + revalidateDelay,
-                expireAt = sentAt + failureTimeToLive,
+            inFlightCall =
+              inFlightCall.copy(
+                queries = newQueries,
               ),
           )
 
-        if (!state.compareAndSet(previous, next)) continue // Lost a race, retry.
+        if (!entry.state.compareAndSet(previous, next)) continue // Lost a race, retry.
 
-        val queries = previous.inFlightCall.queries
-        for (query in queries) {
-          query.callback!!.onFailure(e)
+        taskRunner.newQueue().execute("${question.name} dns") {
+          callback!!.onFailure(IOException("canceled"))
         }
 
         return
@@ -252,7 +215,7 @@ class CachingTransport<Q>(
 
     override fun onResponse(dnsResponse: DnsMessage) {
       while (true) {
-        val previous = state.get()
+        val previous = entry.state.get()
         val sentAt = previous.inFlightCall!!.sentAt
         val timeToLive =
           (dnsResponse.answers.minOfOrNull { it.timeToLive } ?: 0)
@@ -271,7 +234,7 @@ class CachingTransport<Q>(
               ),
           )
 
-        if (!state.compareAndSet(previous, next)) continue // Lost a race, retry.
+        if (!entry.state.compareAndSet(previous, next)) continue // Lost a race, retry.
 
         val queries = previous.inFlightCall.queries
         for (query in queries) {
@@ -281,25 +244,57 @@ class CachingTransport<Q>(
         return
       }
     }
+
+    override fun onFailure(e: IOException) {
+      while (true) {
+        val previous = entry.state.get()
+        val sentAt = previous.inFlightCall!!.sentAt
+        val revalidateDelay = (failureTimeToLive - revalidateBeforeExpire).coerceAtLeast(0.seconds)
+
+        val next =
+          previous.copy(
+            inFlightCall = null,
+            result =
+              Result.Failure(
+                exception = e,
+                revalidateAt = sentAt + revalidateDelay,
+                expireAt = sentAt + failureTimeToLive,
+              ),
+          )
+
+        if (!entry.state.compareAndSet(previous, next)) continue // Lost a race, retry.
+
+        val queries = previous.inFlightCall.queries
+        for (query in queries) {
+          query.callback!!.onFailure(e)
+        }
+
+        return
+      }
+    }
+  }
+
+  private class Entry {
+    val state = AtomicReference(State())
   }
 
   /** A snapshot of the state of a single entry. */
-  data class State<Q>(
+  private data class State(
     val lastRequestedAt: Time? = null,
-    val inFlightCall: InFlightCall<Q>? = null,
+    val inFlightCall: InFlightCall? = null,
     val result: Result? = null,
   )
 
   /** A call to the underlying transport. */
-  data class InFlightCall<Q>(
-    val query: Q,
+  private data class InFlightCall(
+    val query: DnsQuery,
     val sentAt: Time,
     /** The possibly-empty set of queries to notify when this call is complete. */
-    val queries: List<Query<Q>>,
+    val queries: List<CacheQuery>,
   )
 
   /** A cached result. */
-  sealed interface Result {
+  private sealed interface Result {
     val revalidateAt: Time
     val expireAt: Time
 
