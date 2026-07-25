@@ -18,6 +18,7 @@ package okhttp3.dnsoverhttps
 import java.net.InetAddress
 import java.net.UnknownHostException
 import okhttp3.Dns
+import okhttp3.DnsCache
 import okhttp3.HttpUrl
 import okhttp3.MediaType
 import okhttp3.MediaType.Companion.toMediaType
@@ -42,6 +43,7 @@ class DnsOverHttps internal constructor(
   private val taskRunner: TaskRunner,
   @get:JvmName("client") val client: OkHttpClient,
   @get:JvmName("url") val url: HttpUrl,
+  @get:JvmName("cache") val cache: DnsCache,
   @get:JvmName("includeIPv6") val includeIPv6: Boolean,
   @get:JvmName("includeServiceMetadata") val includeServiceMetadata: Boolean,
   @get:JvmName("post") val post: Boolean,
@@ -49,13 +51,15 @@ class DnsOverHttps internal constructor(
   @get:JvmName("resolvePublicAddresses") val resolvePublicAddresses: Boolean,
 ) : Dns {
   private val queryFactory =
-    DnsOverHttpsQuery.Factory(
-      taskRunner = taskRunner,
-      resolvePrivateAddresses = resolvePrivateAddresses,
-      resolvePublicAddresses = resolvePublicAddresses,
-      client = client,
-      dnsUrl = url,
-      post = post,
+    cache.`-delegate`.wrap(
+      DnsOverHttpsQuery.Factory(
+        taskRunner = taskRunner,
+        resolvePrivateAddresses = resolvePrivateAddresses,
+        resolvePublicAddresses = resolvePublicAddresses,
+        client = client,
+        dnsUrl = url,
+        post = post,
+      ),
     )
 
   override fun newCall(request: Dns.Request): Dns.Call =
@@ -74,6 +78,7 @@ class DnsOverHttps internal constructor(
         taskRunner = taskRunner,
         client = client,
         url = url,
+        cache = cache,
         includeIPv6 = includeIPv6,
         includeServiceMetadata = false,
         post = post,
@@ -91,6 +96,7 @@ class DnsOverHttps internal constructor(
     internal val taskRunner = TaskRunner.INSTANCE
     internal var client: OkHttpClient? = null
     internal var url: HttpUrl? = null
+    internal var cache: DnsCache = DnsCache()
     internal var includeIPv6 = true
     internal var includeServiceMetadata = true
     internal var post = false
@@ -105,6 +111,7 @@ class DnsOverHttps internal constructor(
         taskRunner = taskRunner,
         client = client.newBuilder().dns(buildBootstrapClient(this)).build(),
         url = checkNotNull(url) { "url not set" },
+        cache = cache,
         includeIPv6 = includeIPv6,
         includeServiceMetadata = includeServiceMetadata,
         post = post,
@@ -121,6 +128,11 @@ class DnsOverHttps internal constructor(
     fun url(url: HttpUrl) =
       apply {
         this.url = url
+      }
+
+    fun cache(cache: DnsCache) =
+      apply {
+        this.cache = cache
       }
 
     /**

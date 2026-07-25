@@ -27,6 +27,7 @@ import java.net.InetAddress
 import java.net.UnknownHostException
 import java.util.concurrent.Executor
 import okhttp3.Dns
+import okhttp3.DnsCache
 import okhttp3.internal.OkHttpInternalApi
 import okhttp3.internal.SuppressSignatureCheck
 import okhttp3.internal.concurrent.TaskRunner
@@ -53,6 +54,7 @@ import okio.Buffer
 class AndroidDns(
   private val dnsResolver: DnsResolver = DnsResolver.getInstance(),
   private val network: Network? = null,
+  dnsCache: DnsCache = DnsCache(),
   /**
    * True to also query the `HTTPS` record for service metadata. Keep this on: it enables privacy
    * features such as Encrypted Client Hello (ECH) for the HTTPS call. Set it to false only when
@@ -66,7 +68,7 @@ class AndroidDns(
 
   /** Drives [StateMachineDnsCall] using the system resolver and [DnsResolver]. */
   private val queryFactory =
-    DnsQuery.Factory { question ->
+    dnsCache.`-delegate`.wrap { question ->
       AndroidQuery(question)
     }
 

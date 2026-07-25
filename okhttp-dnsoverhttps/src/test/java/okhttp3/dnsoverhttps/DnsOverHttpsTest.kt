@@ -44,6 +44,7 @@ import okhttp3.CallEvent.CacheHit
 import okhttp3.CallEvent.CacheMiss
 import okhttp3.Dispatcher
 import okhttp3.Dns
+import okhttp3.DnsCache
 import okhttp3.EventRecorder
 import okhttp3.FakeDns
 import okhttp3.FakeDns.Request.DnsOverHttpsRequest
@@ -154,6 +155,28 @@ class DnsOverHttpsTest(
     assertThat(httpsRequest.method).isEqualTo("GET")
     assertThat(dnsRequest)
       .isEqualTo(queryRequest("lysine.dev", TYPE_A))
+  }
+
+  @Test
+  fun getWithCache() {
+    val dnsCache = DnsCache()
+    dns = buildLocalhost(bootstrapClient, dnsCache = dnsCache)
+
+    // Put a sample record in for the first query.
+    server["lysine.dev"] = listOf(InetAddress.getByName("10.20.30.40"))
+    val result0 = dns.invoke(entryPoint, "lysine.dev")
+    assertThat(result0).isEqualTo(listOf(address("10.20.30.40")))
+    val (httpsRequest, dnsRequest) = server.takeRequest() as DnsOverHttpsRequest
+    assertThat(httpsRequest.method).isEqualTo("GET")
+    assertThat(dnsRequest)
+      .isEqualTo(queryRequest("lysine.dev", TYPE_A))
+
+    // Put a different record in for the second query. We'll get the first record because that's
+    // what is in the cache.
+    server["lysine.dev"] = listOf(InetAddress.getByName("55.66.77.88"))
+    val result1 = dns.invoke(entryPoint, "lysine.dev")
+    assertThat(result1).isEqualTo(listOf(address("10.20.30.40"))) // Stale! Cache worked!
+    assertThat(server.pollRequest()).isNull() // No request.
   }
 
   @Test
@@ -293,10 +316,14 @@ class DnsOverHttpsTest(
   // 4. successful stale cached GET response
   // 5. unsuccessful response
   @Test
-  fun usesCache() {
+  fun usesHttpCache() {
     val cache = Cache(cacheFs, "cache".toPath(), (100 * 1024).toLong())
     val cachedClient = bootstrapClient.newBuilder().cache(cache).build()
-    val cachedDns = buildLocalhost(cachedClient)
+    val cachedDns =
+      buildLocalhost(
+        bootstrapClient = cachedClient,
+        dnsCache = DnsCache(maxEntryCount = 0),
+      )
 
     server.extraHeaders =
       headersOf(
@@ -332,10 +359,15 @@ class DnsOverHttpsTest(
   }
 
   @Test
-  fun usesCacheEvenForPost() {
+  fun usesHttpCacheEvenForPost() {
     val cache = Cache(cacheFs, "cache".toPath(), (100 * 1024).toLong())
     val cachedClient = bootstrapClient.newBuilder().cache(cache).build()
-    val cachedDns = buildLocalhost(cachedClient, post = true)
+    val cachedDns =
+      buildLocalhost(
+        bootstrapClient = cachedClient,
+        post = true,
+        dnsCache = DnsCache(maxEntryCount = 0),
+      )
     server.extraHeaders =
       headersOf(
         "cache-control",
@@ -370,10 +402,14 @@ class DnsOverHttpsTest(
   }
 
   @Test
-  fun usesCacheOnlyIfFresh() {
+  fun usesHttpCacheOnlyIfFresh() {
     val cache = Cache(File("./target/DnsOverHttpsTest.cache"), 100 * 1024L)
     val cachedClient = bootstrapClient.newBuilder().cache(cache).build()
-    val cachedDns = buildLocalhost(cachedClient)
+    val cachedDns =
+      buildLocalhost(
+        bootstrapClient = cachedClient,
+        dnsCache = DnsCache(maxEntryCount = 0),
+      )
     server.extraHeaders =
       headersOf(
         "cache-control",
@@ -835,6 +871,7 @@ class DnsOverHttpsTest(
 
   private fun buildLocalhost(
     bootstrapClient: OkHttpClient,
+    dnsCache: DnsCache = DnsCache(),
     includeIPv6: Boolean = false,
     includeServiceMetadata: Boolean = false,
     post: Boolean = false,
@@ -845,6 +882,7 @@ class DnsOverHttpsTest(
     return DnsOverHttps
       .Builder()
       .client(bootstrapClient)
+      .cache(dnsCache)
       .includeIPv6(includeIPv6)
       .includeServiceMetadata(includeServiceMetadata)
       .resolvePrivateAddresses(resolvePrivateAddresses)

@@ -1383,8 +1383,8 @@ public abstract class okhttp3/WebSocketListener {
 
 public final class okhttp3/android/AndroidDns : okhttp3/Dns {
 	public fun <init> ()V
-	public fun <init> (Landroid/net/DnsResolver;Landroid/net/Network;ZLjava/util/concurrent/Executor;)V
-	public synthetic fun <init> (Landroid/net/DnsResolver;Landroid/net/Network;ZLjava/util/concurrent/Executor;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Landroid/net/DnsResolver;Landroid/net/Network;Lokhttp3/DnsCache;ZLjava/util/concurrent/Executor;)V
+	public synthetic fun <init> (Landroid/net/DnsResolver;Landroid/net/Network;Lokhttp3/DnsCache;ZLjava/util/concurrent/Executor;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun lookup (Ljava/lang/String;)Ljava/util/List;
 	public fun newCall (Lokhttp3/Dns$Request;)Lokhttp3/Dns$Call;
 }
