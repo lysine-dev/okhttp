@@ -334,6 +334,10 @@ afterEvaluate {
       // Work around robolectric requirements and limitations
       // https://cs.android.com/android-studio/platform/tools/base/+/mirror-goog-studio-main:build-system/gradle-core/src/main/java/com/android/build/gradle/tasks/factory/AndroidUnitTest.java;l=339
       allJvmArgs = allJvmArgs.filter { !it.startsWith("--add-opens") }
+    } else {
+      // Robolectric's FileDescriptor interceptor reaches into jdk.internal.access, which isn't
+      // exported to the unnamed module. Android 17 (API 37) images hit it on startup.
+      jvmArgs("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
     }
   }
 }

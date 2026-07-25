@@ -26,7 +26,9 @@ import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLSocket
 import javax.net.ssl.SSLSocketFactory
 import javax.net.ssl.X509TrustManager
+import okhttp3.Dns
 import okhttp3.Protocol
+import okhttp3.android.EchAwareDns
 import okhttp3.internal.SuppressSignatureCheck
 import okhttp3.internal.platform.AndroidPlatform.Companion.Tag
 import okhttp3.internal.platform.android.Android10SocketAdapter
@@ -89,6 +91,10 @@ class Android10Platform :
   override fun getSelectedProtocol(sslSocket: SSLSocket): String? =
     // No TLS extensions if the socket class is custom.
     socketAdapters.find { it.matchesSocket(sslSocket) }?.getSelectedProtocol(sslSocket)
+
+  private val platformDns: Dns by lazy { EchAwareDns.buildIfSupported() ?: Dns.SYSTEM }
+
+  override fun platformDns(): Dns = platformDns
 
   override fun getStackTraceForCloseable(closer: String): Any? =
     if (Build.VERSION.SDK_INT >= 30) {

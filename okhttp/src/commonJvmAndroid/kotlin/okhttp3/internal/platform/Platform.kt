@@ -31,6 +31,7 @@ import javax.net.ssl.SSLSocketFactory
 import javax.net.ssl.TrustManager
 import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509TrustManager
+import okhttp3.Dns
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.internal.publicsuffix.PublicSuffixDatabase
@@ -141,6 +142,11 @@ open class Platform {
       listOf()
     }
   }
+
+  /**
+   * Provides the default [Dns] for the system, by default [Dns.SYSTEM].
+   */
+  open fun platformDns(): Dns = Dns.SYSTEM
 
   @Throws(IOException::class)
   open fun connectSocket(

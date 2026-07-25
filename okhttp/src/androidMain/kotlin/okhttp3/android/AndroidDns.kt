@@ -52,17 +52,17 @@ import okio.Buffer
 @RequiresApi(29)
 @SuppressSignatureCheck
 class AndroidDns(
-  private val dnsResolver: DnsResolver = DnsResolver.getInstance(),
-  private val network: Network? = null,
+  internal val dnsResolver: DnsResolver = DnsResolver.getInstance(),
+  internal val network: Network? = null,
   dnsCache: DnsCache = DnsCache(),
   /**
    * True to also query the `HTTPS` record for service metadata. Keep this on: it enables privacy
    * features such as Encrypted Client Hello (ECH) for the HTTPS call. Set it to false only when
    * you want to disable ECH.
    */
-  private val includeServiceMetadata: Boolean = true,
+  internal val includeServiceMetadata: Boolean = true,
   // Runs inline; the executor only hands off DnsResolver's callbacks.
-  private val executor: Executor = Executor { it.run() },
+  internal val executor: Executor = Executor { it.run() },
 ) : Dns {
   private val taskRunner: TaskRunner = TaskRunner.INSTANCE
 

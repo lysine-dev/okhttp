@@ -597,7 +597,7 @@ open class OkHttpClient internal constructor(
     internal var followSslRedirects = true
     internal var cookieJar: CookieJar = CookieJar.NO_COOKIES
     internal var cache: Cache? = null
-    internal var dns: Dns = Dns.SYSTEM
+    internal var dns: Dns = Platform.get().platformDns()
     internal var proxy: Proxy? = null
     internal var proxySelector: ProxySelector? = null
     internal var proxyAuthenticator: Authenticator = Authenticator.NONE
