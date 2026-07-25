@@ -339,14 +339,6 @@ afterEvaluate {
       // exported to the unnamed module. Android 17 (API 37) images hit it on startup.
       jvmArgs("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
     }
-
-    if (testJavaVersion < 21) {
-      // Robolectric can't build an Android SDK 37 sandbox on Java 17.
-      filter {
-        excludeTestsMatching("okhttp3.android.EchAwareDnsTest")
-        isFailOnNoMatchingTests = false
-      }
-    }
   }
 }
 
