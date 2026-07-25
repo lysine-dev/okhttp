@@ -96,7 +96,8 @@ configure<GraalVMExtension> {
       javaLauncher.set(
         javaToolchains.launcherFor {
           languageVersion.set(JavaLanguageVersion.of(25))
-          vendor.set(JvmVendorSpec.GRAAL_VM)
+          // Match any native-image capable JDK rather than JvmVendorSpec.GRAAL_VM
+          nativeImageCapable.set(true)
         },
       )
     }
