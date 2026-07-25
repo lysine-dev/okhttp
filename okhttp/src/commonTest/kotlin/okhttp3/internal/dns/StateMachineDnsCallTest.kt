@@ -739,6 +739,67 @@ class StateMachineDnsCallTest {
     }
 
   @Test
+  fun `empty result expires on the same schedule as failure`() =
+    testStateMachineDnsCall {
+      val call0 =
+        newCall(
+          request = Dns.Request(hostname = "lysine.dev"),
+          caching = true,
+          includeIPv6 = false,
+          includeServiceMetadata = false,
+        )
+      call0.enqueue()
+      queryFactory.respondToQuery(
+        hostname = "lysine.dev",
+        type = TYPE_A,
+        addresses = listOf(),
+      )
+      call0.takeOnRecordsIpAddresses(
+        last = true,
+        addresses = listOf(),
+      )
+
+      // The empty result is still cached.
+      val call1 =
+        newCall(
+          request = Dns.Request(hostname = "lysine.dev"),
+          caching = true,
+          includeIPv6 = false,
+          includeServiceMetadata = false,
+        )
+      call1.enqueue()
+      call1.takeOnRecordsIpAddresses(
+        last = true,
+        addresses = listOf(),
+      )
+
+      // The empty result expires after 5 seconds.
+      sleep(5.seconds)
+      val call2 =
+        newCall(
+          request = Dns.Request(hostname = "lysine.dev"),
+          caching = true,
+          includeIPv6 = false,
+          includeServiceMetadata = false,
+        )
+      call2.enqueue()
+      queryFactory.respondToQuery(
+        hostname = "lysine.dev",
+        type = TYPE_A,
+        addresses = blueIpv4s,
+      )
+      call2.takeOnRecordsIpAddresses(
+        last = true,
+        addresses = blueIpv4s,
+      )
+
+      assertThat(cache.size).isEqualTo(1)
+      assertThat(cache.requestCount).isEqualTo(3)
+      assertThat(cache.networkCount).isEqualTo(2)
+      assertThat(cache.hitCount).isEqualTo(1)
+    }
+
+  @Test
   fun `failure is revalidated`() =
     testStateMachineDnsCall {
       val call0 =
