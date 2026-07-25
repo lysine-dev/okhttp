@@ -16,6 +16,7 @@ plugins {
   id("okhttp.jvm-conventions")
   id("okhttp.quality-conventions")
   id("okhttp.testing-conventions")
+  id("okhttp.robolectric-conventions")
   id("app.cash.burst")
   alias(libs.plugins.maven.sympathy)
 }
@@ -321,20 +322,6 @@ project.tasks.withType<AnimalSniffer> {
     animalsnifferSignatures = jvmSignature
   } else {
     animalsnifferSignatures = androidSignature
-  }
-}
-
-afterEvaluate {
-  tasks.withType<Test> {
-    if (javaLauncher
-        .get()
-        .metadata.languageVersion
-        .asInt() < 9
-    ) {
-      // Work around robolectric requirements and limitations
-      // https://cs.android.com/android-studio/platform/tools/base/+/mirror-goog-studio-main:build-system/gradle-core/src/main/java/com/android/build/gradle/tasks/factory/AndroidUnitTest.java;l=339
-      allJvmArgs = allJvmArgs.filter { !it.startsWith("--add-opens") }
-    }
   }
 }
 
