@@ -18,31 +18,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  publish:
-    runs-on: ubuntu-latest
-    if: github.repository == 'square/okhttp' && github.ref == 'refs/heads/master'
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Configure JDK
-        uses: actions/setup-java@v5
-        with:
-          distribution: 'temurin'
-          java-version: 21
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
-
-      - name: Upload Artifacts
-        run: ./gradlew clean publish --stacktrace
-        env:
-          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_CENTRAL_USERNAME }}
-          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_CENTRAL_PASSWORD }}
-          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_SECRET_KEY }}
-          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_SECRET_PASSPHRASE }}
-
   validation:
     name: "Validation"
     runs-on: ubuntu-latest
@@ -52,7 +27,7 @@ jobs:
       - name: Validate Renovate
         uses: rinchsan/renovate-config-validator@v0.2.1
         with:
-          pattern: '.github/renovate.json'
+          pattern: '.github/renovate.json5'
 
   checks:
     permissions:
@@ -147,7 +122,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
-          java-version: 21
+          java-version-file: .github/workflows/.java-version
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
@@ -252,7 +227,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
-          java-version: 21
+          java-version-file: .github/workflows/.java-version
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
@@ -271,7 +246,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
-          java-version: 21
+          java-version-file: .github/workflows/.java-version
 
       - uses: graalvm/setup-graalvm@v1
         with:
@@ -346,7 +321,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
-          java-version: 21
+          java-version-file: .github/workflows/.java-version
 
       - name: Enable KVM group perms
         # https://github.blog/changelog/2023-02-23-hardware-accelerated-android-virtualization-on-actions-windows-and-linux-larger-hosted-runners/
@@ -460,7 +435,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
-          java-version: 21
+          java-version-file: .github/workflows/.java-version
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
@@ -483,7 +458,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
-          java-version: 24
+          java-version-file: .github/workflows/.java-version
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5

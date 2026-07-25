@@ -1,0 +1,85 @@
+{
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: [
+    'config:recommended',
+    'group:monorepos',
+    'group:recommended',
+    ':dependencyDashboard',
+  ],
+  semanticCommits: 'disabled',
+  labels: [
+    'renovate',
+  ],
+  ignoreDeps: [
+    'com.squareup.okhttp3:okhttp',
+    'com.squareup.okhttp3:okhttp-tls',
+    'com.squareup.okhttp3:mockwebserver',
+  ],
+  ignorePresets: [
+    // Ensure we get the latest version and are not pinned to old versions.
+    'workarounds:javaLTSVersions',
+  ],
+  customManagers: [
+    // Update .java-version file with the latest JDK version.
+    {
+      customType: 'regex',
+      fileMatch: [
+        '\\.java-version$',
+      ],
+      matchStrings: [
+        '(?<currentValue>.*)\\n',
+      ],
+      datasourceTemplate: 'java-version',
+      depNameTemplate: 'java',
+      // Only write the major version.
+      extractVersionTemplate: '^(?<version>\\d+)',
+    },
+  ],
+  packageRules: [
+    {
+      groupName: 'bnd',
+      matchPackageNames: [
+        '/biz.*/',
+      ]
+    },
+    {
+      groupName: 'graalvm',
+      matchPackageNames: [
+        '/org.graalvm.*/',
+      ]
+    },
+    {
+      matchPackageNames: [
+        'org.objenesis:objenesis',
+      ],
+      allowedVersions: '<=2.6'
+    },
+    {
+      extends: [
+        'monorepo:jetty',
+      ],
+      allowedVersions: '<10.0',
+      description: 'JDK 11 requirement'
+    },
+    {
+      extends: [
+        'monorepo:junit5',
+      ],
+      allowedVersions: '<5.14.0',
+    },
+    {
+      matchPackageNames: [
+        'org.junit-pioneer:junit-pioneer',
+      ],
+      allowedVersions: '<2.0.0',
+      description: 'JDK 11 requirement'
+    },
+    {
+      matchPackageNames: [
+        'androidx.activity:activity-ktx',
+      ],
+      allowedVersions: '<=1.11.0',
+      description: 'Android minSdk 23 requirement'
+    }
+  ]
+}

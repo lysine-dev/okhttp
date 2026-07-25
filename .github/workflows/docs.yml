@@ -28,7 +28,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
-          java-version: 21
+          java-version-file: .github/workflows/.java-version
 
       - uses: actions/setup-python@v6
         with:
