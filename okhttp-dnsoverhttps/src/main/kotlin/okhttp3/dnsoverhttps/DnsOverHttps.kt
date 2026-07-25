@@ -23,6 +23,7 @@ import okhttp3.MediaType
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.dnsoverhttps.internal.DnsOverHttpsQuery
+import okhttp3.internal.concurrent.TaskRunner
 import okhttp3.internal.dns.StateMachineDnsCall
 import okhttp3.internal.dns.execute
 import okhttp3.internal.publicsuffix.PublicSuffixDatabase
@@ -38,6 +39,7 @@ import okhttp3.internal.publicsuffix.PublicSuffixDatabase
  * [doh_spec]: https://tools.ietf.org/html/draft-ietf-doh-dns-over-https-13
  */
 class DnsOverHttps internal constructor(
+  private val taskRunner: TaskRunner,
   @get:JvmName("client") val client: OkHttpClient,
   @get:JvmName("url") val url: HttpUrl,
   @get:JvmName("includeIPv6") val includeIPv6: Boolean,
@@ -48,6 +50,9 @@ class DnsOverHttps internal constructor(
 ) : Dns {
   private val queryFactory =
     DnsOverHttpsQuery.Factory(
+      taskRunner = taskRunner,
+      resolvePrivateAddresses = resolvePrivateAddresses,
+      resolvePublicAddresses = resolvePublicAddresses,
       client = client,
       dnsUrl = url,
       post = post,
@@ -55,36 +60,18 @@ class DnsOverHttps internal constructor(
 
   override fun newCall(request: Dns.Request): Dns.Call =
     StateMachineDnsCall(
+      taskRunner = taskRunner,
       request = request,
       queryFactory = queryFactory,
-      canceledException = validate(request.hostname),
       includeIPv6 = includeIPv6,
       includeServiceMetadata = includeServiceMetadata,
     )
-
-  /**
-   * Returns an exception if [hostname] should not be resolved.
-   *
-   * We **return** this exception rather than throwing it because in the [Dns.Callback] case we want
-   * `onFailure()` to be called on a dispatcher thread and not synchronously.
-   */
-  private fun validate(hostname: String): UnknownHostException? {
-    // Don't load the public suffix list unless necessary.
-    if (resolvePrivateAddresses && resolvePublicAddresses) return null
-
-    val privateHost = isPrivateHost(hostname)
-
-    return when {
-      privateHost && !resolvePrivateAddresses -> UnknownHostException("private hosts not resolved")
-      !privateHost && !resolvePublicAddresses -> UnknownHostException("public hosts not resolved")
-      else -> null
-    }
-  }
 
   @Throws(UnknownHostException::class)
   override fun lookup(hostname: String): List<InetAddress> {
     val withoutServiceMetadata =
       DnsOverHttps(
+        taskRunner = taskRunner,
         client = client,
         url = url,
         includeIPv6 = includeIPv6,
@@ -101,6 +88,7 @@ class DnsOverHttps internal constructor(
   }
 
   class Builder {
+    internal val taskRunner = TaskRunner.INSTANCE
     internal var client: OkHttpClient? = null
     internal var url: HttpUrl? = null
     internal var includeIPv6 = true
@@ -114,13 +102,14 @@ class DnsOverHttps internal constructor(
     fun build(): DnsOverHttps {
       val client = this.client ?: throw NullPointerException("client not set")
       return DnsOverHttps(
-        client.newBuilder().dns(buildBootstrapClient(this)).build(),
-        checkNotNull(url) { "url not set" },
-        includeIPv6,
-        includeServiceMetadata,
-        post,
-        resolvePrivateAddresses,
-        resolvePublicAddresses,
+        taskRunner = taskRunner,
+        client = client.newBuilder().dns(buildBootstrapClient(this)).build(),
+        url = checkNotNull(url) { "url not set" },
+        includeIPv6 = includeIPv6,
+        includeServiceMetadata = includeServiceMetadata,
+        post = post,
+        resolvePrivateAddresses = resolvePrivateAddresses,
+        resolvePublicAddresses = resolvePublicAddresses,
       )
     }
 

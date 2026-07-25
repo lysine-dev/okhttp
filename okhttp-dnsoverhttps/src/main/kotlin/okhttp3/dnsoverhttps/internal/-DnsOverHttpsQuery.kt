@@ -19,6 +19,7 @@ package okhttp3.dnsoverhttps.internal
 
 import java.io.IOException
 import java.net.ProtocolException
+import java.net.UnknownHostException
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.HttpUrl
@@ -29,7 +30,9 @@ import okhttp3.RequestBody
 import okhttp3.Response
 import okhttp3.dnsoverhttps.DnsOverHttps.Companion.DNS_MESSAGE
 import okhttp3.dnsoverhttps.DnsOverHttps.Companion.MAX_RESPONSE_SIZE
+import okhttp3.dnsoverhttps.DnsOverHttps.Companion.isPrivateHost
 import okhttp3.internal.OkHttpInternalApi
+import okhttp3.internal.concurrent.TaskRunner
 import okhttp3.internal.dns.DnsMessage
 import okhttp3.internal.dns.DnsMessageReader
 import okhttp3.internal.dns.DnsMessageWriter
@@ -41,7 +44,7 @@ import okio.BufferedSink
 
 @OkHttpInternalApi
 internal class DnsOverHttpsQuery(
-  val call: Call,
+  private val call: Call,
 ) : DnsQuery {
   override fun enqueue(callback: DnsQuery.Callback) {
     call.enqueue(
@@ -75,11 +78,19 @@ internal class DnsOverHttpsQuery(
   }
 
   class Factory(
+    private val taskRunner: TaskRunner,
+    private val resolvePrivateAddresses: Boolean,
+    private val resolvePublicAddresses: Boolean,
     private val client: OkHttpClient,
     private val dnsUrl: HttpUrl,
     private val post: Boolean,
   ) : DnsQuery.Factory {
     override fun newQuery(question: Question): DnsQuery {
+      val overrideQuery = overrideQuery(question)
+      if (overrideQuery != null) {
+        return overrideQuery
+      }
+
       val dnsMessage = DnsMessage.query(question)
       return DnsOverHttpsQuery(
         call =
@@ -110,6 +121,40 @@ internal class DnsOverHttpsQuery(
                 }.build(),
           ),
       )
+    }
+
+    /** Returns an alternate query for [question] if the [DnsOverHttpsQuery] should not be used. */
+    private fun overrideQuery(question: Question): DnsQuery? {
+      // Don't load the public suffix list unless necessary.
+      if (resolvePrivateAddresses && resolvePublicAddresses) return null
+
+      val privateHost = isPrivateHost(question.name)
+
+      val resolveUnsupportedMessage =
+        when {
+          privateHost && !resolvePrivateAddresses -> "private hosts not resolved"
+          !privateHost && !resolvePublicAddresses -> "public hosts not resolved"
+          else -> return null
+        }
+
+      return ResolveUnsupportedQuery(
+        hostname = question.name,
+        message = resolveUnsupportedMessage,
+      )
+    }
+
+    private inner class ResolveUnsupportedQuery(
+      private val hostname: String,
+      private val message: String,
+    ) : DnsQuery {
+      override fun enqueue(callback: DnsQuery.Callback) {
+        taskRunner.newQueue().execute("$hostname dns") {
+          callback.onFailure(UnknownHostException(message))
+        }
+      }
+
+      override fun cancel() {
+      }
     }
   }
 }

@@ -841,59 +841,22 @@ class StateMachineDnsCallTest {
       }
     }
 
-  /**
-   * The implementation still enqueues canceled queries, because that's an easy way to jump to a
-   * dispatcher thread to post the failures back to the callback.
-   */
   @Test
-  fun `cancel before enqueue`() =
+  fun `cancel before enqueue`(caching: Boolean) =
     testStateMachineDnsCall {
       val call =
         newCall(
           request = Dns.Request(hostname = "lysine.dev"),
-          caching = false,
+          caching = caching,
         )
       call.cancel()
       call.enqueue()
 
-      queryFactory.takeCancel("lysine.dev", TYPE_HTTPS)
-      val query0 = queryFactory.takeQuery("lysine.dev", TYPE_HTTPS)
-      queryFactory.takeCancel("lysine.dev", TYPE_AAAA)
-      val query1 = queryFactory.takeQuery("lysine.dev", TYPE_AAAA)
-      queryFactory.takeCancel("lysine.dev", TYPE_A)
-      val query2 = queryFactory.takeQuery("lysine.dev", TYPE_A)
-
-      query0.respondFailure("canceled")
-      query1.respondFailure("canceled")
-      query2.respondFailure("canceled")
-
-      call.takeOnFailure("canceled")
-    }
-
-  @Test
-  fun `cancel before enqueue with caching`() =
-    testStateMachineDnsCall {
-      val call =
-        newCall(
-          request = Dns.Request(hostname = "lysine.dev"),
-          caching = true,
-        )
-      call.cancel()
-      call.enqueue()
-
-      val query0 = queryFactory.takeQuery("lysine.dev", TYPE_HTTPS)
-      val query1 = queryFactory.takeQuery("lysine.dev", TYPE_AAAA)
-      val query2 = queryFactory.takeQuery("lysine.dev", TYPE_A)
-
-      query0.respondFailure("canceled")
-      query1.respondFailure("canceled")
-      query2.respondFailure("canceled")
-
       call.takeOnFailure("canceled")
 
-      assertThat(cache.size).isEqualTo(3)
-      assertThat(cache.requestCount).isEqualTo(3)
-      assertThat(cache.networkCount).isEqualTo(3)
+      assertThat(cache.size).isEqualTo(0)
+      assertThat(cache.requestCount).isEqualTo(0)
+      assertThat(cache.networkCount).isEqualTo(0)
       assertThat(cache.hitCount).isEqualTo(0)
     }
 

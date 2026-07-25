@@ -146,13 +146,13 @@ class StateMachineDnsCallTester internal constructor() {
 
     val call =
       StateMachineDnsCall(
+        taskRunner = taskFaker.taskRunner,
         request = request,
         queryFactory =
           when {
             caching -> cache.wrap(queryFactory)
             else -> queryFactory
           },
-        canceledException = null,
         includeIPv6 = includeIPv6,
         includeServiceMetadata = includeServiceMetadata,
       )

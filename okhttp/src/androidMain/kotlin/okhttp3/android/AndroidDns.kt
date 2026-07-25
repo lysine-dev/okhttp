@@ -87,9 +87,9 @@ class AndroidDns(
     includeServiceMetadata: Boolean,
   ): Dns.Call =
     StateMachineDnsCall(
+      taskRunner = taskRunner,
       request = request,
       queryFactory = queryFactory,
-      canceledException = null,
       // A single `A` query stands in for both families: the system resolver returns IPv4 and
       // IPv6 addresses together, so there's no separate `AAAA` query.
       includeIPv6 = false,

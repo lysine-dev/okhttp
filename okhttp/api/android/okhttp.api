@@ -538,7 +538,6 @@ public final class okhttp3/Dns$Request {
 }
 
 public final class okhttp3/DnsCache {
-	public final field -delegate Lokhttp3/internal/dns/RealDnsCache;
 	public synthetic fun <init> (JJJJIILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public synthetic fun <init> (JJJJILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun evictAll ()V

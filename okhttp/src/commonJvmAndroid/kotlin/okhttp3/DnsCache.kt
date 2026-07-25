@@ -76,7 +76,7 @@ import okhttp3.internal.dns.RealDnsCache
 class DnsCache internal constructor(
   @OkHttpInternalApi
   @JvmField
-  val `-delegate`: RealDnsCache,
+  internal val `-delegate`: RealDnsCache,
 ) {
   @get:JvmName("minimumTimeToLive")
   val minimumTimeToLive: Duration

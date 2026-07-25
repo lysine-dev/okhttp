@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicReference
 import okhttp3.Dns
 import okhttp3.Protocol
 import okhttp3.internal.OkHttpInternalApi
+import okhttp3.internal.concurrent.TaskRunner
 
 /**
  * An application-layer [Dns.Call] that performs multiple transport-layer [DnsQuery]s in parallel.
@@ -53,9 +54,9 @@ import okhttp3.internal.OkHttpInternalApi
  */
 @OkHttpInternalApi
 class StateMachineDnsCall(
+  private val taskRunner: TaskRunner,
   override val request: Dns.Request,
   private val queryFactory: DnsQuery.Factory,
-  private val canceledException: IOException?,
   private val includeIPv6: Boolean,
   private val includeServiceMetadata: Boolean,
 ) : Dns.Call {
@@ -75,19 +76,32 @@ class StateMachineDnsCall(
         add(Question(request.hostname, TYPE_A))
       }
 
-    val queries =
-      questions.map { question ->
-        queryFactory.newQuery(question)
-      }
-
     while (true) {
       val previous =
         state.get() as? State.Idle
           ?: error("already enqueued")
 
+      // If it's canceled before it is enqueued, jump straight to Complete.
+      if (previous.canceled) {
+        val next = State.Complete(canceled = true)
+
+        if (!state.compareAndSet(previous, next)) continue // Lost a race, retry.
+
+        taskRunner.newQueue().execute("${request.hostname} dns") {
+          callback.onFailure(this, IOException("canceled"))
+        }
+
+        return
+      }
+
+      val queries =
+        questions.map { question ->
+          queryFactory.newQuery(question)
+        }
+
       val next =
         State.Running(
-          canceled = previous.canceled,
+          canceled = false,
           callback = callback,
           runningQueries = queries,
         )
@@ -95,10 +109,6 @@ class StateMachineDnsCall(
       if (!state.compareAndSet(previous, next)) continue // Lost a race, retry.
 
       for (query in queries) {
-        if (previous.canceled || canceledException != null) {
-          query.cancel()
-        }
-
         query.enqueue(
           callback =
             object : DnsQuery.Callback {
@@ -210,7 +220,6 @@ class StateMachineDnsCall(
 
       val allExceptions =
         when {
-          canceledException != null -> listOf(canceledException)
           newException != null -> previous.pendingExceptions + newException
           else -> previous.pendingExceptions
         }
