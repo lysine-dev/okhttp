@@ -5,6 +5,7 @@ plugins {
   id("okhttp.base-conventions")
   id("com.android.library")
   id("de.mannodermaus.android-junit5")
+  id("app.cash.burst")
 }
 
 android {
