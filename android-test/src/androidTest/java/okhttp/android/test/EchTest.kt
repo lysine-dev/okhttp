@@ -15,52 +15,114 @@
  */
 package okhttp.android.test
 
+import android.annotation.SuppressLint
+import android.net.ssl.EchConfigMismatchException
+import android.os.Build
 import assertk.assertThat
-import assertk.assertions.matchesPredicate
+import assertk.assertions.contains
+import assertk.assertions.doesNotContain
+import assertk.assertions.isEqualTo
+import assertk.assertions.isFalse
+import assertk.assertions.isTrue
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.Response
+import okhttp3.android.EchAwareDns
+import org.junit.jupiter.api.Assumptions.assumeTrue
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.fail
 
+/**
+ * Confirms Encrypted Client Hello (ECH) end to end, with [EchAwareDns].
+ *
+ * See `res/xml/network_security_config.xml` for overrides.
+ */
+@SuppressLint("NewApi")
 @Tag("Remote")
 class EchTest {
-  @Test
-  fun testHttpsRequest() {
-    val client: OkHttpClient =
+  private lateinit var client: OkHttpClient
+
+  @BeforeEach
+  fun setUp() {
+    // EchAwareDns reads API 37 NetworkSecurityPolicy.getDomainEncryptionMode().
+    assumeTrue(Build.VERSION.SDK_INT >= 37)
+
+    client =
       OkHttpClient
         .Builder()
+        .dns(EchAwareDns())
         .build()
-
-    val cloudflareEchBody =
-      client.sendRequest(Request.Builder().url("https://cloudflare-ech.com/").build()) {
-        it.body.string()
-      }
-    assertThat(cloudflareEchBody).matchesPredicate { it.contains("ECH enabled") }
-
-    val cloudflareBody =
-      client.sendRequest(
-        Request.Builder().url("https://crypto.cloudflare.com/cdn-cgi/trace").build(),
-      ) {
-        it.body.string()
-      }
-    assertThat(cloudflareBody).matchesPredicate { it.contains("ECH enabled") }
-
-    val tlsEchBody =
-      client.sendRequest(Request.Builder().url("https://tls-ech.dev/").build()) {
-        it.body.string()
-      }
-    assertThat(tlsEchBody).matchesPredicate { it.contains("ECH enabled") }
   }
 
-  private fun <T> OkHttpClient.sendRequest(
-    request: Request,
-    fn: (Response) -> T,
-  ): T {
-    val response = newCall(request).execute()
+  @Test
+  fun cloudflareUsesEch() {
+    assertThat(client.get("https://cloudflare-ech.com/cdn-cgi/trace")).contains("sni=encrypted")
+  }
 
-    return response.use {
-      fn(it)
+  @Test
+  fun tlsEchDevUsesEch() {
+    val body = client.get("https://tls-ech.dev/")
+
+    assertThat(body).contains("You are using ECH")
+    assertThat(body).doesNotContain("not using ECH")
+  }
+
+  @Test
+  fun staleEchConfigIsNotRetried() {
+    val rejection = echRejectionFrom("https://stale.tls-ech.dev/")
+
+    assertThat(rejection.hasRetryConfigList()).isTrue()
+    assertThat(rejection.publicHostname).isEqualTo("public.tls-ech.dev")
+  }
+
+  @Test
+  fun wrongPublicNameIsNotRetried() {
+    val rejection = echRejectionFrom("https://wrong.tls-ech.dev/")
+
+    assertThat(rejection.hasRetryConfigList()).isTrue()
+    assertThat(rejection.publicHostname).isEqualTo("public.tls-ech.dev")
+  }
+
+  /**
+   * TLS 1.2 cannot carry ECH.
+   */
+  @Test
+  fun tls12OffersNothingToRetryWith() {
+    assertThat(echRejectionFrom("https://tls12.tls-ech.dev/").hasRetryConfigList()).isFalse()
+  }
+
+  /**
+   * Makes the call at [url] and returns the ECH rejection it fails with.
+   *
+   * TODO handle EchConfigMismatchException.retry_configs.
+   */
+  private fun echRejectionFrom(url: String): EchConfigMismatchException {
+    val body =
+      try {
+        client.get(url)
+      } catch (e: EchConfigMismatchException) {
+        return e
+      }
+
+    fail("expected $url to reject ECH, but it returned: $body")
+  }
+
+  @Test
+  fun defoUsesEch() {
+    assertThat(client.get("https://defo.ie/ech-check.php")).contains("SSL_ECH_STATUS: success")
+  }
+
+  /**
+   * Disabled by policy.
+   */
+  @Test
+  fun policyDisabledHostDoesNotUseEch() {
+    assertThat(client.get("https://crypto.cloudflare.com/cdn-cgi/trace")).contains("sni=plaintext")
+  }
+
+  private fun OkHttpClient.get(url: String): String =
+    newCall(Request.Builder().url(url).build()).execute().use { response ->
+      response.body.string()
     }
-  }
 }

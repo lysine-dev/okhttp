@@ -5,10 +5,16 @@
   <domain-config cleartextTrafficPermitted="true">
     <domain includeSubdomains="false">localhost</domain>
   </domain-config>
+  <!-- ECH test servers. EchAwareDns queries the HTTPS record. -->
   <domain-config>
     <domain includeSubdomains="true">cloudflare-ech.com</domain>
-    <domain includeSubdomains="true">crypto.cloudflare.com</domain>
     <domain includeSubdomains="true">tls-ech.dev</domain>
+    <domain includeSubdomains="true">defo.ie</domain>
     <domainEncryption mode="opportunistic" />
+  </domain-config>
+  <!-- Publishes an ech value, but test disabled. -->
+  <domain-config>
+    <domain includeSubdomains="true">crypto.cloudflare.com</domain>
+    <domainEncryption mode="disabled" />
   </domain-config>
 </network-security-config>
