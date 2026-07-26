@@ -38,6 +38,7 @@ import java.util.logging.Level
 import java.util.logging.LogRecord
 import java.util.logging.Logger
 import javax.net.ssl.HostnameVerifier
+import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLPeerUnverifiedException
 import javax.net.ssl.SSLSocket
 import javax.net.ssl.TrustManagerFactory
@@ -303,6 +304,11 @@ class OkHttpTest {
         throw TestAbortedException("Google Play Services not available", gpsnae)
       }
 
+      assertEquals(
+        ProviderInstaller.PROVIDER_NAME,
+        SSLContext.getInstance("TLS").provider.name,
+      )
+
       val request = Request.Builder().url("https://facebook.com/robots.txt").build()
 
       var socketClass: String? = null
@@ -329,14 +335,25 @@ class OkHttpTest {
       response.use {
         assertEquals(Protocol.HTTP_2, response.protocol)
         assertEquals(200, response.code)
-        assertEquals("com.google.android.gms.org.conscrypt.Java8FileDescriptorSocket", socketClass)
-        // The GmsCore Conscrypt provider negotiates TLS 1.3 from the API 37 image onward; earlier
-        // emulator images cap this handshake at TLS 1.2.
-        val expectedTls = if (Build.VERSION.SDK_INT >= 37) TlsVersion.TLS_1_3 else TlsVersion.TLS_1_2
-        assertEquals(expectedTls, response.handshake?.tlsVersion)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+          // ProviderInstaller likely to use Android's Mainline Conscrypt.
+          assertTrue(
+            socketClass?.startsWith("com.google.android.gms.org.conscrypt.") == true ||
+              socketClass?.startsWith("com.android.org.conscrypt.") == true,
+            "Unexpected socket class: $socketClass",
+          )
+          val tlsVersion = response.handshake?.tlsVersion
+          assertTrue(
+            tlsVersion == TlsVersion.TLS_1_2 || tlsVersion == TlsVersion.TLS_1_3,
+            "Unexpected TLS version: $tlsVersion",
+          )
+        } else {
+          assertEquals("com.google.android.gms.org.conscrypt.Java8FileDescriptorSocket", socketClass)
+          assertEquals(TlsVersion.TLS_1_2, response.handshake?.tlsVersion)
+        }
       }
     } finally {
-      Security.removeProvider("GmsCore_OpenSSL")
+      Security.removeProvider(ProviderInstaller.PROVIDER_NAME)
       client.close()
     }
   }
@@ -366,7 +383,7 @@ class OkHttpTest {
 
       localhostInsecureRequest()
     } finally {
-      Security.removeProvider("GmsCore_OpenSSL")
+      Security.removeProvider(ProviderInstaller.PROVIDER_NAME)
       client.close()
     }
   }
