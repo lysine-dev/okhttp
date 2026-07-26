@@ -29,6 +29,7 @@ import okhttp3.ConnectionSpec
 import okhttp3.OkHttpClientTestRule
 import okhttp3.TestValueFactory
 import okhttp3.TlsVersion
+import okhttp3.testing.PlatformRule
 import okhttp3.tls.internal.TlsUtil.localhost
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -41,6 +42,9 @@ class RetryConnectionTest {
 
   @RegisterExtension
   val clientTestRule = OkHttpClientTestRule()
+  
+  @RegisterExtension
+  val platform = PlatformRule()
 
   private var client = clientTestRule.newClient()
 
@@ -98,7 +102,14 @@ class RetryConnectionTest {
     // COMPATIBLE_TLS is used here.
     socket = createSocketWithEnabledProtocols(*enabledSocketTlsVersions)
     connectionSpecs[attempt1.connectionSpecIndex].apply(socket, attempt1.isTlsFallback)
-    assertEnabledProtocols(socket, TlsVersion.TLS_1_2, TlsVersion.TLS_1_1, TlsVersion.TLS_1_0)
+    
+    if (platform.isConscrypt()) {
+      // Conscrypt 2.5.2 deprecated TLS 1.0 and 1.1, and 2.6 dropped them
+      assertEnabledProtocols(socket, TlsVersion.TLS_1_2)
+    } else {
+      assertEnabledProtocols(socket, TlsVersion.TLS_1_2, TlsVersion.TLS_1_1, TlsVersion.TLS_1_0)
+    }
+
     val attempt2 = attempt1.nextConnectionSpec(connectionSpecs, socket)
     assertThat(attempt2).isNull()
     socket.close()
