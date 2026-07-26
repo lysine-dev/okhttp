@@ -22,9 +22,7 @@ import app.cash.burst.Burst
 import assertk.assertThat
 import assertk.assertions.contains
 import assertk.assertions.doesNotContain
-import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
-import assertk.assertions.isTrue
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -77,21 +75,34 @@ class EchTest(
   }
 
   @Test
-  fun staleEchConfigIsNotRetried() {
-    val rejection = client.echRejectionFrom("https://stale.tls-ech.dev/")
+  fun staleEchConfigIsRetried() {
+    val body = client.get("https://stale.tls-ech.dev/")
 
-    // TODO retry with these, then assert "You are using ECH" like tlsEchDevUsesEch.
-    assertThat(rejection.hasRetryConfigList()).isTrue()
-    assertThat(rejection.publicHostname).isEqualTo("public.tls-ech.dev")
+    assertThat(body).contains("You are using ECH")
+    assertThat(body).doesNotContain("not using ECH")
   }
 
   @Test
-  fun wrongPublicNameIsNotRetried() {
-    val rejection = client.echRejectionFrom("https://wrong.tls-ech.dev/")
+  fun differentPublicHostnameIsVerifiedBeforeRetry() {
+    // The outer certificate authenticates public.tls-ech.dev,
+    // so the retry config may be used if it matches.
+    // https://www.rfc-editor.org/rfc/rfc9849.html#section-6.1.6
+    // TODO: Add a fixture whose public hostname fails authentication.
+    val verifiedHostnames = mutableListOf<String>()
+    val hostnameVerifier = client.hostnameVerifier
+    val client =
+      client
+        .newBuilder()
+        .hostnameVerifier { hostname, session ->
+          verifiedHostnames += hostname
+          hostnameVerifier.verify(hostname, session)
+        }
+        .build()
 
-    // TODO retry with these, then assert "You are using ECH" like tlsEchDevUsesEch.
-    assertThat(rejection.hasRetryConfigList()).isTrue()
-    assertThat(rejection.publicHostname).isEqualTo("public.tls-ech.dev")
+    val body = client.get("https://wrong.tls-ech.dev/")
+
+    assertThat(body).contains("You are using ECH")
+    assertThat(verifiedHostnames).contains("public.tls-ech.dev")
   }
 
   /**
@@ -104,8 +115,6 @@ class EchTest(
 
   /**
    * Makes the call at [url] and returns the ECH rejection it fails with.
-   *
-   * TODO handle EchConfigMismatchException.retry_configs.
    */
   private fun OkHttpClient.echRejectionFrom(url: String): EchConfigMismatchException {
     val body =
