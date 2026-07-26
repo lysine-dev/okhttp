@@ -18,15 +18,18 @@ package okhttp.android.test
 import android.annotation.SuppressLint
 import android.net.ssl.EchConfigMismatchException
 import android.os.Build
+import app.cash.burst.Burst
 import assertk.assertThat
 import assertk.assertions.contains
 import assertk.assertions.doesNotContain
 import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
 import assertk.assertions.isTrue
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.android.EchAwareDns
+import okhttp3.dnsoverhttps.DnsOverHttps
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Tag
@@ -36,11 +39,16 @@ import org.junit.jupiter.api.fail
 /**
  * Confirms Encrypted Client Hello (ECH) end to end, with [EchAwareDns].
  *
+ * Test with both [okhttp3.android.AndroidDns] and [DnsOverHttps].
+ *
  * See `res/xml/network_security_config.xml` for overrides.
  */
 @SuppressLint("NewApi")
 @Tag("Remote")
-class EchTest {
+@Burst
+class EchTest(
+  private val useDoh: Boolean = false,
+) {
   private lateinit var client: OkHttpClient
 
   @BeforeEach
@@ -51,7 +59,7 @@ class EchTest {
     client =
       OkHttpClient
         .Builder()
-        .dns(EchAwareDns())
+        .dns(dns())
         .build()
   }
 
@@ -70,16 +78,18 @@ class EchTest {
 
   @Test
   fun staleEchConfigIsNotRetried() {
-    val rejection = echRejectionFrom("https://stale.tls-ech.dev/")
+    val rejection = client.echRejectionFrom("https://stale.tls-ech.dev/")
 
+    // TODO retry with these, then assert "You are using ECH" like tlsEchDevUsesEch.
     assertThat(rejection.hasRetryConfigList()).isTrue()
     assertThat(rejection.publicHostname).isEqualTo("public.tls-ech.dev")
   }
 
   @Test
   fun wrongPublicNameIsNotRetried() {
-    val rejection = echRejectionFrom("https://wrong.tls-ech.dev/")
+    val rejection = client.echRejectionFrom("https://wrong.tls-ech.dev/")
 
+    // TODO retry with these, then assert "You are using ECH" like tlsEchDevUsesEch.
     assertThat(rejection.hasRetryConfigList()).isTrue()
     assertThat(rejection.publicHostname).isEqualTo("public.tls-ech.dev")
   }
@@ -89,7 +99,7 @@ class EchTest {
    */
   @Test
   fun tls12OffersNothingToRetryWith() {
-    assertThat(echRejectionFrom("https://tls12.tls-ech.dev/").hasRetryConfigList()).isFalse()
+    assertThat(client.echRejectionFrom("https://tls12.tls-ech.dev/").hasRetryConfigList()).isFalse()
   }
 
   /**
@@ -97,10 +107,10 @@ class EchTest {
    *
    * TODO handle EchConfigMismatchException.retry_configs.
    */
-  private fun echRejectionFrom(url: String): EchConfigMismatchException {
+  private fun OkHttpClient.echRejectionFrom(url: String): EchConfigMismatchException {
     val body =
       try {
-        client.get(url)
+        get(url)
       } catch (e: EchConfigMismatchException) {
         return e
       }
@@ -120,6 +130,34 @@ class EchTest {
   fun policyDisabledHostDoesNotUseEch() {
     assertThat(client.get("https://crypto.cloudflare.com/cdn-cgi/trace")).contains("sni=plaintext")
   }
+
+  /**
+   * [EchAwareDns] over the platform resolver, or over DoH when [useDoh]. Both arms use the same
+   * source: the ECH one carries service metadata, the other doesn't.
+   */
+  private fun dns(): EchAwareDns =
+    when {
+      useDoh -> {
+        val bootstrapClient = OkHttpClient()
+        EchAwareDns(
+          echDns = dnsOverHttps(bootstrapClient, includeServiceMetadata = true),
+          addressOnlyDns = dnsOverHttps(bootstrapClient, includeServiceMetadata = false),
+        )
+      }
+      else -> EchAwareDns()
+    }
+
+  /** Addressed by IP, so resolving the resolver doesn't need a resolver. */
+  private fun dnsOverHttps(
+    bootstrapClient: OkHttpClient,
+    includeServiceMetadata: Boolean,
+  ): DnsOverHttps =
+    DnsOverHttps
+      .Builder()
+      .client(bootstrapClient)
+      .url("https://1.1.1.1/dns-query".toHttpUrl())
+      .includeServiceMetadata(includeServiceMetadata)
+      .build()
 
   private fun OkHttpClient.get(url: String): String =
     newCall(Request.Builder().url(url).build()).execute().use { response ->
