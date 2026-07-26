@@ -42,7 +42,7 @@ class RetryConnectionTest {
 
   @RegisterExtension
   val clientTestRule = OkHttpClientTestRule()
-  
+
   @RegisterExtension
   val platform = PlatformRule()
 
@@ -102,7 +102,7 @@ class RetryConnectionTest {
     // COMPATIBLE_TLS is used here.
     socket = createSocketWithEnabledProtocols(*enabledSocketTlsVersions)
     connectionSpecs[attempt1.connectionSpecIndex].apply(socket, attempt1.isTlsFallback)
-    
+
     if (platform.isConscrypt()) {
       // Conscrypt 2.5.2 deprecated TLS 1.0 and 1.1, and 2.6 dropped them
       assertEnabledProtocols(socket, TlsVersion.TLS_1_2)
