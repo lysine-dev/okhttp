@@ -506,7 +506,7 @@ class ConnectPlan internal constructor(
     val offeredEchRetryConfig = Platform.get().getEchRetryConfig(sslException)
     if (offeredEchRetryConfig != null) {
       // TODO should we emit an event that we considered ech retry?
-      
+
       // Only use ECH retry once
       if (echRetryConfig != null) return null
 
