@@ -23,6 +23,7 @@ import mockwebserver3.Dispatcher
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import mockwebserver3.RecordedRequest
+import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.AfterAllCallback
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -60,6 +61,18 @@ class StartStopTest {
     assertThat(serverD.started).isTrue()
     assertThat(serverE.started).isTrue()
     assertThat(serverF.started).isFalse()
+  }
+
+  @Nested
+  inner class NestedTest {
+    @Test
+    fun happyPath() {
+      testInstances += this@StartStopTest
+
+      assertThat(serverA.started).isTrue()
+      assertThat(serverB.started).isTrue()
+      assertThat(serverC.started).isFalse()
+    }
   }
 
   private companion object {

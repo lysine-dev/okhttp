@@ -51,24 +51,24 @@ internal class StartStopExtension :
   }
 
   override fun beforeEach(context: ExtensionContext) {
-    // Requires API 24
-    val testInstance = context.testInstance.get()
     val store = context.getStore(Namespace.create(StartStop::class.java))
 
-    val instanceFields =
-      findAnnotatedFields(
-        context.requiredTestClass,
-        StartStop::class.java,
-      ) { !Modifier.isStatic(it.modifiers) }
+    for (testInstance in context.requiredTestInstances.allInstances) {
+      val instanceFields =
+        findAnnotatedFields(
+          testInstance.javaClass,
+          StartStop::class.java,
+        ) { !Modifier.isStatic(it.modifiers) }
 
-    for (field in instanceFields) {
-      field.setAccessible(true)
-      val server = field.get(testInstance) as? MockWebServer ?: continue
+      for (field in instanceFields) {
+        field.setAccessible(true)
+        val server = field.get(testInstance) as? MockWebServer ?: continue
 
-      // Put the instance in the store, so JUnit closes it for us in afterEach.
-      store.put(field, server)
+        // Put the instance in the store, so JUnit closes it for us in afterEach.
+        store.put(server, server)
 
-      server.start()
+        server.start()
+      }
     }
   }
 }
