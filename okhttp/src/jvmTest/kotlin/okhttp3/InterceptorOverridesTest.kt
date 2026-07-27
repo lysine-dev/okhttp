@@ -39,7 +39,6 @@ import java.util.Locale.getDefault
 import java.util.concurrent.TimeUnit
 import javax.net.SocketFactory
 import javax.net.ssl.HostnameVerifier
-import javax.net.ssl.SSLException
 import javax.net.ssl.SSLSocket
 import javax.net.ssl.SSLSocketFactory
 import javax.net.ssl.X509TrustManager
@@ -242,23 +241,15 @@ class InterceptorOverridesTest {
 
       OverrideParam.RetryOnConnectionFailure -> {
         enableTls()
-        var first = true
+
+        server.enqueue(MockResponse.Builder().failHandshake().build())
         client =
           client
             .newBuilder()
             .connectionSpecs(listOf(ConnectionSpec.RESTRICTED_TLS, ConnectionSpec.MODERN_TLS))
-            .eventListener(
-              object : EventListener() {
-                override fun secureConnectEnd(
-                  call: Call,
-                  handshake: Handshake?,
-                ) {
-                  if (first) {
-                    first = false
-                    throw SSLException("")
-                  }
-                }
-              },
+            .sslSocketFactory(
+              FallbackTestClientSocketFactory(handshakeCertificates.sslSocketFactory()),
+              handshakeCertificates.trustManager,
             ).build()
 
         overrideBadImplementation(
