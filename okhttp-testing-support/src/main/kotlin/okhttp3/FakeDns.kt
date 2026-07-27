@@ -275,7 +275,7 @@ class FakeDns(
           }
 
           is ResourceRecord.IpAddress -> {
-            val ipAddressRecord = Dns.Record.IpAddress(request.hostname, resourceRecord.address)
+            val ipAddressRecord = Dns.Record.IpAddress(resourceRecord.name, resourceRecord.address)
             when (resourceRecord.address) {
               is Inet4Address -> ipv4Records += ipAddressRecord
               is Inet6Address -> ipv6Records += ipAddressRecord

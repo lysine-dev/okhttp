@@ -87,7 +87,6 @@ class EchTest(
     // The outer certificate authenticates public.tls-ech.dev,
     // so the retry config may be used if it matches.
     // https://www.rfc-editor.org/rfc/rfc9849.html#section-6.1.6
-    // TODO: Add a fixture whose public hostname fails authentication.
     val verifiedHostnames = mutableListOf<String>()
     val hostnameVerifier = client.hostnameVerifier
     val client =

@@ -68,11 +68,6 @@ data class DnsMessage(
   }
 }
 
-internal data class EchRetryConfig(
-  val configList: ByteString,
-  val publicHostname: String,
-)
-
 @OkHttpInternalApi
 data class Question(
   val name: String,

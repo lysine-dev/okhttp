@@ -167,7 +167,6 @@ class ConnectPlan internal constructor(
     check(!isReady) { "already connected" }
 
     val connectionSpecs = route.address.connectionSpecs
-    var offeredEchRetryConfig: EchRetryConfig? = null
     var retryTlsConnection: ConnectPlan? = null
     var success = false
 
@@ -207,23 +206,11 @@ class ConnectPlan internal constructor(
         val tlsEquipPlan = planWithCurrentOrInitialConnectionSpec(connectionSpecs, sslSocket)
         val connectionSpec = connectionSpecs[tlsEquipPlan.connectionSpecIndex]
 
-        // Figure out the next connection spec in case we need a retry.
-        retryTlsConnection = tlsEquipPlan.nextConnectionSpec(connectionSpecs, sslSocket)
-
         connectionSpec.apply(sslSocket, isFallback = tlsEquipPlan.isTlsFallback)
         try {
           connectTls(sslSocket, connectionSpec)
         } catch (e: SSLException) {
-          val echRetryConfig = Platform.get().getEchRetryConfig(e)
-          if (
-            echRetryConfig != null &&
-            route.address.hostnameVerifier!!.verify(
-              echRetryConfig.publicHostname,
-              sslSocket.session,
-            )
-          ) {
-            offeredEchRetryConfig = echRetryConfig
-          }
+          retryTlsConnection = tlsEquipPlan.nextConnectionSpec(connectionSpecs, sslSocket, e)
           throw e
         }
         call.eventListener.secureConnectEnd(call, handshake)
@@ -259,38 +246,6 @@ class ConnectPlan internal constructor(
     } catch (e: IOException) {
       call.eventListener.connectFailed(call, route.socketAddress, route.proxy, null, e)
       connectionPool.connectionListener.connectFailed(route, call, e)
-
-      retryTlsConnection =
-        when {
-          echRetryConfig == null && offeredEchRetryConfig != null -> {
-            // TODO: Should an ECH retry honor retryOnConnectionFailure?
-            // Typically Conscrypt throwing EchConfigMismatchException
-            copy(
-              route =
-                Route(
-                  address = route.address,
-                  proxy = route.proxy,
-                  socketAddress = route.socketAddress,
-                  echConfigList = offeredEchRetryConfig.configList,
-                ),
-              echRetryConfig = offeredEchRetryConfig,
-            )
-          }
-
-          echRetryConfig != null && offeredEchRetryConfig != null -> {
-            // TODO: Should we treat an untrusted or missing ECH retry config as an ordinary
-            // SSLException and try another connection spec?
-            null
-          }
-
-          retryOnConnectionFailure && retryTlsHandshake(e) -> {
-            retryTlsConnection
-          }
-
-          else -> {
-            null
-          }
-        }
 
       return ConnectResult(
         plan = this,
@@ -528,7 +483,7 @@ class ConnectPlan internal constructor(
     sslSocket: SSLSocket,
   ): ConnectPlan {
     if (connectionSpecIndex != -1) return this
-    return nextConnectionSpec(connectionSpecs, sslSocket)
+    return nextCompatibleConnectionSpec(connectionSpecs, sslSocket)
       ?: throw UnknownServiceException(
         "Unable to find acceptable protocols." +
           " isFallback=$isTlsFallback," +
@@ -538,10 +493,58 @@ class ConnectPlan internal constructor(
   }
 
   /**
-   * Returns a copy of this connection with the next connection spec to try, or null if no other
-   * compatible connection specs are available.
+   * Returns a copy of this connection that recovers from [sslException], or null if the failure
+   * should not be retried.
    */
   internal fun nextConnectionSpec(
+    connectionSpecs: List<ConnectionSpec>,
+    sslSocket: SSLSocket,
+    sslException: SSLException,
+  ): ConnectPlan? {
+    if (!retryOnConnectionFailure) return null
+
+    val offeredEchRetryConfig = Platform.get().getEchRetryConfig(sslException)
+    if (offeredEchRetryConfig != null) {
+      // TODO should we emit an event that we considered ech retry?
+      
+      // Only use ECH retry once
+      if (echRetryConfig != null) return null
+
+      // Validate the publicHostname against the session certificate
+      if (
+        !route.address.hostnameVerifier!!.verify(
+          offeredEchRetryConfig.publicHostname,
+          sslSocket.session,
+        )
+      ) {
+        return null
+      }
+
+      // retry with an updated ECH config
+      return copy(
+        route =
+          Route(
+            address = route.address,
+            proxy = route.proxy,
+            socketAddress = route.socketAddress,
+            echConfigList = offeredEchRetryConfig.configList,
+          ),
+        echRetryConfig = offeredEchRetryConfig,
+      )
+    }
+
+    // If this was already in response to an ech retry, we are done for this
+    // connection
+    if (echRetryConfig != null || !retryTlsHandshake(sslException)) return null
+
+    return nextCompatibleConnectionSpec(connectionSpecs, sslSocket)
+  }
+
+  /**
+   * Returns a copy of this connection with the next compatible connection spec, or null if none
+   * are available.
+   */
+  private fun nextCompatibleConnectionSpec(
     connectionSpecs: List<ConnectionSpec>,
     sslSocket: SSLSocket,
   ): ConnectPlan? {

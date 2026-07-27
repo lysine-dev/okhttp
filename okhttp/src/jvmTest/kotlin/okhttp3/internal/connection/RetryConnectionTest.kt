@@ -17,20 +17,28 @@ package okhttp3.internal.connection
 
 import assertk.assertThat
 import assertk.assertions.containsExactlyInAnyOrder
+import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
+import assertk.assertions.isNotEqualTo
 import assertk.assertions.isNotNull
 import assertk.assertions.isNull
 import assertk.assertions.isTrue
 import java.io.IOException
 import java.security.cert.CertificateException
+import javax.net.ssl.SSLException
 import javax.net.ssl.SSLHandshakeException
 import javax.net.ssl.SSLSocket
 import okhttp3.ConnectionSpec
+import okhttp3.FakeDns
 import okhttp3.OkHttpClientTestRule
 import okhttp3.TestValueFactory
 import okhttp3.TlsVersion
+import okhttp3.internal.dns.EchRetryConfig
+import okhttp3.internal.dns.ResourceRecord
+import okhttp3.internal.platform.Platform
 import okhttp3.testing.PlatformRule
 import okhttp3.tls.internal.TlsUtil.localhost
+import okio.ByteString.Companion.encodeUtf8
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -39,12 +47,25 @@ class RetryConnectionTest {
   private val factory = TestValueFactory()
   private val handshakeCertificates = localhost()
   private val retryableException = SSLHandshakeException("Simulated handshake exception")
+  private val echRetryException = SSLHandshakeException("Simulated ECH rejection")
+  private val echRetryConfig =
+    EchRetryConfig(
+      configList = "retry config".encodeUtf8(),
+      publicHostname = "public.tls-ech.dev",
+    )
 
   @RegisterExtension
   val clientTestRule = OkHttpClientTestRule()
 
   @RegisterExtension
-  val platform = PlatformRule()
+  val platform =
+    PlatformRule(
+      platform =
+        object : Platform() {
+          override fun getEchRetryConfig(exception: SSLException): EchRetryConfig? =
+            if (exception === echRetryException) echRetryConfig else null
+        },
+    )
 
   private var client = clientTestRule.newClient()
 
@@ -67,6 +88,98 @@ class RetryConnectionTest {
 
   @Test fun retryableSSLHandshakeException() {
     assertThat(retryTlsHandshake(retryableException)).isTrue()
+  }
+
+  @Test fun echRetryConfigIsUsedOnceWithoutTlsFallback() {
+    val verifiedHostnames = mutableListOf<String>()
+    val address =
+      factory.newHttpsAddress(
+        hostnameVerifier = { hostname, _ ->
+          verifiedHostnames += hostname
+          true
+        },
+      )
+    val routePlanner = factory.newRoutePlanner(client, address)
+    val route = factory.newRoute(address)
+    val connectionSpecs = listOf(ConnectionSpec.MODERN_TLS, ConnectionSpec.COMPATIBLE_TLS)
+    val socket = createSocketWithEnabledProtocols(TlsVersion.TLS_1_2, TlsVersion.TLS_1_1)
+    val attempt0 =
+      routePlanner
+        .planConnectToRoute(route)
+        .planWithCurrentOrInitialConnectionSpec(connectionSpecs, socket)
+
+    val attempt1 = attempt0.nextConnectionSpec(connectionSpecs, socket, echRetryException)
+
+    assertThat(attempt1).isNotNull()
+    assertThat(attempt1!!.route.echConfigList).isEqualTo(echRetryConfig.configList)
+    assertThat(attempt1.isTlsFallback).isFalse()
+    assertThat(verifiedHostnames).isEqualTo(listOf(echRetryConfig.publicHostname))
+
+    val attempt2 = attempt1.nextConnectionSpec(connectionSpecs, socket, retryableException)
+    assertThat(attempt2).isNull()
+    socket.close()
+  }
+
+  /** https://www.rfc-editor.org/rfc/rfc9849.html#section-6.1.6 */
+  @Test fun echRetryUsesOnlyAddressesFromOriginalDnsResults() {
+    val dns = FakeDns()
+    val hostname = "stale.tls-ech.dev"
+    val originalAddresses = dns.allocate(2)
+    val newAddress = dns.allocate(1).single()
+    factory.dns = dns
+    factory.uriHost = hostname
+    dns[hostname] =
+      listOf(
+        ResourceRecord.Https(
+          name = hostname,
+          timeToLive = 5,
+          echConfigList = "stale config".encodeUtf8(),
+        ),
+        *originalAddresses
+          .map {
+            ResourceRecord.IpAddress(
+              name = hostname,
+              timeToLive = 5,
+              address = it,
+            )
+          }.toTypedArray(),
+      )
+    val address = factory.newHttpsAddress(hostnameVerifier = { _, _ -> true })
+    val routePlanner = factory.newRoutePlanner(client, address)
+    val connectionSpecs = listOf(ConnectionSpec.MODERN_TLS)
+    val socket = createSocketWithEnabledProtocols(TlsVersion.TLS_1_2)
+    val attempt0 =
+      routePlanner
+        .planConnect()
+        .planWithCurrentOrInitialConnectionSpec(connectionSpecs, socket)
+
+    // A new DNS result must not influence a retry of the previous ECH configuration.
+    dns[hostname] = listOf(newAddress)
+    val attempt1 = attempt0.nextConnectionSpec(connectionSpecs, socket, echRetryException)
+
+    assertThat(attempt1).isNotNull()
+    assertThat(attempt1!!.route.socketAddress.address).isEqualTo(originalAddresses[0])
+    assertThat(attempt1.route.socketAddress.address).isNotEqualTo(newAddress)
+    dns.assertRequests(hostname)
+    socket.close()
+  }
+
+  @Test fun untrustedEchRetryConfigIsNotRetried() {
+    val address = factory.newHttpsAddress(hostnameVerifier = { _, _ -> false })
+    val routePlanner = factory.newRoutePlanner(client, address)
+    val route = factory.newRoute(address)
+    val connectionSpecs = listOf(ConnectionSpec.MODERN_TLS, ConnectionSpec.COMPATIBLE_TLS)
+    val socket = createSocketWithEnabledProtocols(TlsVersion.TLS_1_2, TlsVersion.TLS_1_1)
+    val attempt0 =
+      routePlanner
+        .planConnectToRoute(route)
+        .planWithCurrentOrInitialConnectionSpec(connectionSpecs, socket)
+
+    // not retried because validation failed
+    val attempt1 = attempt0.nextConnectionSpec(connectionSpecs, socket, echRetryException)
+
+    assertThat(attempt1).isNull()
+    socket.close()
   }
 
   @Test fun someFallbacksSupported() {
@@ -94,7 +207,7 @@ class RetryConnectionTest {
     assertThat(attempt0.isTlsFallback).isFalse()
     connectionSpecs[attempt0.connectionSpecIndex].apply(socket, attempt0.isTlsFallback)
     assertEnabledProtocols(socket, TlsVersion.TLS_1_2)
-    val attempt1 = attempt0.nextConnectionSpec(connectionSpecs, socket)
+    val attempt1 = attempt0.nextConnectionSpec(connectionSpecs, socket, retryableException)
     assertThat(attempt1).isNotNull()
     assertThat(attempt1!!.isTlsFallback).isTrue()
     socket.close()
@@ -110,7 +223,7 @@ class RetryConnectionTest {
       assertEnabledProtocols(socket, TlsVersion.TLS_1_2, TlsVersion.TLS_1_1, TlsVersion.TLS_1_0)
     }
 
-    val attempt2 = attempt1.nextConnectionSpec(connectionSpecs, socket)
+    val attempt2 = attempt1.nextConnectionSpec(connectionSpecs, socket, retryableException)
     assertThat(attempt2).isNull()
     socket.close()
 
