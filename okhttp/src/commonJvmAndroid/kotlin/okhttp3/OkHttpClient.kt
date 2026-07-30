@@ -18,8 +18,8 @@ package okhttp3
 import java.net.Proxy
 import java.net.ProxySelector
 import java.net.Socket
+import java.security.SecureRandom
 import java.time.Duration
-import java.util.Random
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeUnit.MILLISECONDS
@@ -363,7 +363,7 @@ open class OkHttpClient internal constructor(
         taskRunner = taskRunner,
         originalRequest = request,
         listener = listener,
-        random = Random(),
+        random = SecureRandom(),
         pingIntervalMillis = pingIntervalMillis.toLong(),
         // extensions is always null for clients:
         extensions = null,
