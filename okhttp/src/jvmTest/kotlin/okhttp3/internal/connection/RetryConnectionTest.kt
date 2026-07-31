@@ -17,6 +17,7 @@ package okhttp3.internal.connection
 
 import assertk.assertThat
 import assertk.assertions.containsExactlyInAnyOrder
+import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
 import assertk.assertions.isNotEqualTo
@@ -31,6 +32,7 @@ import javax.net.ssl.SSLSocket
 import okhttp3.ConnectionSpec
 import okhttp3.FakeDns
 import okhttp3.OkHttpClientTestRule
+import okhttp3.Route
 import okhttp3.TestValueFactory
 import okhttp3.TlsVersion
 import okhttp3.internal.dns.EchRetryConfig
@@ -38,6 +40,7 @@ import okhttp3.internal.dns.ResourceRecord
 import okhttp3.internal.platform.Platform
 import okhttp3.testing.PlatformRule
 import okhttp3.tls.internal.TlsUtil.localhost
+import okio.ByteString
 import okio.ByteString.Companion.encodeUtf8
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -47,10 +50,16 @@ class RetryConnectionTest {
   private val factory = TestValueFactory()
   private val handshakeCertificates = localhost()
   private val retryableException = SSLHandshakeException("Simulated handshake exception")
-  private val echRetryException = SSLHandshakeException("Simulated ECH rejection")
+  private val echRetryException = SSLHandshakeException("ECH Mismatch with updated config")
+  private val echDisabledException = SSLHandshakeException("ECH Mismatch without config")
   private val echRetryConfig =
     EchRetryConfig(
       configList = "retry config".encodeUtf8(),
+      publicHostname = "public.tls-ech.dev",
+    )
+  private val echDisabledConfig =
+    EchRetryConfig(
+      configList = null,
       publicHostname = "public.tls-ech.dev",
     )
 
@@ -63,7 +72,11 @@ class RetryConnectionTest {
       platform =
         object : Platform() {
           override fun getEchRetryConfig(exception: SSLException): EchRetryConfig? =
-            if (exception === echRetryException) echRetryConfig else null
+            when {
+              exception === echRetryException -> echRetryConfig
+              exception === echDisabledException -> echDisabledConfig
+              else -> null
+            }
         },
     )
 
@@ -91,14 +104,7 @@ class RetryConnectionTest {
   }
 
   @Test fun echRetryConfigIsUsedOnceWithoutTlsFallback() {
-    val verifiedHostnames = mutableListOf<String>()
-    val address =
-      factory.newHttpsAddress(
-        hostnameVerifier = { hostname, _ ->
-          verifiedHostnames += hostname
-          true
-        },
-      )
+    val address = newEchAddress()
     val routePlanner = factory.newRoutePlanner(client, address)
     val route = factory.newRoute(address)
     val connectionSpecs = listOf(ConnectionSpec.MODERN_TLS, ConnectionSpec.COMPATIBLE_TLS)
@@ -115,8 +121,11 @@ class RetryConnectionTest {
     assertThat(attempt1.isTlsFallback).isFalse()
     assertThat(verifiedHostnames).isEqualTo(listOf(echRetryConfig.publicHostname))
 
+    verifiedHostnames.clear()
     val attempt2 = attempt1.nextConnectionSpec(connectionSpecs, socket, retryableException)
     assertThat(attempt2).isNull()
+    // An ordinary handshake failure doesn't verify a public hostname.
+    assertThat(verifiedHostnames).isEmpty()
     socket.close()
   }
 
@@ -144,7 +153,7 @@ class RetryConnectionTest {
             )
           }.toTypedArray(),
       )
-    val address = factory.newHttpsAddress(hostnameVerifier = { _, _ -> true })
+    val address = newEchAddress()
     val routePlanner = factory.newRoutePlanner(client, address)
     val connectionSpecs = listOf(ConnectionSpec.MODERN_TLS)
     val socket = createSocketWithEnabledProtocols(TlsVersion.TLS_1_2)
@@ -160,12 +169,13 @@ class RetryConnectionTest {
     assertThat(attempt1).isNotNull()
     assertThat(attempt1!!.route.socketAddress.address).isEqualTo(originalAddresses[0])
     assertThat(attempt1.route.socketAddress.address).isNotEqualTo(newAddress)
+    assertThat(verifiedHostnames).isEqualTo(listOf(echRetryConfig.publicHostname))
     dns.assertRequests(hostname)
     socket.close()
   }
 
   @Test fun untrustedEchRetryConfigIsNotRetried() {
-    val address = factory.newHttpsAddress(hostnameVerifier = { _, _ -> false })
+    val address = newEchAddress(verified = false)
     val routePlanner = factory.newRoutePlanner(client, address)
     val route = factory.newRoute(address)
     val connectionSpecs = listOf(ConnectionSpec.MODERN_TLS, ConnectionSpec.COMPATIBLE_TLS)
@@ -179,6 +189,69 @@ class RetryConnectionTest {
     val attempt1 = attempt0.nextConnectionSpec(connectionSpecs, socket, echRetryException)
 
     assertThat(attempt1).isNull()
+    assertThat(verifiedHostnames).isEqualTo(listOf(echRetryConfig.publicHostname))
+    socket.close()
+  }
+
+  /**
+   * A server that offers no retry config has securely disabled ECH, so we retry without it.
+   *
+   * https://www.rfc-editor.org/rfc/rfc9849.html#section-6.1.6
+   */
+  @Test fun missingEchRetryConfigIsRetriedWithout() {
+    val address = newEchAddress()
+    val routePlanner = factory.newRoutePlanner(client, address)
+    val route = factory.newRoute(address).withEchConfigList("stale config".encodeUtf8())
+    val connectionSpecs = listOf(ConnectionSpec.MODERN_TLS, ConnectionSpec.COMPATIBLE_TLS)
+    val socket = createSocketWithEnabledProtocols(TlsVersion.TLS_1_2, TlsVersion.TLS_1_1)
+    val attempt0 =
+      routePlanner
+        .planConnectToRoute(route)
+        .planWithCurrentOrInitialConnectionSpec(connectionSpecs, socket)
+
+    val attempt1 = attempt0.nextConnectionSpec(connectionSpecs, socket, echDisabledException)
+
+    assertThat(attempt1).isNotNull()
+    assertThat(attempt1!!.route.echConfigList).isNull()
+    assertThat(attempt1.isTlsFallback).isFalse()
+    assertThat(verifiedHostnames).isEqualTo(listOf(echDisabledConfig.publicHostname))
+
+    // Having disabled ECH once, we don't do it again.
+    verifiedHostnames.clear()
+    val attempt2 = attempt1.nextConnectionSpec(connectionSpecs, socket, echDisabledException)
+    assertThat(attempt2).isNull()
+    assertThat(verifiedHostnames).isEmpty()
+    socket.close()
+  }
+
+  /**
+   * A retry config in response to a retry config signals a misconfigured server, but the server may
+   * still securely disable ECH.
+   *
+   * https://www.rfc-editor.org/rfc/rfc9849.html#section-6.1.6
+   */
+  @Test fun echRetryConfigIsRetriedOnceOnly() {
+    val address = factory.newHttpsAddress(hostnameVerifier = { _, _ -> true })
+    val routePlanner = factory.newRoutePlanner(client, address)
+    val route = factory.newRoute(address).withEchConfigList("stale config".encodeUtf8())
+    val connectionSpecs = listOf(ConnectionSpec.MODERN_TLS, ConnectionSpec.COMPATIBLE_TLS)
+    val socket = createSocketWithEnabledProtocols(TlsVersion.TLS_1_2, TlsVersion.TLS_1_1)
+    val attempt0 =
+      routePlanner
+        .planConnectToRoute(route)
+        .planWithCurrentOrInitialConnectionSpec(connectionSpecs, socket)
+
+    val attempt1 = attempt0.nextConnectionSpec(connectionSpecs, socket, echRetryException)
+    assertThat(attempt1).isNotNull()
+    assertThat(attempt1!!.route.echConfigList).isEqualTo(echRetryConfig.configList)
+
+    // A second retry config is not honored.
+    assertThat(attempt1.nextConnectionSpec(connectionSpecs, socket, echRetryException)).isNull()
+
+    // But securely disabling ECH is.
+    val attempt2 = attempt1.nextConnectionSpec(connectionSpecs, socket, echDisabledException)
+    assertThat(attempt2).isNotNull()
+    assertThat(attempt2!!.route.echConfigList).isNull()
     socket.close()
   }
 
@@ -230,10 +303,29 @@ class RetryConnectionTest {
     // sslV3 is not used because SSLv3 is not enabled on the socket.
   }
 
+  /** Records each hostname the [newEchAddress] verifier was asked to verify. */
+  private val verifiedHostnames = mutableListOf<String>()
+
+  private fun newEchAddress(verified: Boolean = true) =
+    factory.newHttpsAddress(
+      hostnameVerifier = { hostname, _ ->
+        verifiedHostnames += hostname
+        verified
+      },
+    )
+
   private fun createSocketWithEnabledProtocols(vararg tlsVersions: TlsVersion): SSLSocket =
     (handshakeCertificates.sslSocketFactory().createSocket() as SSLSocket).apply {
       enabledProtocols = javaNames(*tlsVersions)
     }
+
+  private fun Route.withEchConfigList(echConfigList: ByteString): Route =
+    Route(
+      address = address,
+      proxy = proxy,
+      socketAddress = socketAddress,
+      echConfigList = echConfigList,
+    )
 
   private fun assertEnabledProtocols(
     socket: SSLSocket,

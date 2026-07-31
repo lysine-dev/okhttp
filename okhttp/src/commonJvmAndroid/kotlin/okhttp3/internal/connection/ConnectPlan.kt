@@ -507,20 +507,25 @@ class ConnectPlan internal constructor(
     if (offeredEchRetryConfig != null) {
       // TODO should we emit an event that we considered ech retry?
 
-      // Only use ECH retry once
-      if (echRetryConfig != null) return null
+      // https://www.rfc-editor.org/rfc/rfc9849.html#section-6.1.6
+      val retryable =
+        when (offeredEchRetryConfig.configList) {
+          // The server securely disabled ECH. Retry unless we already disabled ECH.
+          null -> echRetryConfig == null || echRetryConfig.configList != null
+
+          // A retry config in response to a retry config signals a misconfigured server.
+          else -> echRetryConfig == null
+        }
+      if (!retryable) return null
 
       // Validate the publicHostname against the session certificate
-      if (
-        !route.address.hostnameVerifier!!.verify(
-          offeredEchRetryConfig.publicHostname,
-          sslSocket.session,
-        )
-      ) {
+      // The session is protected by the outer client hello (e.g. cloudflare-ech.com)
+      // not the origin server
+      val hostnameVerifier = route.address.hostnameVerifier!!
+      if (!hostnameVerifier.verify(offeredEchRetryConfig.publicHostname, sslSocket.session)) {
         return null
       }
 
-      // retry with an updated ECH config
       return copy(
         route =
           Route(
@@ -529,6 +534,7 @@ class ConnectPlan internal constructor(
             socketAddress = route.socketAddress,
             echConfigList = offeredEchRetryConfig.configList,
           ),
+        // echRetryConfig.configList is possibly null to retry with ECH disabled 
         echRetryConfig = offeredEchRetryConfig,
       )
     }

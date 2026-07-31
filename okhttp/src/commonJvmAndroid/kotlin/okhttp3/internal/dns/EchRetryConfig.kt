@@ -19,11 +19,23 @@ import okio.ByteString
 
 /**
  * ECH Retry config. Generally sent by a server when there is a
- * mismatch between A/AAAA and HTTPS Records.  Must only be used
- * when publicHostname can be validated against the certificate
- * from the SSLSession.
+ * mismatch between A/AAAA and HTTPS Records.
+ *
+ * If a new [configList] is present, the server securely replaced our ECH configuration, and it
+ * must only be used when [publicHostname] can be validated against the certificate
+ * from the SSLSession (the outer client hello).
+ *
+ * A null [configList] means the server offered no usable retry configuration, which securely
+ * disables ECH. Retry without ECH.
+ *
+ * The SSL Session is valid using the outer client hello, so it's safe.
+ * Conscrypt guarantees this is safe if we verify the publicHostname on the session.
+ *
+ * https://www.rfc-editor.org/rfc/rfc9849.html#section-6.1.6
  */
 internal data class EchRetryConfig(
-  val configList: ByteString,
+  /** The client-facing server's name from `ECHConfig.contents.public_name`. */
   val publicHostname: String,
+  /** updated ECH configList or null to retry without ECH */
+  val configList: ByteString?,
 )
