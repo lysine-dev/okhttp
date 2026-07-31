@@ -534,7 +534,7 @@ class ConnectPlan internal constructor(
             socketAddress = route.socketAddress,
             echConfigList = offeredEchRetryConfig.configList,
           ),
-        // echRetryConfig.configList is possibly null to retry with ECH disabled 
+        // echRetryConfig.configList is possibly null to retry with ECH disabled
         echRetryConfig = offeredEchRetryConfig,
       )
     }
