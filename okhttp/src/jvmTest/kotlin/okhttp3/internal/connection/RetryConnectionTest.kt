@@ -108,7 +108,7 @@ class RetryConnectionTest {
     val routePlanner = factory.newRoutePlanner(client, address)
     val route = factory.newRoute(address)
     val connectionSpecs = listOf(ConnectionSpec.MODERN_TLS, ConnectionSpec.COMPATIBLE_TLS)
-    val socket = createSocketWithEnabledProtocols(TlsVersion.TLS_1_2, TlsVersion.TLS_1_1)
+    val socket = createEchSocket()
     val attempt0 =
       routePlanner
         .planConnectToRoute(route)
@@ -156,7 +156,7 @@ class RetryConnectionTest {
     val address = newEchAddress()
     val routePlanner = factory.newRoutePlanner(client, address)
     val connectionSpecs = listOf(ConnectionSpec.MODERN_TLS)
-    val socket = createSocketWithEnabledProtocols(TlsVersion.TLS_1_2)
+    val socket = createEchSocket()
     val attempt0 =
       routePlanner
         .planConnect()
@@ -179,7 +179,7 @@ class RetryConnectionTest {
     val routePlanner = factory.newRoutePlanner(client, address)
     val route = factory.newRoute(address)
     val connectionSpecs = listOf(ConnectionSpec.MODERN_TLS, ConnectionSpec.COMPATIBLE_TLS)
-    val socket = createSocketWithEnabledProtocols(TlsVersion.TLS_1_2, TlsVersion.TLS_1_1)
+    val socket = createEchSocket()
     val attempt0 =
       routePlanner
         .planConnectToRoute(route)
@@ -203,7 +203,7 @@ class RetryConnectionTest {
     val routePlanner = factory.newRoutePlanner(client, address)
     val route = factory.newRoute(address).withEchConfigList("stale config".encodeUtf8())
     val connectionSpecs = listOf(ConnectionSpec.MODERN_TLS, ConnectionSpec.COMPATIBLE_TLS)
-    val socket = createSocketWithEnabledProtocols(TlsVersion.TLS_1_2, TlsVersion.TLS_1_1)
+    val socket = createEchSocket()
     val attempt0 =
       routePlanner
         .planConnectToRoute(route)
@@ -235,7 +235,7 @@ class RetryConnectionTest {
     val routePlanner = factory.newRoutePlanner(client, address)
     val route = factory.newRoute(address).withEchConfigList("stale config".encodeUtf8())
     val connectionSpecs = listOf(ConnectionSpec.MODERN_TLS, ConnectionSpec.COMPATIBLE_TLS)
-    val socket = createSocketWithEnabledProtocols(TlsVersion.TLS_1_2, TlsVersion.TLS_1_1)
+    val socket = createEchSocket()
     val attempt0 =
       routePlanner
         .planConnectToRoute(route)
@@ -313,6 +313,13 @@ class RetryConnectionTest {
         verified
       },
     )
+
+  /**
+   * ECH is only carried by TLS 1.3, so every ECH attempt needs it enabled.
+   *
+   * https://www.rfc-editor.org/rfc/rfc9849.html#section-1
+   */
+  private fun createEchSocket(): SSLSocket = createSocketWithEnabledProtocols(TlsVersion.TLS_1_3, TlsVersion.TLS_1_2)
 
   private fun createSocketWithEnabledProtocols(vararg tlsVersions: TlsVersion): SSLSocket =
     (handshakeCertificates.sslSocketFactory().createSocket() as SSLSocket).apply {
