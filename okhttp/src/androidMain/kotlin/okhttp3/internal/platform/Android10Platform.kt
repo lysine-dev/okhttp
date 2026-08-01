@@ -95,11 +95,12 @@ class Android10Platform :
     if (Build.VERSION.SDK_INT < 37 || exception !is EchConfigMismatchException) return null
 
     // From https://cs.android.com/android/platform/superproject/+/android-latest-release:external/conscrypt/platform/src/main/java/org/conscrypt/Platform.java;bpv=0
-    // we can get neither, publicHostname only, or both
+    // we can get neither, publicHostname only, or both. Conscrypt only hands us an EchConfigList
+    // if it is non-empty and self-consistent; BoringSSL does the real validation (version checks
+    // and such) when we hand the list back to it.
     return EchRetryConfig(
       publicHostname = exception.publicHostname ?: return null,
       // An absent retry config list is how a server securely disables ECH.
-      // TODO can Conscrypt hand us an empty list, and does it mean the same thing?
       configList =
         exception.retryConfigList
           ?.toBytes()

@@ -18,18 +18,19 @@ package okhttp3.internal.dns
 import okio.ByteString
 
 /**
- * ECH Retry config. Generally sent by a server when there is a
- * mismatch between A/AAAA and HTTPS Records.
+ * ECH retry config. Sent by a server when the ECH configuration we offered has fallen out of sync
+ * with the one it accepts: its TTL expired, or the server rotated to a new configuration. (For
+ * example, Cloudflare publishes one configuration at a time and rotates it hourly, honoring the
+ * previous one for a further 4 hours. A configuration cached past that grace period earns a retry
+ * config.)
  *
  * If a new [configList] is present, the server securely replaced our ECH configuration, and it
- * must only be used when [publicHostname] can be validated against the certificate
- * from the SSLSession (the outer client hello).
+ * must only be used when [publicHostname] can be validated against the certificate from the
+ * SSLSession (the outer client hello). Authenticating the public name is what makes this safe:
+ * https://www.rfc-editor.org/rfc/rfc9849.html#section-6.1.7
  *
  * A null [configList] means the server offered no usable retry configuration, which securely
  * disables ECH. Retry without ECH.
- *
- * The SSL Session is valid using the outer client hello, so it's safe.
- * Conscrypt guarantees this is safe if we verify the publicHostname on the session.
  *
  * https://www.rfc-editor.org/rfc/rfc9849.html#section-6.1.6
  */
