@@ -70,18 +70,23 @@ class EchTest(
   fun tlsEchDevUsesEch() {
     val body = client.get("https://tls-ech.dev/")
 
+    // Only the heading identifies the server we reached; every page links to all of the others.
+    assertThat(body).contains("<h1>tls-ech.dev</h1>")
     assertThat(body).contains("You are using ECH")
     assertThat(body).doesNotContain("not using ECH")
   }
 
+  /** Port 444, because port 443 is the plain tls-ech.dev server. */
   @Test
   fun staleEchConfigIsRetried() {
-    val body = client.get("https://stale.tls-ech.dev/")
+    val body = client.get("https://stale.tls-ech.dev:444/")
 
+    assertThat(body).contains("<h1>stale.tls-ech.dev</h1>")
     assertThat(body).contains("You are using ECH")
     assertThat(body).doesNotContain("not using ECH")
   }
 
+  /** Port 445, because port 443 is the plain tls-ech.dev server. */
   @Test
   fun differentPublicHostnameIsVerifiedBeforeRetry() {
     // The outer certificate authenticates public.tls-ech.dev,
@@ -98,18 +103,23 @@ class EchTest(
         }
         .build()
 
-    val body = client.get("https://wrong.tls-ech.dev/")
+    val body = client.get("https://wrong.tls-ech.dev:445/")
 
+    assertThat(body).contains("<h1>wrong.tls-ech.dev</h1>")
     assertThat(body).contains("You are using ECH")
     assertThat(verifiedHostnames).contains("public.tls-ech.dev")
   }
 
   /**
    * TLS 1.2 cannot carry ECH.
+   *
+   * Port 446, because port 443 is the plain tls-ech.dev server.
    */
   @Test
   fun tls12OffersNothingToRetryWith() {
-    assertThat(client.echRejectionFrom("https://tls12.tls-ech.dev/").hasRetryConfigList()).isFalse()
+    val rejection = client.echRejectionFrom("https://tls12.tls-ech.dev:446/")
+
+    assertThat(rejection.hasRetryConfigList()).isFalse()
   }
 
   /**
