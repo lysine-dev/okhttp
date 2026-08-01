@@ -20,9 +20,10 @@ import androidx.activity.ComponentActivity
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.OkHttpClient
+import okhttp3.OkHttpClient.Builder
 import okhttp3.Request
 import okhttp3.Response
+import okhttp3.android.addTracing
 import okhttp3.internal.platform.AndroidPlatform
 import okio.IOException
 
@@ -30,7 +31,10 @@ open class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
 
-    val client = OkHttpClient()
+    val client =
+      Builder()
+        .addTracing()
+        .build()
 
     // Ensure we are compiling against the right variant
     println(AndroidPlatform.isSupported)

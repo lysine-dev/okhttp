@@ -25,6 +25,7 @@ import java.net.Socket as JavaNetSocket
 import java.net.UnknownServiceException
 import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
 import javax.net.ssl.SSLPeerUnverifiedException
 import javax.net.ssl.SSLSocket
 import okhttp3.CertificatePinner
@@ -75,6 +76,8 @@ class ConnectPlan internal constructor(
   internal val isTlsFallback: Boolean,
 ) : RoutePlanner.Plan,
   ExchangeCodec.Carrier {
+  private val id = idGenerator.incrementAndGet()
+
   /** True if this connect was canceled; typically because it lost a race. */
   @Volatile private var canceled = false
 
@@ -131,7 +134,7 @@ class ConnectPlan internal constructor(
     call.plansToCancel += this
     try {
       call.eventListener.connectStart(call, route.socketAddress, route.proxy)
-      connectionPool.connectionListener.connectStart(route, call)
+      connectionPool.connectionListener.connectStart(id, route, call)
 
       connectSocket()
       success = true
@@ -146,7 +149,7 @@ class ConnectPlan internal constructor(
         )
       }
       call.eventListener.connectFailed(call, route.socketAddress, route.proxy, null, e)
-      connectionPool.connectionListener.connectFailed(route, call, e)
+      connectionPool.connectionListener.connectFailed(id, route, call, e)
       return ConnectResult(plan = this, throwable = e)
     } finally {
       call.plansToCancel -= this
@@ -237,7 +240,7 @@ class ConnectPlan internal constructor(
       return ConnectResult(plan = this)
     } catch (e: IOException) {
       call.eventListener.connectFailed(call, route.socketAddress, route.proxy, null, e)
-      connectionPool.connectionListener.connectFailed(route, call, e)
+      connectionPool.connectionListener.connectFailed(id, route, call, e)
 
       if (!retryOnConnectionFailure || !retryTlsHandshake(e)) {
         retryTlsConnection = null
@@ -331,7 +334,7 @@ class ConnectPlan internal constructor(
             "Too many tunnel connections attempted: $MAX_TUNNEL_ATTEMPTS",
           )
         call.eventListener.connectFailed(call, route.socketAddress, route.proxy, null, failure)
-        connectionPool.connectionListener.connectFailed(route, call, failure)
+        connectionPool.connectionListener.connectFailed(id, route, call, failure)
         return ConnectResult(plan = this, throwable = failure)
       }
     }
@@ -570,5 +573,6 @@ class ConnectPlan internal constructor(
   companion object {
     private const val NPE_THROW_WITH_NULL = "throw with null exception"
     private const val MAX_TUNNEL_ATTEMPTS = 21
+    private val idGenerator = AtomicLong(0)
   }
 }
