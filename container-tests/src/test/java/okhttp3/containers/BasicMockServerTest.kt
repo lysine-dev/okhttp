@@ -78,10 +78,15 @@ class BasicMockServerTest {
   }
 
   companion object {
+    private val mockServerVersion =
+      checkNotNull(System.getProperty("mockserver.version")) {
+        "mockserver.version is not set"
+      }
+
     val MOCKSERVER_IMAGE: DockerImageName =
       DockerImageName
         .parse("mockserver/mockserver")
-        .withTag("mockserver-7.4.0")
+        .withTag("mockserver-$mockServerVersion")
 
     fun OkHttpClient.Builder.trustMockServer(): OkHttpClient.Builder =
       apply {
