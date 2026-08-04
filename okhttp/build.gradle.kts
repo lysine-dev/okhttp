@@ -4,7 +4,6 @@ import okhttp3.buildsupport.alpnBootVersion
 import okhttp3.buildsupport.platform
 import okhttp3.buildsupport.testJavaVersion
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 import ru.vyarus.gradle.plugin.animalsniffer.AnimalSniffer
 import ru.vyarus.gradle.plugin.animalsniffer.AnimalSnifferExtension
 
@@ -216,81 +215,10 @@ if (platform == "jdk8alpn") {
   }
 }
 
-// From https://github.com/Kotlin/kotlinx-atomicfu/blob/master/atomicfu/build.gradle.kts
-val compileJavaModuleInfo by tasks.registering(JavaCompile::class) {
-  val moduleName = "okhttp3"
-  val compilation = kotlin.targets["jvm"].compilations["main"]
-  val compileKotlinTask = compilation.compileTaskProvider.get() as KotlinJvmCompile
-  val targetDir = compileKotlinTask.destinationDirectory.dir("../java9")
-  val sourceDir = file("src/jvmMain/java9/")
-
-  // Use a Java 11 compiler for the module info.
-  javaCompiler.set(project.javaToolchains.compilerFor { languageVersion.set(JavaLanguageVersion.of(11)) })
-
-  // Always compile kotlin classes before the module descriptor.
-  dependsOn(compileKotlinTask)
-
-  // Add the module-info source file.
-  source(sourceDir)
-
-  // Also add the module-info.java source file to the Kotlin compile task.
-  // The Kotlin compiler will parse and check module dependencies,
-  // but it currently won't compile to a module-info.class file.
-  // Note that module checking only works on JDK 9+,
-  // because the JDK built-in base modules are not available in earlier versions.
-  val javaVersion = compileKotlinTask.kotlinJavaToolchain.javaVersion.getOrNull()
-  when {
-    javaVersion?.isJava9Compatible == true -> {
-      logger.info("Module-info checking is enabled; $compileKotlinTask is compiled using Java $javaVersion")
-      // Disabled as this module can't see the others in this build for some reason
-//      compileKotlinTask.source(sourceDir)
-    }
-
-    else -> {
-      logger.info("Module-info checking is disabled")
-    }
-  }
-  // Set the task outputs and destination dir
-  outputs.dir(targetDir)
-  destinationDirectory.set(targetDir)
-
-  // Configure JVM compatibility
-  sourceCompatibility = JavaVersion.VERSION_1_9.toString()
-  targetCompatibility = JavaVersion.VERSION_1_9.toString()
-
-  // Set the Java release version.
-  options.release.set(9)
-
-  // Ignore warnings about using 'requires transitive' on automatic modules.
-  // not needed when compiling with recent JDKs, e.g. 17
-  options.compilerArgs.add("-Xlint:-requires-transitive-automatic")
-
-  // Patch the compileKotlinJvm output classes into the compilation so exporting packages works correctly.
-  options.compilerArgs.addAll(
-    listOf(
-      "--patch-module",
-      "$moduleName=${compileKotlinTask.destinationDirectory.get().asFile}",
-    ),
-  )
-
-  // Use the classpath of the compileKotlinJvm task.
-  // Also, ensure that the module path is used instead of the classpath.
-  classpath = compileKotlinTask.libraries
-  modularity.inferModulePath.set(true)
-}
-
-// Call the convention when the task has finished, to modify the jar to contain OSGi metadata.
-tasks.named<Jar>("jvmJar").configure {
-  manifest {
-    attributes(
-      "Multi-Release" to true,
-    )
-  }
-
-  from(compileJavaModuleInfo.map { it.destinationDirectory }) {
-    into("META-INF/versions/9/")
-  }
-}
+project.applyJavaModules(
+  moduleName = "okhttp3",
+  enableValidation = false,
+)
 
 project.applyOsgiMultiplatform(
   "Export-Package: okhttp3,okhttp3.internal.*;okhttpinternal=true;mandatory:=okhttpinternal",
