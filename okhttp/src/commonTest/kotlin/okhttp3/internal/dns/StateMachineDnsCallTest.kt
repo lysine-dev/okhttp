@@ -81,6 +81,94 @@ class StateMachineDnsCallTest {
   }
 
   @Test
+  fun `partially overlapping ip address hints return first`(caching: Boolean = true) {
+    testStateMachineDnsCall {
+      val call =
+        newCall(
+          request = Dns.Request(hostname = "lysine.dev"),
+          caching = caching,
+        )
+      call.enqueue()
+
+      val httpsQuery = queryFactory.takeQuery("lysine.dev", TYPE_HTTPS)
+      val ipv6Query = queryFactory.takeQuery("lysine.dev", TYPE_AAAA)
+      val ipv4Query = queryFactory.takeQuery("lysine.dev", TYPE_A)
+
+      httpsQuery.respondServiceMetadata(
+        ipAddressHints = blueIpv6s + greenIpv4s,
+      )
+      ipv6Query.respondIpAddresses(addresses = blueIpv6s)
+      ipv4Query.respondIpAddresses(addresses = blueIpv4s)
+
+      assertThat(call.takeAllRecords())
+        .isEqualTo(
+          listOf(
+            Dns.Record.ServiceMetadata(
+              hostname = "lysine.dev",
+              ipAddressHints = blueIpv6s + greenIpv4s,
+            ),
+            Dns.Record.IpAddress(
+              hostname = "lysine.dev",
+              address = blueIpv6s.single(),
+            ),
+            Dns.Record.IpAddress(
+              hostname = "lysine.dev",
+              address = greenIpv4s.single(),
+            ),
+            Dns.Record.IpAddress(
+              hostname = "lysine.dev",
+              address = blueIpv4s.single(),
+            ),
+          ),
+        )
+    }
+  }
+
+  @Test
+  fun `partially overlapping ip address hints return last`(caching: Boolean = true) {
+    testStateMachineDnsCall {
+      val call =
+        newCall(
+          request = Dns.Request(hostname = "lysine.dev"),
+          caching = caching,
+        )
+      call.enqueue()
+
+      val httpsQuery = queryFactory.takeQuery("lysine.dev", TYPE_HTTPS)
+      val ipv6Query = queryFactory.takeQuery("lysine.dev", TYPE_AAAA)
+      val ipv4Query = queryFactory.takeQuery("lysine.dev", TYPE_A)
+
+      ipv6Query.respondIpAddresses(addresses = blueIpv6s)
+      ipv4Query.respondIpAddresses(addresses = blueIpv4s)
+      httpsQuery.respondServiceMetadata(
+        ipAddressHints = blueIpv6s + greenIpv4s,
+      )
+
+      assertThat(call.takeAllRecords())
+        .isEqualTo(
+          listOf(
+            Dns.Record.IpAddress(
+              hostname = "lysine.dev",
+              address = blueIpv6s.single(),
+            ),
+            Dns.Record.IpAddress(
+              hostname = "lysine.dev",
+              address = blueIpv4s.single(),
+            ),
+            Dns.Record.ServiceMetadata(
+              hostname = "lysine.dev",
+              ipAddressHints = blueIpv6s + greenIpv4s,
+            ),
+            Dns.Record.IpAddress(
+              hostname = "lysine.dev",
+              address = greenIpv4s.single(),
+            ),
+          ),
+        )
+    }
+  }
+
+  @Test
   fun `caches are independent per hostname`() {
     testStateMachineDnsCall {
       val lysineCall0 =

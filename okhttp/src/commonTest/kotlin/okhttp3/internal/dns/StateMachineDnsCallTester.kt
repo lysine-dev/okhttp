@@ -279,7 +279,9 @@ class StateMachineDnsCallTester internal constructor() {
       /** Respond to a [TYPE_HTTPS] query with service metadata. */
       fun respondServiceMetadata(
         timeToLive: Duration = 300.seconds,
+        targetName: String = "",
         alpnIds: List<String>? = null,
+        ipAddressHints: List<InetAddress> = listOf(),
         echConfigList: ByteString? = null,
       ) {
         callback.onResponse(
@@ -290,7 +292,9 @@ class StateMachineDnsCallTester internal constructor() {
                 ResourceRecord.Https(
                   name = question.name,
                   timeToLive = timeToLive.inWholeSeconds.toInt(),
+                  targetName = targetName,
                   alpnIds = alpnIds,
+                  ipAddressHints = ipAddressHints,
                   echConfigList = echConfigList,
                 ),
               ),

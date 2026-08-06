@@ -486,6 +486,14 @@ class DnsOverHttpsTest(
                 ),
               echConfigList = "this is an encrypted client hello".encodeUtf8(),
             ),
+            Dns.Record.IpAddress(
+              hostname = "cdn.lysine.dev",
+              address = InetAddress.getByName("55.66.77.88"),
+            ),
+            Dns.Record.IpAddress(
+              hostname = "cdn.lysine.dev",
+              address = InetAddress.getByName("aa:bb::cc:dd"),
+            ),
           ),
       ),
     )

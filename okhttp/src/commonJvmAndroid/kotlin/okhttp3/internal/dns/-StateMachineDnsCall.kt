@@ -104,6 +104,7 @@ class StateMachineDnsCall(
           canceled = false,
           callback = callback,
           runningQueries = queries,
+          returnedIpAddresses = if (includeServiceMetadata) setOf() else null,
         )
 
       if (!state.compareAndSet(previous, next)) continue // Lost a race, retry.
@@ -167,29 +168,40 @@ class StateMachineDnsCall(
       }
 
     val dnsRecords =
-      resourceRecords.map { resourceRecord ->
+      resourceRecords.flatMap { resourceRecord ->
         when (resourceRecord) {
           is ResourceRecord.Https -> {
-            Dns.Record.ServiceMetadata(
-              hostname = resourceRecord.targetName.takeIf { it != "" } ?: request.hostname,
-              alpnIds =
-                resourceRecord.alpnIds?.mapNotNull { alpnId ->
-                  try {
-                    Protocol.get(alpnId)
-                  } catch (_: IOException) {
-                    null // Skip unrecognized ALPN ID.
-                  }
-                },
-              port = resourceRecord.port,
-              ipAddressHints = resourceRecord.ipAddressHints,
-              echConfigList = resourceRecord.echConfigList,
-            )
+            val hostname = resourceRecord.targetName.takeIf { it != "" } ?: request.hostname
+            listOf(
+              Dns.Record.ServiceMetadata(
+                hostname = hostname,
+                alpnIds =
+                  resourceRecord.alpnIds?.mapNotNull { alpnId ->
+                    try {
+                      Protocol.get(alpnId)
+                    } catch (_: IOException) {
+                      null // Skip unrecognized ALPN ID.
+                    }
+                  },
+                port = resourceRecord.port,
+                ipAddressHints = resourceRecord.ipAddressHints,
+                echConfigList = resourceRecord.echConfigList,
+              ),
+            ) +
+              resourceRecord.ipAddressHints.map { address ->
+                Dns.Record.IpAddress(
+                  hostname = hostname,
+                  address = address,
+                )
+              }
           }
 
           is ResourceRecord.IpAddress -> {
-            Dns.Record.IpAddress(
-              hostname = request.hostname,
-              address = resourceRecord.address,
+            listOf(
+              Dns.Record.IpAddress(
+                hostname = request.hostname,
+                address = resourceRecord.address,
+              ),
             )
           }
         }
@@ -224,9 +236,24 @@ class StateMachineDnsCall(
           else -> previous.pendingExceptions
         }
 
+      val returnedIpAddresses: Set<Dns.Record.IpAddress>?
+      val deduplicatedNewRecords: List<Dns.Record>
+      if (includeServiceMetadata) {
+        val mutableReturnedIpAddresses = previous.returnedIpAddresses!!.toMutableSet()
+        deduplicatedNewRecords =
+          newRecords.filter { record ->
+            // Include the hostname: an address for an alternate service is a distinct result.
+            record !is Dns.Record.IpAddress || mutableReturnedIpAddresses.add(record)
+          }
+        returnedIpAddresses = mutableReturnedIpAddresses
+      } else {
+        returnedIpAddresses = null
+        deduplicatedNewRecords = newRecords
+      }
+
       val allRecords =
         when {
-          newRecords.isNotEmpty() -> previous.pendingRecords + newRecords
+          deduplicatedNewRecords.isNotEmpty() -> previous.pendingRecords + deduplicatedNewRecords
           else -> previous.pendingRecords
         }
 
@@ -246,6 +273,7 @@ class StateMachineDnsCall(
             lockHeld = lockHeldByAnotherThread,
             pendingRecords = allRecords,
             pendingExceptions = allExceptions,
+            returnedIpAddresses = returnedIpAddresses,
           )
         if (!state.compareAndSet(previous, next)) continue // Lost a race, retry.
         return
@@ -266,6 +294,7 @@ class StateMachineDnsCall(
               lockHeld = true,
               pendingRecords = listOf(),
               pendingExceptions = allExceptions,
+              returnedIpAddresses = returnedIpAddresses,
             )
           }
         }
@@ -311,6 +340,7 @@ class StateMachineDnsCall(
       val runningQueries: List<DnsQuery>,
       val pendingRecords: List<Dns.Record> = listOf(),
       val pendingExceptions: List<IOException> = listOf(),
+      val returnedIpAddresses: Set<Dns.Record.IpAddress>?,
     ) : State {
       init {
         check(pendingRecords.isEmpty() || lockHeld)
@@ -324,6 +354,7 @@ class StateMachineDnsCall(
           runningQueries = runningQueries,
           pendingRecords = pendingRecords,
           pendingExceptions = pendingExceptions,
+          returnedIpAddresses = returnedIpAddresses,
         )
     }
 
