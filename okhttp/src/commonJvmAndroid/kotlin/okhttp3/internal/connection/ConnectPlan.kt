@@ -408,7 +408,17 @@ class ConnectPlan internal constructor(
           null
         }
       javaNetSocket = sslSocket
-      socket = sslSocket.asBufferedSocket()
+      val rawSocket = requireNotNull(rawSocket) { "TCP not connected" }
+      val sslBuffered = sslSocket.asBufferedSocket()
+      // Close the raw TCP socket before the SSL layer: SSLSocket.close() may block for many
+      // seconds attempting to send close_notify on a half-open connection.
+      socket =
+        object : BufferedSocket by sslBuffered {
+          override fun cancel() {
+            rawSocket.closeQuietly()
+            sslBuffered.cancel()
+          }
+        }
       protocol = if (maybeProtocol != null) Protocol.get(maybeProtocol) else Protocol.HTTP_1_1
       success = true
     } finally {
