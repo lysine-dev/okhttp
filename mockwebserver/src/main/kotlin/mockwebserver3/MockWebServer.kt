@@ -880,7 +880,7 @@ public class MockWebServer : Closeable {
           socket = socket,
         ).buffer()
     body.writeTo(responseBodySink)
-    responseBodySink.emit()
+    responseBodySink.flush()
 
     socket.sleepWhileOpen(response.trailersDelayNanos)
     if ("chunked".equals(response.headers["Transfer-Encoding"], ignoreCase = true)) {

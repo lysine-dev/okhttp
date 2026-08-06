@@ -16,8 +16,6 @@
 package okhttp3.internal.http
 
 import assertk.assertThat
-import assertk.assertions.isEqualTo
-import assertk.assertions.isIn
 import assertk.assertions.isInstanceOf
 import assertk.assertions.isNotNull
 import assertk.assertions.matchesPredicate
@@ -33,8 +31,6 @@ import java.util.concurrent.TimeUnit
 import kotlin.test.assertFailsWith
 import okhttp3.Call
 import okhttp3.Callback
-import okhttp3.DelegatingServerSocketFactory
-import okhttp3.DelegatingSocketFactory
 import okhttp3.OkHttpClient
 import okhttp3.OkHttpClientTestRule
 import okhttp3.Request
@@ -43,6 +39,8 @@ import okhttp3.Response
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.SocketPolicy
+import okhttp3.sockets.DelegatingServerSocketFactory
+import okhttp3.sockets.DelegatingSocketFactory
 import okhttp3.testing.PlatformRule
 import okio.Buffer
 import okio.BufferedSink

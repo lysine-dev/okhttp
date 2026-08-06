@@ -52,6 +52,8 @@ import okhttp3.CertificatePinner.Companion.pin
 import okhttp3.Headers.Companion.headersOf
 import okhttp3.internal.connection.ConnectionListener
 import okhttp3.internal.platform.Platform
+import okhttp3.sockets.DelegatingSSLSocketFactory
+import okhttp3.sockets.DelegatingSocketFactory
 import okhttp3.testing.PlatformRule
 import okio.BufferedSink
 import okio.ForwardingFileSystem
