@@ -83,9 +83,10 @@ class FakeNetworkTest {
     server.bind(serverAddress, 3)
 
     val server2 = network.serverSocketFactory.createServerSocket()
-    val e = assertFailsWith<SocketException> {
-      server2.bind(serverAddress, 3)
-    }
+    val e =
+      assertFailsWith<SocketException> {
+        server2.bind(serverAddress, 3)
+      }
     assertThat(e).hasMessage("bind collision")
 
     server2.close()
@@ -95,17 +96,19 @@ class FakeNetworkTest {
   fun `cannot bind after close`() {
     server.close()
 
-    val e = assertFailsWith<SocketException> {
-      server.bind(serverAddress, 3)
-    }
+    val e =
+      assertFailsWith<SocketException> {
+        server.bind(serverAddress, 3)
+      }
     assertThat(e).hasMessage("cannot bind")
   }
 
   @Test
   fun `cannot accept without bind`() {
-    val e = assertFailsWith<SocketException> {
-      server.accept()
-    }
+    val e =
+      assertFailsWith<SocketException> {
+        server.accept()
+      }
     assertThat(e).hasMessage("not bound")
   }
 
@@ -144,9 +147,10 @@ class FakeNetworkTest {
     val client = network.socketFactory.createSocket()
     client.close()
 
-    val e = assertFailsWith<SocketException> {
-      client.connect(serverAddress, 5_000)
-    }
+    val e =
+      assertFailsWith<SocketException> {
+        client.connect(serverAddress, 5_000)
+      }
     assertThat(e).hasMessage("cannot connect")
   }
 
@@ -159,12 +163,14 @@ class FakeNetworkTest {
     }
 
     val client = network.socketFactory.createSocket()
-    val elapsed = measureTime {
-      val e = assertFailsWith<SocketException> {
-        client.connect(serverAddress, 5_000)
+    val elapsed =
+      measureTime {
+        val e =
+          assertFailsWith<SocketException> {
+            client.connect(serverAddress, 5_000)
+          }
+        assertThat(e).hasMessage("server closed")
       }
-      assertThat(e).hasMessage("server closed")
-    }
     assertThat(elapsed).isBetween(200.milliseconds, 350.milliseconds)
   }
 
@@ -177,12 +183,14 @@ class FakeNetworkTest {
       client.close()
     }
 
-    val elapsed = measureTime {
-      val e = assertFailsWith<SocketException> {
-        client.connect(serverAddress, 5_000)
+    val elapsed =
+      measureTime {
+        val e =
+          assertFailsWith<SocketException> {
+            client.connect(serverAddress, 5_000)
+          }
+        assertThat(e).hasMessage("client closed")
       }
-      assertThat(e).hasMessage("client closed")
-    }
     assertThat(elapsed).isBetween(200.milliseconds, 350.milliseconds)
   }
 
@@ -194,12 +202,14 @@ class FakeNetworkTest {
       server.close()
     }
 
-    val elapsed = measureTime {
-      val e = assertFailsWith<SocketException> {
-        server.accept()
+    val elapsed =
+      measureTime {
+        val e =
+          assertFailsWith<SocketException> {
+            server.accept()
+          }
+        assertThat(e).hasMessage("closed")
       }
-      assertThat(e).hasMessage("closed")
-    }
     assertThat(elapsed).isBetween(200.milliseconds, 350.milliseconds)
   }
 
@@ -208,11 +218,12 @@ class FakeNetworkTest {
     server.bind(serverAddress, 3)
 
     val client = network.socketFactory.createSocket()
-    val elapsed = measureTime {
-      assertFailsWith<InterruptedIOException> {
-        client.connect(serverAddress, 250)
+    val elapsed =
+      measureTime {
+        assertFailsWith<InterruptedIOException> {
+          client.connect(serverAddress, 250)
+        }
       }
-    }
     assertThat(elapsed).isBetween(200.milliseconds, 350.milliseconds)
   }
 
@@ -233,20 +244,22 @@ class FakeNetworkTest {
     // previously-started clients can fill up the backlog.
     Thread.sleep(100)
     val clientD = network.socketFactory.createSocket()
-    val elapsed = measureTime {
-      assertFailsWith<InterruptedIOException> {
-        clientD.connect(serverAddress, 250)
+    val elapsed =
+      measureTime {
+        assertFailsWith<InterruptedIOException> {
+          clientD.connect(serverAddress, 250)
+        }
       }
-    }
     assertThat(elapsed).isBetween(200.milliseconds, 350.milliseconds)
   }
 
   private fun connectExpectingServerClose(name: String) {
     val client = network.socketFactory.createSocket()
     taskRunner.schedule(name) {
-      val e = assertFailsWith<SocketException> {
-        client.connect(serverAddress, 5_000)
-      }
+      val e =
+        assertFailsWith<SocketException> {
+          client.connect(serverAddress, 5_000)
+        }
       assertThat(e).hasMessage("server closed")
     }
   }

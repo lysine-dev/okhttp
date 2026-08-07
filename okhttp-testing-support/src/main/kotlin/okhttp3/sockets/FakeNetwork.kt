@@ -29,9 +29,9 @@ import okhttp3.internal.concurrent.Lockable
 import okhttp3.internal.concurrent.notifyAll
 import okhttp3.internal.concurrent.wait
 import okhttp3.internal.concurrent.withLock
-import okhttp3.internal.connection.BufferedSocket
 import okhttp3.internal.connection.asBufferedSocket
 import okio.Buffer
+import okio.Socket
 import okio.Timeout
 import okio.inMemorySocketPair
 
@@ -273,8 +273,8 @@ internal class BoundServer(
 internal class FakeConnection(
   val clientAddress: InetSocketAddress,
   val serverAddress: InetSocketAddress,
-  val clientSocket: BufferedSocket,
-  val serverSocket: BufferedSocket,
+  val clientSocket: Socket,
+  val serverSocket: Socket,
 ) {
   override fun toString() = "$clientAddress<->$serverAddress"
 }

@@ -81,7 +81,8 @@ internal class FakeServerSocket(
           FakeSocket.State.Connected(
             localAddress = connection.serverAddress,
             remoteAddress = connection.clientAddress,
-            bufferedSocket = connection.serverSocket,
+            source = SocketSource(connection.serverSocket.source),
+            sink = SocketSink(connection.serverSocket.sink),
           ),
       )
 

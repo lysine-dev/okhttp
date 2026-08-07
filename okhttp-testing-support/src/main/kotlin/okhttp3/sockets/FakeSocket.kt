@@ -24,7 +24,10 @@ import java.net.SocketAddress
 import java.net.SocketException
 import java.net.SocketOption
 import java.util.concurrent.atomic.AtomicReference
-import okhttp3.internal.connection.BufferedSocket
+import okio.Buffer
+import okio.Sink
+import okio.Source
+import okio.buffer
 
 /**
  * A client or server socket.
@@ -41,11 +44,13 @@ internal class FakeSocket(
 
   private var socketReadTimeoutMillis: Long = 0
 
-  private fun connectedSocket() = (state as? State.Connected)?.bufferedSocket ?: throw IOException("not connected")
+  override fun getInputStream() =
+    (state as? State.Connected)?.inputStream
+      ?: throw IOException("not connected")
 
-  override fun getInputStream() = connectedSocket().source.inputStream()
-
-  override fun getOutputStream() = connectedSocket().sink.outputStream()
+  override fun getOutputStream() =
+    (state as? State.Connected)?.outputStream
+      ?: throw IOException("not connected")
 
   override fun getRemoteSocketAddress() = state.remoteAddress
 
@@ -110,7 +115,8 @@ internal class FakeSocket(
         State.Connected(
           localAddress = attempt.clientAddress,
           remoteAddress = attempt.serverAddress,
-          bufferedSocket = connection.clientSocket,
+          source = SocketSource(connection.clientSocket.source),
+          sink = SocketSink(connection.clientSocket.sink),
         )
 
       // If the state changed while we were connecting, the other state wins.
@@ -127,19 +133,14 @@ internal class FakeSocket(
   override fun shutdownInput() {
     while (true) {
       val previous = state
-      if (previous !is State.Connected || previous.inputShutdown) {
-        throw SocketException("cannot shutdown input")
+      if (previous !is State.Connected) throw SocketException("cannot shutdown input")
+
+      if (previous.outputShutdown) {
+        val next = State.Closed(previous)
+        if (!atomicState.compareAndSet(previous, next)) continue // Lost a race, retry.
       }
 
-      val next =
-        when {
-          previous.outputShutdown -> State.Closed(previous)
-          else -> previous.copy(inputShutdown = true)
-        }
-
-      if (!atomicState.compareAndSet(previous, next)) continue // Lost a race, retry.
-
-      previous.bufferedSocket.source.close()
+      previous.inputStream.close()
       break
     }
   }
@@ -149,19 +150,14 @@ internal class FakeSocket(
   override fun shutdownOutput() {
     while (true) {
       val previous = state
-      if (previous !is State.Connected || previous.outputShutdown) {
-        throw SocketException("cannot shutdown output")
+      if (previous !is State.Connected) throw SocketException("cannot shutdown output")
+
+      if (previous.inputShutdown) {
+        val next = State.Closed(previous)
+        if (!atomicState.compareAndSet(previous, next)) continue // Lost a race, retry.
       }
 
-      val next =
-        when {
-          previous.inputShutdown -> State.Closed(previous)
-          else -> previous.copy(outputShutdown = true)
-        }
-
-      if (!atomicState.compareAndSet(previous, next)) continue // Lost a race, retry.
-
-      previous.bufferedSocket.sink.close()
+      previous.outputStream.close()
       break
     }
   }
@@ -173,8 +169,22 @@ internal class FakeSocket(
 
       if (!atomicState.compareAndSet(previous, next)) continue // Lost a race, retry.
 
-      (previous as? State.Connecting)?.attempt?.cancel(SocketException("client closed"))
-      (previous as? State.Connected)?.bufferedSocket?.cancel()
+      when (previous) {
+        State.New -> {
+        }
+
+        is State.Connected -> {
+          previous.inputStream.close()
+          previous.outputStream.close()
+        }
+
+        is State.Connecting -> {
+          previous.attempt.cancel(SocketException("client closed"))
+        }
+
+        is State.Closed -> {
+        }
+      }
       break
     }
   }
@@ -259,17 +269,23 @@ internal class FakeSocket(
       val attempt: ConnectAttempt,
     ) : State
 
-    data class Connected(
+    class Connected(
       override val localAddress: InetSocketAddress,
       override val remoteAddress: InetSocketAddress,
-      val bufferedSocket: BufferedSocket,
-      override val inputShutdown: Boolean = false,
-      override val outputShutdown: Boolean = false,
+      val source: SocketSource,
+      val sink: SocketSink,
     ) : State {
+      val inputStream = source.buffer().inputStream()
+      val outputStream = sink.buffer().outputStream()
+
       override val bound: Boolean
         get() = true
       override val connected: Boolean
         get() = true
+      override val inputShutdown: Boolean
+        get() = source.delegate == null
+      override val outputShutdown: Boolean
+        get() = sink.delegate == null
     }
 
     /** A closed socket remembers what happened before it was closed. */
@@ -291,5 +307,58 @@ internal class FakeSocket(
       override val outputShutdown: Boolean
         get() = true
     }
+  }
+}
+
+internal class SocketSource(
+  delegate: Source,
+) : Source {
+  private val timeout = delegate.timeout()
+
+  @Volatile var delegate: Source? = delegate
+    private set
+
+  override fun read(
+    sink: Buffer,
+    byteCount: Long,
+  ): Long {
+    val delegate = this.delegate ?: throw IOException("closed")
+    return delegate.read(sink, byteCount)
+  }
+
+  override fun timeout() = timeout
+
+  override fun close() {
+    delegate?.close()
+    delegate = null
+  }
+}
+
+internal class SocketSink(
+  delegate: Sink,
+) : Sink {
+  private val timeout = delegate.timeout()
+
+  @Volatile var delegate: Sink? = delegate
+    private set
+
+  override fun write(
+    source: Buffer,
+    byteCount: Long,
+  ) {
+    val delegate = this.delegate ?: throw IOException("closed")
+    delegate.write(source, byteCount)
+  }
+
+  override fun flush() {
+    val delegate = this.delegate ?: throw IOException("closed")
+    delegate.flush()
+  }
+
+  override fun timeout() = timeout
+
+  override fun close() {
+    delegate?.close()
+    delegate = null
   }
 }
