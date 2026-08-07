@@ -107,14 +107,17 @@ class StateMachineDnsCallTest {
               hostname = "lysine.dev",
               ipAddressHints = blueIpv6s + greenIpv4s,
             ),
+            // This comes from a HTTPS record hint
             Dns.Record.IpAddress(
               hostname = "lysine.dev",
               address = blueIpv6s.single(),
             ),
+            // This comes from a HTTPS record hint
             Dns.Record.IpAddress(
               hostname = "lysine.dev",
               address = greenIpv4s.single(),
             ),
+            // This comes from a late A record
             Dns.Record.IpAddress(
               hostname = "lysine.dev",
               address = blueIpv4s.single(),
@@ -147,10 +150,12 @@ class StateMachineDnsCallTest {
       assertThat(call.takeAllRecords())
         .isEqualTo(
           listOf(
+            // This comes from an A record
             Dns.Record.IpAddress(
               hostname = "lysine.dev",
               address = blueIpv6s.single(),
             ),
+            // This comes from an AAAA record
             Dns.Record.IpAddress(
               hostname = "lysine.dev",
               address = blueIpv4s.single(),
@@ -159,6 +164,7 @@ class StateMachineDnsCallTest {
               hostname = "lysine.dev",
               ipAddressHints = blueIpv6s + greenIpv4s,
             ),
+            // This comes from a HTTPS record hint
             Dns.Record.IpAddress(
               hostname = "lysine.dev",
               address = greenIpv4s.single(),

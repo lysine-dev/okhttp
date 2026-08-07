@@ -242,8 +242,11 @@ class StateMachineDnsCall(
         val mutableReturnedIpAddresses = previous.returnedIpAddresses!!.toMutableSet()
         deduplicatedNewRecords =
           newRecords.filter { record ->
-            // Include the hostname: an address for an alternate service is a distinct result.
-            record !is Dns.Record.IpAddress || mutableReturnedIpAddresses.add(record)
+            when (record) {
+              // ServiceMetadata hints and IpAddress (A/AAAA) may overlap
+              is Dns.Record.IpAddress -> mutableReturnedIpAddresses.add(record)
+              is Dns.Record.ServiceMetadata -> true
+            }
           }
         returnedIpAddresses = mutableReturnedIpAddresses
       } else {
