@@ -221,7 +221,7 @@ internal class BoundServer(
       attempts.removeFirst()
     }
 
-    val (clientSocket, serverSocket) = inMemorySocketPair(1024 * 1024)
+    val (clientSocket, serverSocket) = inMemorySocketPair(maxBufferSize = 1024 * 1024)
     val connection = FakeConnection(
       clientAddress = attempt.clientAddress,
       serverAddress = attempt.serverAddress,
