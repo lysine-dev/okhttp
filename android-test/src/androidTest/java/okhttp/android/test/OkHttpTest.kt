@@ -72,8 +72,6 @@ import okhttp3.CallEvent.SecureConnectStart
 import okhttp3.CertificatePinner
 import okhttp3.CompressionInterceptor
 import okhttp3.Connection
-import okhttp3.DelegatingSSLSocket
-import okhttp3.DelegatingSSLSocketFactory
 import okhttp3.EventListener
 import okhttp3.EventRecorder
 import okhttp3.Gzip
@@ -93,6 +91,8 @@ import okhttp3.internal.platform.AndroidPlatform
 import okhttp3.internal.platform.Platform
 import okhttp3.internal.platform.PlatformRegistry
 import okhttp3.logging.LoggingEventListener
+import okhttp3.sockets.DelegatingSSLSocket
+import okhttp3.sockets.DelegatingSSLSocketFactory
 import okhttp3.testing.PlatformRule
 import okhttp3.tls.HandshakeCertificates
 import okhttp3.tls.internal.TlsUtil.localhost
