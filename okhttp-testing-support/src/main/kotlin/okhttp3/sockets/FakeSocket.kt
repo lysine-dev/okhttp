@@ -82,7 +82,7 @@ internal class FakeSocket(
 
     val attempt =
       ConnectAttempt(
-        clientAddress = network.nextClientAddress(),
+        clientAddress = network.nextSocketAddress(),
         serverAddress = endpoint,
       )
 
