@@ -7,5 +7,5 @@ This used to be part of `okhttp-urlconnection`
 ### Download
 
 ```kotlin
-testImplementation("com.squareup.okhttp3:okhttp-java-net-cookiehandler:5.4.0")
+testImplementation("com.squareup.okhttp3:okhttp-java-net-cookiejar:5.4.0")
 ```

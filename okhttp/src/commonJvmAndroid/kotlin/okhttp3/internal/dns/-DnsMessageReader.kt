@@ -151,7 +151,7 @@ class DnsMessageReader(
     val type = readShort().toInt()
     val `class` = readShort().toInt()
     val timeToLive = readInt()
-    val recordDataLength = readShort().toLong()
+    val recordDataLength = readUShort().toLong()
 
     when {
       `class` == CLASS_IN && type == TYPE_A -> {

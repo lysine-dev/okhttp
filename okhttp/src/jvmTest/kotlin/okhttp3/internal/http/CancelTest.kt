@@ -43,8 +43,6 @@ import okhttp3.CallEvent.ConnectionAcquired
 import okhttp3.CallEvent.ConnectionReleased
 import okhttp3.CallEvent.RequestFailed
 import okhttp3.CallEvent.ResponseFailed
-import okhttp3.DelegatingServerSocketFactory
-import okhttp3.DelegatingSocketFactory
 import okhttp3.EventRecorder
 import okhttp3.MediaType
 import okhttp3.OkHttpClient
@@ -58,6 +56,8 @@ import okhttp3.internal.http.CancelTest.CancelMode.INTERRUPT
 import okhttp3.internal.http.CancelTest.ConnectionType.H2
 import okhttp3.internal.http.CancelTest.ConnectionType.HTTP
 import okhttp3.internal.http.CancelTest.ConnectionType.HTTPS
+import okhttp3.sockets.DelegatingServerSocketFactory
+import okhttp3.sockets.DelegatingSocketFactory
 import okhttp3.testing.PlatformRule
 import okio.Buffer
 import okio.BufferedSink

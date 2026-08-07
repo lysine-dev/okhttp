@@ -25,11 +25,11 @@ import javax.net.ssl.SNIHostName
 import javax.net.ssl.SNIServerName
 import javax.net.ssl.SSLSocket
 import javax.net.ssl.SSLSocketFactory
-import okhttp3.DelegatingSSLSocketFactory
 import okhttp3.Dns
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Request
+import okhttp3.sockets.DelegatingSSLSocketFactory
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test

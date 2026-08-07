@@ -64,7 +64,7 @@ object OkHostnameVerifier : HostnameVerifier {
     ipAddress: String,
     certificate: X509Certificate,
   ): Boolean {
-    val canonicalIpAddress = ipAddress.toCanonicalHost()
+    val canonicalIpAddress = ipAddress.toCanonicalHost() ?: return false
 
     return getSubjectAltNames(certificate, ALT_IPA_NAME).any {
       canonicalIpAddress == it.toCanonicalHost()

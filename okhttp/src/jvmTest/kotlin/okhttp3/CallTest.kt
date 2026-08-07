@@ -116,6 +116,7 @@ import okhttp3.internal.http.HTTP_PROCESSING
 import okhttp3.internal.http.RecordingProxySelector
 import okhttp3.java.net.cookiejar.JavaNetCookieJar
 import okhttp3.okio.LoggingFilesystem
+import okhttp3.sockets.DelegatingSSLSocketFactory
 import okhttp3.testing.Flaky
 import okhttp3.testing.PlatformRule
 import okhttp3.tls.HandshakeCertificates

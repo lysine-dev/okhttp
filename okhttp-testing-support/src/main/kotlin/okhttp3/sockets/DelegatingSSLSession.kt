@@ -15,7 +15,7 @@
  */
 @file:Suppress("DEPRECATION")
 
-package okhttp3
+package okhttp3.sockets
 
 import java.security.Principal
 import java.security.cert.Certificate

@@ -102,6 +102,7 @@ dependencies {
   }
   androidTestImplementation(libs.assertk)
   androidTestImplementation(libs.bouncycastle.bcprov)
+  androidTestImplementation(libs.bouncycastle.bcutil)
   androidTestImplementation(libs.bouncycastle.bctls)
   androidTestImplementation(libs.conscrypt.android)
   androidTestImplementation(projects.mockwebserver3Junit4)

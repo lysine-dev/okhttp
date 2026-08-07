@@ -119,6 +119,7 @@ kotlin {
       dependsOn(commonJvmAndroid)
       dependencies {
         compileOnly(libs.bouncycastle.bcprov)
+        compileOnly(libs.bouncycastle.bcutil)
         compileOnly(libs.bouncycastle.bctls)
         compileOnly(libs.conscrypt.openjdk)
         implementation(libs.androidx.annotation)
@@ -133,6 +134,7 @@ kotlin {
         // These compileOnly dependencies must also be listed in applyOsgiMultiplatform() below.
         compileOnly(libs.conscrypt.openjdk)
         compileOnly(libs.bouncycastle.bcprov)
+        compileOnly(libs.bouncycastle.bcutil)
         compileOnly(libs.bouncycastle.bctls)
 
         // graal build support

@@ -157,6 +157,54 @@ class DnsMessageReaderWriterTest {
     assertThat(e).hasMessage("malformed DNS message")
   }
 
+  /**
+   * An RDLENGTH is a 16-bit unsigned field, so a record may legitimately declare up to 65535 bytes
+   * of data. A value with the high bit set must still be skipped for record types we don't decode,
+   * otherwise the reader loses sync with the stream.
+   */
+  @Test
+  fun `unsupported record with high-bit record length is skipped`() {
+    val buffer =
+      Buffer().apply {
+        writeShort(0x0000) // id
+        writeShort(0x8180) // flags
+        writeShort(1) // question count
+        writeShort(1) // answer count
+        writeShort(0) // authority record count
+        writeShort(0) // additional record count
+
+        // Question: "a", type A, class IN.
+        writeByte(1)
+        writeByte('a'.code)
+        writeByte(0)
+        writeShort(TYPE_A)
+        writeShort(CLASS_IN)
+
+        // Answer with an unsupported type and 0x8000 bytes of record data.
+        writeShort(0xc00c) // Name compressed to the question's name.
+        writeShort(16) // TYPE_TXT, which this reader doesn't decode.
+        writeShort(CLASS_IN)
+        writeInt(0) // time to live
+        writeShort(0x8000) // record data length, 32768
+        write(ByteArray(0x8000))
+      }
+
+    assertThat(DnsMessageReader(buffer).read()).isEqualTo(
+      DnsMessage(
+        id = 0,
+        flags = -32384,
+        questions =
+          listOf(
+            Question(
+              name = "a",
+              type = TYPE_A,
+            ),
+          ),
+        answers = listOf(),
+      ),
+    )
+  }
+
   @Test
   fun `rejects mandatory service parameter with unsupported key`() {
     // An HTTPS record whose mandatory value is the single 2-octet SvcParamKey 0x0101 (257), which

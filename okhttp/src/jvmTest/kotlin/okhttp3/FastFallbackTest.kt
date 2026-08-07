@@ -35,6 +35,7 @@ import okhttp3.CallEvent.ConnectEnd
 import okhttp3.CallEvent.ConnectFailed
 import okhttp3.CallEvent.ConnectStart
 import okhttp3.internal.http2.ErrorCode
+import okhttp3.sockets.DelegatingSocketFactory
 import okhttp3.testing.Flaky
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach

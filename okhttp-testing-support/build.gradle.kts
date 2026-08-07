@@ -15,6 +15,7 @@ dependencies {
   api(libs.assertk)
   api(libs.bouncycastle.bcprov)
   implementation(libs.bouncycastle.bcpkix)
+  implementation(libs.bouncycastle.bcutil)
   implementation(libs.bouncycastle.bctls)
   api(libs.conscrypt.openjdk)
   api(libs.openjsse)

@@ -3,7 +3,7 @@ name: build
 on:
   push:
     branches:
-      - master
+      - main
   pull_request:
     types: [opened, labeled, unlabeled, synchronize]
 
@@ -20,7 +20,7 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    if: github.repository == 'square/okhttp' && github.ref == 'refs/heads/master'
+    if: github.repository == 'square/okhttp' && github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout
@@ -41,7 +41,6 @@ jobs:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_CENTRAL_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_CENTRAL_PASSWORD }}
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_SECRET_KEY }}
-          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_SECRET_PASSPHRASE }}
 
   validation:
     name: "Validation"
@@ -116,7 +115,7 @@ jobs:
         run: ./gradlew test allTests -Ptest.java.version=${{ matrix.java-version }}
 
       - name: Publish Test Report
-        if: github.repository == 'square/okhttp' && github.ref == 'refs/heads/master' && matrix.java-version == '11'
+        if: github.repository == 'square/okhttp' && github.ref == 'refs/heads/main' && matrix.java-version == '11'
         uses: mikepenz/action-junit-report@v6
         with:
           report_paths: '**/build/test-results/*/TEST-*.xml'
@@ -124,14 +123,14 @@ jobs:
 
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
-        if: github.repository == 'square/okhttp' && github.ref == 'refs/heads/master' && matrix.java-version == '11'
+        if: github.repository == 'square/okhttp' && github.ref == 'refs/heads/main' && matrix.java-version == '11'
         with:
           files: |
             **/build/test-results/*/TEST-*.xml
 
   openjdk8alpn:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master' || contains(github.event.pull_request.labels.*.name, 'jdkversions')
+    if: github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'jdkversions')
 
     steps:
       - name: Checkout
@@ -157,7 +156,7 @@ jobs:
 
   providers:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master' || contains(github.event.pull_request.labels.*.name, 'providers')
+    if: github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'providers')
     strategy:
       matrix:
         include:
@@ -493,4 +492,3 @@ jobs:
 
       - name: Run with Jlink
         run: ./gradlew module-tests:imageRun -PokhttpModuleTests=true
-
