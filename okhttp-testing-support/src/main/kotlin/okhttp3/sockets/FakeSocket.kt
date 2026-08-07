@@ -41,8 +41,7 @@ internal class FakeSocket(
 
   private var socketReadTimeoutMillis: Long = 0
 
-  private fun connectedSocket() =
-    (state as? State.Connected)?.bufferedSocket ?: throw IOException("not connected")
+  private fun connectedSocket() = (state as? State.Connected)?.bufferedSocket ?: throw IOException("not connected")
 
   override fun getInputStream() = connectedSocket().source.inputStream()
 
@@ -74,14 +73,18 @@ internal class FakeSocket(
 
   override fun getSoTimeout() = socketReadTimeoutMillis.toInt()
 
-  override fun connect(endpoint: SocketAddress, timeout: Int) {
+  override fun connect(
+    endpoint: SocketAddress,
+    timeout: Int,
+  ) {
     require(timeout >= 0)
     require(endpoint is InetSocketAddress)
 
-    val attempt = ConnectAttempt(
-      clientAddress = network.nextClientAddress(),
-      serverAddress = endpoint,
-    )
+    val attempt =
+      ConnectAttempt(
+        clientAddress = network.nextClientAddress(),
+        serverAddress = endpoint,
+      )
 
     while (true) {
       val previous = state
@@ -91,22 +94,24 @@ internal class FakeSocket(
       val connectingState = State.Connecting(attempt)
       if (!atomicState.compareAndSet(previous, connectingState)) continue // Lost a race, retry.
 
-      val connection = try {
-        network.connect(
-          attempt = attempt,
-          connectTimeoutMillis = timeout.toLong(),
-        )
-      } catch (e: Throwable) {
-        // If the state changed while we were connecting, the other state wins.
-        atomicState.compareAndSet(connectingState, previous)
-        throw e
-      }
+      val connection =
+        try {
+          network.connect(
+            attempt = attempt,
+            connectTimeoutMillis = timeout.toLong(),
+          )
+        } catch (e: Throwable) {
+          // If the state changed while we were connecting, the other state wins.
+          atomicState.compareAndSet(connectingState, previous)
+          throw e
+        }
 
-      val next = State.Connected(
-        localAddress = attempt.clientAddress,
-        remoteAddress = attempt.serverAddress,
-        bufferedSocket = connection.clientSocket,
-      )
+      val next =
+        State.Connected(
+          localAddress = attempt.clientAddress,
+          remoteAddress = attempt.serverAddress,
+          bufferedSocket = connection.clientSocket,
+        )
 
       // If the state changed while we were connecting, the other state wins.
       if (!atomicState.compareAndSet(connectingState, next)) {
@@ -126,10 +131,11 @@ internal class FakeSocket(
         throw SocketException("cannot shutdown input")
       }
 
-      val next = when {
-        previous.outputShutdown -> State.Closed(previous)
-        else -> previous.copy(inputShutdown = true)
-      }
+      val next =
+        when {
+          previous.outputShutdown -> State.Closed(previous)
+          else -> previous.copy(inputShutdown = true)
+        }
 
       if (!atomicState.compareAndSet(previous, next)) continue // Lost a race, retry.
 
@@ -147,10 +153,11 @@ internal class FakeSocket(
         throw SocketException("cannot shutdown output")
       }
 
-      val next = when {
-        previous.inputShutdown -> State.Closed(previous)
-        else -> previous.copy(outputShutdown = true)
-      }
+      val next =
+        when {
+          previous.inputShutdown -> State.Closed(previous)
+          else -> previous.copy(outputShutdown = true)
+        }
 
       if (!atomicState.compareAndSet(previous, next)) continue // Lost a race, retry.
 
@@ -182,7 +189,10 @@ internal class FakeSocket(
 
   override fun getTcpNoDelay() = error("unsupported")
 
-  override fun setSoLinger(on: Boolean, linger: Int) = error("unsupported")
+  override fun setSoLinger(
+    on: Boolean,
+    linger: Int,
+  ) = error("unsupported")
 
   override fun getSoLinger() = error("unsupported")
 
@@ -215,12 +225,12 @@ internal class FakeSocket(
   override fun setPerformancePreferences(
     connectionTime: Int,
     latency: Int,
-    bandwidth: Int
+    bandwidth: Int,
   ) = error("unsupported")
 
   override fun <T> setOption(
     name: SocketOption<T>,
-    value: T?
+    value: T?,
   ): Socket = error("unsupported")
 
   override fun <T> getOption(name: SocketOption<T>) = error("unsupported")

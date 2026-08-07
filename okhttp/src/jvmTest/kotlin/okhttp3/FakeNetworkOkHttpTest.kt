@@ -32,10 +32,11 @@ open class FakeNetworkOkHttpTest {
   val clientTestRule = OkHttpClientTestRule()
 
   @StartStop
-  private val server = MockWebServer()
-    .apply {
-      serverSocketFactory = network.serverSocketFactory
-    }
+  private val server =
+    MockWebServer()
+      .apply {
+        serverSocketFactory = network.serverSocketFactory
+      }
 
   private var client =
     clientTestRule
@@ -52,9 +53,10 @@ open class FakeNetworkOkHttpTest {
         .build(),
     )
 
-    val request = Request(
-      url = server.url("/"),
-    )
+    val request =
+      Request(
+        url = server.url("/"),
+      )
 
     val call = client.newCall(request)
 

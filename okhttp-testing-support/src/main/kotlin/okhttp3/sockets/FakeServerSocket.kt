@@ -34,7 +34,10 @@ internal class FakeServerSocket(
 
   private var reuseAddress = false
 
-  override fun bind(endpoint: SocketAddress, backlog: Int) {
+  override fun bind(
+    endpoint: SocketAddress,
+    backlog: Int,
+  ) {
     check(endpoint is InetSocketAddress)
 
     while (true) {
@@ -50,9 +53,10 @@ internal class FakeServerSocket(
         throw SocketException("bind collision")
       }
 
-      val next = State.Bound(
-        boundServer = boundServer,
-      )
+      val next =
+        State.Bound(
+          boundServer = boundServer,
+        )
       check(atomicState.compareAndSet(State.Binding, next))
       break
     }
@@ -65,18 +69,21 @@ internal class FakeServerSocket(
   override fun getLocalSocketAddress() = state.endpoint
 
   override fun accept(): Socket {
-    val boundAddress = (state as? State.Bound)?.boundServer
-      ?: throw SocketException("not bound")
+    val boundAddress =
+      (state as? State.Bound)?.boundServer
+        ?: throw SocketException("not bound")
 
     val connection = boundAddress.accept()
-    val socket = FakeSocket(
-      network = network,
-      initialState = FakeSocket.State.Connected(
-        localAddress = connection.serverAddress,
-        remoteAddress = connection.clientAddress,
-        bufferedSocket = connection.serverSocket,
+    val socket =
+      FakeSocket(
+        network = network,
+        initialState =
+          FakeSocket.State.Connected(
+            localAddress = connection.serverAddress,
+            remoteAddress = connection.clientAddress,
+            bufferedSocket = connection.serverSocket,
+          ),
       )
-    )
 
     return socket
   }
@@ -122,12 +129,12 @@ internal class FakeServerSocket(
   override fun setPerformancePreferences(
     connectionTime: Int,
     latency: Int,
-    bandwidth: Int
+    bandwidth: Int,
   ) = error("unsupported")
 
   override fun <T> setOption(
     name: SocketOption<T?>,
-    value: T?
+    value: T?,
   ) = error("unsupported")
 
   override fun <T> getOption(name: SocketOption<T?>) = error("unsupported")
@@ -160,7 +167,7 @@ internal class FakeServerSocket(
     ) : State {
       constructor(previous: State) : this(
         endpoint = previous.endpoint,
-        bound = previous.bound
+        bound = previous.bound,
       )
     }
   }

@@ -42,13 +42,14 @@ import okio.inMemorySocketPair
 class FakeNetwork {
   private val boundServers = ConcurrentHashMap<SocketAddress, BoundServer>()
 
-  private val nextClientIpv4Address = Buffer().run {
-    writeByte(192)
-    writeByte(168)
-    writeByte(0)
-    writeByte(1)
-    AtomicInteger(readInt())
-  }
+  private val nextClientIpv4Address =
+    Buffer().run {
+      writeByte(192)
+      writeByte(168)
+      writeByte(0)
+      writeByte(1)
+      AtomicInteger(readInt())
+    }
 
   private var nextClientPort = AtomicInteger(5_000)
   private var nextServerPort = AtomicInteger(6_000)
@@ -59,9 +60,10 @@ class FakeNetwork {
   /** Generate a new unique client address. */
   internal fun nextClientAddress(): InetSocketAddress {
     val ipv4AddressInt = nextClientIpv4Address.getAndIncrement()
-    val ipv4AddressBytes = Buffer()
-      .writeInt(ipv4AddressInt)
-      .readByteArray()
+    val ipv4AddressBytes =
+      Buffer()
+        .writeInt(ipv4AddressInt)
+        .readByteArray()
     return InetSocketAddress(
       InetAddress.getByAddress(ipv4AddressBytes),
       nextClientPort.getAndIncrement(),
@@ -71,51 +73,64 @@ class FakeNetwork {
   /** Generate a new unique server port. */
   fun nextServerPort() = nextServerPort.getAndIncrement()
 
-  val serverSocketFactory = object : ServerSocketFactory() {
-    override fun createServerSocket() = FakeServerSocket(this@FakeNetwork)
+  val serverSocketFactory =
+    object : ServerSocketFactory() {
+      override fun createServerSocket() = FakeServerSocket(this@FakeNetwork)
 
-    override fun createServerSocket(port: Int) = error("unsupported")
+      override fun createServerSocket(port: Int) = error("unsupported")
 
-    override fun createServerSocket(port: Int, backlog: Int) = error("unsupported")
+      override fun createServerSocket(
+        port: Int,
+        backlog: Int,
+      ) = error("unsupported")
 
-    override fun createServerSocket(
-      port: Int,
-      backlog: Int,
-      ifAddress: InetAddress?
-    ) = error("unsupported")
-  }
+      override fun createServerSocket(
+        port: Int,
+        backlog: Int,
+        ifAddress: InetAddress?,
+      ) = error("unsupported")
+    }
 
-  val socketFactory = object : SocketFactory() {
-    override fun createSocket() = FakeSocket(this@FakeNetwork)
+  val socketFactory =
+    object : SocketFactory() {
+      override fun createSocket() = FakeSocket(this@FakeNetwork)
 
-    override fun createSocket(host: String, port: Int) = error("unsupported")
+      override fun createSocket(
+        host: String,
+        port: Int,
+      ) = error("unsupported")
 
-    override fun createSocket(
-      host: String?,
-      port: Int,
-      localHost: InetAddress?,
-      localPort: Int
-    ) = error("unsupported")
+      override fun createSocket(
+        host: String?,
+        port: Int,
+        localHost: InetAddress?,
+        localPort: Int,
+      ) = error("unsupported")
 
-    override fun createSocket(host: InetAddress?, port: Int) = error("unsupported")
+      override fun createSocket(
+        host: InetAddress?,
+        port: Int,
+      ) = error("unsupported")
 
-    override fun createSocket(
-      address: InetAddress?,
-      port: Int,
-      localAddress: InetAddress?,
-      localPort: Int
-    ) = error("unsupported")
-  }
+      override fun createSocket(
+        address: InetAddress?,
+        port: Int,
+        localAddress: InetAddress?,
+        localPort: Int,
+      ) = error("unsupported")
+    }
 
   internal fun connect(
     attempt: ConnectAttempt,
     connectTimeoutMillis: Long,
   ): FakeConnection {
-    val boundServer = boundServers[attempt.serverAddress]
-      ?: throw ConnectException("no server bound")
+    val boundServer =
+      boundServers[attempt.serverAddress]
+        ?: throw ConnectException("no server bound")
 
-    val timeout = Timeout()
-      .deadline(connectTimeoutMillis, TimeUnit.MILLISECONDS)
+    val timeout =
+      Timeout()
+        .deadline(connectTimeoutMillis, TimeUnit.MILLISECONDS)
     boundServer.enqueue(timeout, attempt)
     return attempt.await(timeout)
   }
@@ -125,10 +140,11 @@ class FakeNetwork {
     endpoint: InetSocketAddress,
     backlog: Int,
   ): BoundServer? {
-    val serverAddress = when (endpoint.port) {
-      0 -> InetSocketAddress(endpoint.address, nextServerPort())
-      else -> endpoint
-    }
+    val serverAddress =
+      when (endpoint.port) {
+        0 -> InetSocketAddress(endpoint.address, nextServerPort())
+        else -> endpoint
+      }
 
     val result = BoundServer(serverAddress, backlog)
     val collision = boundServers.putIfAbsent(serverAddress, result)
@@ -200,7 +216,10 @@ internal class BoundServer(
   private val attempts = ArrayDeque<ConnectAttempt>()
   private var closed = false
 
-  fun enqueue(timeout: Timeout, attempt: ConnectAttempt) {
+  fun enqueue(
+    timeout: Timeout,
+    attempt: ConnectAttempt,
+  ) {
     withLock {
       while (attempts.size >= maxBacklogSize && !closed) {
         timeout.waitUntilNotified(this) // Wait until there's room in the backlog.
@@ -212,34 +231,38 @@ internal class BoundServer(
   }
 
   fun accept(): FakeConnection {
-    val attempt = withLock {
-      while (attempts.isEmpty() && !closed) {
-        wait() // Wait for a connection attempt.
+    val attempt =
+      withLock {
+        while (attempts.isEmpty() && !closed) {
+          wait() // Wait for a connection attempt.
+        }
+        if (closed) throw SocketException("closed")
+        notifyAll()
+        attempts.removeFirst()
       }
-      if (closed) throw SocketException("closed")
-      notifyAll()
-      attempts.removeFirst()
-    }
 
     val (clientSocket, serverSocket) = inMemorySocketPair(maxBufferSize = 1024 * 1024)
-    val connection = FakeConnection(
-      clientAddress = attempt.clientAddress,
-      serverAddress = attempt.serverAddress,
-      clientSocket = clientSocket.asBufferedSocket(),
-      serverSocket = serverSocket.asBufferedSocket(),
-    )
+    val connection =
+      FakeConnection(
+        clientAddress = attempt.clientAddress,
+        serverAddress = attempt.serverAddress,
+        clientSocket = clientSocket.asBufferedSocket(),
+        serverSocket = serverSocket.asBufferedSocket(),
+      )
 
     attempt.complete(connection)
     return connection
   }
 
   fun close() {
-    val attemptsToCancel = withLock {
-      notifyAll()
-      closed = true
-      attempts.toList()
-        .also { attempts.clear() }
-    }
+    val attemptsToCancel =
+      withLock {
+        notifyAll()
+        closed = true
+        attempts
+          .toList()
+          .also { attempts.clear() }
+      }
     for (attempt in attemptsToCancel) {
       attempt.cancel(SocketException("server closed"))
     }

@@ -118,11 +118,12 @@ class CipherSuiteTest {
 
   @Test
   fun applyIntersectionRetainsTlsPrefixes() {
-    val socket = FakeSslSocket(
-      enabledProtocols = listOf("TLSv1"),
-      supportedCipherSuites = listOf("SSL_A", "SSL_B", "SSL_C", "SSL_D", "SSL_E"),
-      enabledCipherSuites = listOf("SSL_A", "SSL_B", "SSL_C"),
-    )
+    val socket =
+      FakeSslSocket(
+        enabledProtocols = listOf("TLSv1"),
+        supportedCipherSuites = listOf("SSL_A", "SSL_B", "SSL_C", "SSL_D", "SSL_E"),
+        enabledCipherSuites = listOf("SSL_A", "SSL_B", "SSL_C"),
+      )
     val connectionSpec =
       ConnectionSpec
         .Builder(true)
@@ -135,11 +136,12 @@ class CipherSuiteTest {
 
   @Test
   fun applyIntersectionRetainsSslPrefixes() {
-    val socket = FakeSslSocket(
-      enabledProtocols = listOf("TLSv1"),
-      supportedCipherSuites = listOf("TLS_A", "TLS_B", "TLS_C", "TLS_D", "TLS_E"),
-      enabledCipherSuites = listOf("TLS_A", "TLS_B", "TLS_C"),
-    )
+    val socket =
+      FakeSslSocket(
+        enabledProtocols = listOf("TLSv1"),
+        supportedCipherSuites = listOf("TLS_A", "TLS_B", "TLS_C", "TLS_D", "TLS_E"),
+        enabledCipherSuites = listOf("TLS_A", "TLS_B", "TLS_C"),
+      )
     val connectionSpec =
       ConnectionSpec
         .Builder(true)
@@ -152,11 +154,12 @@ class CipherSuiteTest {
 
   @Test
   fun applyIntersectionAddsSslScsvForFallback() {
-    val socket = FakeSslSocket(
-      enabledProtocols = listOf("TLSv1"),
-      supportedCipherSuites = listOf("SSL_A", "SSL_FALLBACK_SCSV"),
-      enabledCipherSuites = listOf("SSL_A"),
-    )
+    val socket =
+      FakeSslSocket(
+        enabledProtocols = listOf("TLSv1"),
+        supportedCipherSuites = listOf("SSL_A", "SSL_FALLBACK_SCSV"),
+        enabledCipherSuites = listOf("SSL_A"),
+      )
     val connectionSpec =
       ConnectionSpec
         .Builder(true)
@@ -169,11 +172,12 @@ class CipherSuiteTest {
 
   @Test
   fun applyIntersectionAddsTlsScsvForFallback() {
-    val socket = FakeSslSocket(
-      enabledProtocols = listOf("TLSv1"),
-      supportedCipherSuites = listOf("TLS_A", "TLS_FALLBACK_SCSV"),
-      enabledCipherSuites = listOf("TLS_A"),
-    )
+    val socket =
+      FakeSslSocket(
+        enabledProtocols = listOf("TLSv1"),
+        supportedCipherSuites = listOf("TLS_A", "TLS_FALLBACK_SCSV"),
+        enabledCipherSuites = listOf("TLS_A"),
+      )
     val connectionSpec =
       ConnectionSpec
         .Builder(true)
@@ -186,11 +190,12 @@ class CipherSuiteTest {
 
   @Test
   fun applyIntersectionToProtocolVersion() {
-    val socket = FakeSslSocket(
-      enabledProtocols = listOf("TLSv1", "TLSv1.1", "TLSv1.2"),
-      supportedCipherSuites = listOf("TLS_A"),
-      enabledCipherSuites = listOf("TLS_A"),
-    )
+    val socket =
+      FakeSslSocket(
+        enabledProtocols = listOf("TLSv1", "TLSv1.1", "TLSv1.2"),
+        supportedCipherSuites = listOf("TLS_A"),
+        enabledCipherSuites = listOf("TLS_A"),
+      )
     val connectionSpec =
       ConnectionSpec
         .Builder(true)
@@ -203,11 +208,12 @@ class CipherSuiteTest {
 
   class FakeSslSocket(
     var enabledProtocols: List<String> = listOf(TlsVersion.TLS_1_3.javaName),
-    var supportedCipherSuites: List<String> = listOf(
-      CipherSuite.TLS_AES_128_GCM_SHA256.javaName,
-      CipherSuite.TLS_AES_256_GCM_SHA384.javaName,
-      CipherSuite.TLS_CHACHA20_POLY1305_SHA256.javaName,
-    ),
+    var supportedCipherSuites: List<String> =
+      listOf(
+        CipherSuite.TLS_AES_128_GCM_SHA256.javaName,
+        CipherSuite.TLS_AES_256_GCM_SHA384.javaName,
+        CipherSuite.TLS_CHACHA20_POLY1305_SHA256.javaName,
+      ),
     var enabledCipherSuites: List<String> = supportedCipherSuites,
   ) : DelegatingSSLSocket(null) {
     override fun getEnabledProtocols() = enabledProtocols.toTypedArray()
