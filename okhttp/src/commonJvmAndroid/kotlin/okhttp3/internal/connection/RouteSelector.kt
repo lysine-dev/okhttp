@@ -181,10 +181,14 @@ class RouteSelector internal constructor(
 
     val routes = dnsLookup(proxy, socketHost, socketPort)
 
+    // If DNS advertises ECH for any route, don't permit a retry without ECH.
+    val echRoutes = routes.filter { it.echConfigList != null }
+    val routesToTry = echRoutes.ifEmpty { routes }
+
     // Try each address for best behavior in mixed IPv4/IPv6 environments.
     return when {
-      fastFallback -> reorderForHappyEyeballs(routes)
-      else -> routes
+      fastFallback -> reorderForHappyEyeballs(routesToTry)
+      else -> routesToTry
     }
   }
 

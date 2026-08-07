@@ -22,9 +22,7 @@ import app.cash.burst.Burst
 import assertk.assertThat
 import assertk.assertions.contains
 import assertk.assertions.doesNotContain
-import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
-import assertk.assertions.isTrue
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -72,40 +70,60 @@ class EchTest(
   fun tlsEchDevUsesEch() {
     val body = client.get("https://tls-ech.dev/")
 
+    // Only the heading identifies the server we reached; every page links to all of the others.
+    assertThat(body).contains("<h1>tls-ech.dev</h1>")
     assertThat(body).contains("You are using ECH")
     assertThat(body).doesNotContain("not using ECH")
   }
 
+  /** Port 444, because port 443 is the plain tls-ech.dev server. */
   @Test
-  fun staleEchConfigIsNotRetried() {
-    val rejection = client.echRejectionFrom("https://stale.tls-ech.dev/")
+  fun staleEchConfigIsRetried() {
+    val body = client.get("https://stale.tls-ech.dev:444/")
 
-    // TODO retry with these, then assert "You are using ECH" like tlsEchDevUsesEch.
-    assertThat(rejection.hasRetryConfigList()).isTrue()
-    assertThat(rejection.publicHostname).isEqualTo("public.tls-ech.dev")
+    assertThat(body).contains("<h1>stale.tls-ech.dev</h1>")
+    assertThat(body).contains("You are using ECH")
+    assertThat(body).doesNotContain("not using ECH")
   }
 
+  /** Port 445, because port 443 is the plain tls-ech.dev server. */
   @Test
-  fun wrongPublicNameIsNotRetried() {
-    val rejection = client.echRejectionFrom("https://wrong.tls-ech.dev/")
+  fun differentPublicHostnameIsVerifiedBeforeRetry() {
+    // The outer certificate authenticates public.tls-ech.dev,
+    // so the retry config may be used if it matches.
+    // https://www.rfc-editor.org/rfc/rfc9849.html#section-6.1.6
+    val verifiedHostnames = mutableListOf<String>()
+    val hostnameVerifier = client.hostnameVerifier
+    val client =
+      client
+        .newBuilder()
+        .hostnameVerifier { hostname, session ->
+          verifiedHostnames += hostname
+          hostnameVerifier.verify(hostname, session)
+        }
+        .build()
 
-    // TODO retry with these, then assert "You are using ECH" like tlsEchDevUsesEch.
-    assertThat(rejection.hasRetryConfigList()).isTrue()
-    assertThat(rejection.publicHostname).isEqualTo("public.tls-ech.dev")
+    val body = client.get("https://wrong.tls-ech.dev:445/")
+
+    assertThat(body).contains("<h1>wrong.tls-ech.dev</h1>")
+    assertThat(body).contains("You are using ECH")
+    assertThat(verifiedHostnames).contains("public.tls-ech.dev")
   }
 
   /**
    * TLS 1.2 cannot carry ECH.
+   *
+   * Port 446, because port 443 is the plain tls-ech.dev server.
    */
   @Test
   fun tls12OffersNothingToRetryWith() {
-    assertThat(client.echRejectionFrom("https://tls12.tls-ech.dev/").hasRetryConfigList()).isFalse()
+    val rejection = client.echRejectionFrom("https://tls12.tls-ech.dev:446/")
+
+    assertThat(rejection.hasRetryConfigList()).isFalse()
   }
 
   /**
    * Makes the call at [url] and returns the ECH rejection it fails with.
-   *
-   * TODO handle EchConfigMismatchException.retry_configs.
    */
   private fun OkHttpClient.echRejectionFrom(url: String): EchConfigMismatchException {
     val body =

@@ -25,6 +25,7 @@ import java.net.Socket as JavaNetSocket
 import java.net.UnknownServiceException
 import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLException
 import javax.net.ssl.SSLPeerUnverifiedException
 import javax.net.ssl.SSLSocket
 import okhttp3.CertificatePinner
@@ -38,6 +39,7 @@ import okhttp3.internal.closeQuietly
 import okhttp3.internal.concurrent.TaskRunner
 import okhttp3.internal.concurrent.withLock
 import okhttp3.internal.connection.RoutePlanner.ConnectResult
+import okhttp3.internal.dns.EchRetryConfig
 import okhttp3.internal.http.ExchangeCodec
 import okhttp3.internal.http1.Http1ExchangeCodec
 import okhttp3.internal.platform.Platform
@@ -73,6 +75,7 @@ class ConnectPlan internal constructor(
   private val tunnelRequest: Request?,
   internal val connectionSpecIndex: Int,
   internal val isTlsFallback: Boolean,
+  private val echRetryConfig: EchRetryConfig? = null,
 ) : RoutePlanner.Plan,
   ExchangeCodec.Carrier {
   /** True if this connect was canceled; typically because it lost a race. */
@@ -98,10 +101,12 @@ class ConnectPlan internal constructor(
     get() = protocol != null
 
   private fun copy(
+    route: Route = this.route,
     attempt: Int = this.attempt,
     tunnelRequest: Request? = this.tunnelRequest,
     connectionSpecIndex: Int = this.connectionSpecIndex,
     isTlsFallback: Boolean = this.isTlsFallback,
+    echRetryConfig: EchRetryConfig? = this.echRetryConfig,
   ): ConnectPlan =
     ConnectPlan(
       taskRunner = taskRunner,
@@ -120,6 +125,7 @@ class ConnectPlan internal constructor(
       tunnelRequest = tunnelRequest,
       connectionSpecIndex = connectionSpecIndex,
       isTlsFallback = isTlsFallback,
+      echRetryConfig = echRetryConfig,
     )
 
   override fun connectTcp(): ConnectResult {
@@ -200,11 +206,13 @@ class ConnectPlan internal constructor(
         val tlsEquipPlan = planWithCurrentOrInitialConnectionSpec(connectionSpecs, sslSocket)
         val connectionSpec = connectionSpecs[tlsEquipPlan.connectionSpecIndex]
 
-        // Figure out the next connection spec in case we need a retry.
-        retryTlsConnection = tlsEquipPlan.nextConnectionSpec(connectionSpecs, sslSocket)
-
         connectionSpec.apply(sslSocket, isFallback = tlsEquipPlan.isTlsFallback)
-        connectTls(sslSocket, connectionSpec)
+        try {
+          connectTls(sslSocket, connectionSpec)
+        } catch (e: SSLException) {
+          retryTlsConnection = tlsEquipPlan.nextConnectionSpec(connectionSpecs, sslSocket, e)
+          throw e
+        }
         call.eventListener.secureConnectEnd(call, handshake)
       } else {
         javaNetSocket = rawSocket
@@ -238,10 +246,6 @@ class ConnectPlan internal constructor(
     } catch (e: IOException) {
       call.eventListener.connectFailed(call, route.socketAddress, route.proxy, null, e)
       connectionPool.connectionListener.connectFailed(route, call, e)
-
-      if (!retryOnConnectionFailure || !retryTlsHandshake(e)) {
-        retryTlsConnection = null
-      }
 
       return ConnectResult(
         plan = this,
@@ -479,7 +483,7 @@ class ConnectPlan internal constructor(
     sslSocket: SSLSocket,
   ): ConnectPlan {
     if (connectionSpecIndex != -1) return this
-    return nextConnectionSpec(connectionSpecs, sslSocket)
+    return nextCompatibleConnectionSpec(connectionSpecs, sslSocket)
       ?: throw UnknownServiceException(
         "Unable to find acceptable protocols." +
           " isFallback=$isTlsFallback," +
@@ -489,10 +493,64 @@ class ConnectPlan internal constructor(
   }
 
   /**
-   * Returns a copy of this connection with the next connection spec to try, or null if no other
-   * compatible connection specs are available.
+   * Returns a copy of this connection that recovers from [sslException], or null if the failure
+   * should not be retried.
    */
   internal fun nextConnectionSpec(
+    connectionSpecs: List<ConnectionSpec>,
+    sslSocket: SSLSocket,
+    sslException: SSLException,
+  ): ConnectPlan? {
+    if (!retryOnConnectionFailure) return null
+
+    val offeredEchRetryConfig = Platform.get().getEchRetryConfig(sslException)
+    if (offeredEchRetryConfig != null) {
+      // TODO should we emit an event that we considered ech retry?
+
+      // https://www.rfc-editor.org/rfc/rfc9849.html#section-6.1.6
+      val retryable =
+        when (offeredEchRetryConfig.configList) {
+          // The server securely disabled ECH. Retry unless we already disabled ECH.
+          null -> echRetryConfig == null || echRetryConfig.configList != null
+
+          // A retry config in response to a retry config signals a misconfigured server.
+          else -> echRetryConfig == null
+        }
+      if (!retryable) return null
+
+      // Validate the publicHostname against the session certificate
+      // The session is protected by the outer client hello (e.g. cloudflare-ech.com)
+      // not the origin server
+      val hostnameVerifier = route.address.hostnameVerifier!!
+      if (!hostnameVerifier.verify(offeredEchRetryConfig.publicHostname, sslSocket.session)) {
+        return null
+      }
+
+      return copy(
+        route =
+          Route(
+            address = route.address,
+            proxy = route.proxy,
+            socketAddress = route.socketAddress,
+            echConfigList = offeredEchRetryConfig.configList,
+          ),
+        // echRetryConfig.configList is possibly null to retry with ECH disabled
+        echRetryConfig = offeredEchRetryConfig,
+      )
+    }
+
+    // If this was already in response to an ech retry, we are done for this
+    // connection
+    if (echRetryConfig != null || !retryTlsHandshake(sslException)) return null
+
+    return nextCompatibleConnectionSpec(connectionSpecs, sslSocket)
+  }
+
+  /**
+   * Returns a copy of this connection with the next compatible connection spec, or null if none
+   * are available.
+   */
+  private fun nextCompatibleConnectionSpec(
     connectionSpecs: List<ConnectionSpec>,
     sslSocket: SSLSocket,
   ): ConnectPlan? {
@@ -561,6 +619,7 @@ class ConnectPlan internal constructor(
       tunnelRequest = tunnelRequest,
       connectionSpecIndex = connectionSpecIndex,
       isTlsFallback = isTlsFallback,
+      echRetryConfig = echRetryConfig,
     )
 
   fun closeQuietly() {

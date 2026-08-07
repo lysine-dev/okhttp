@@ -18,6 +18,7 @@ package okhttp3.internal.connection
 import app.cash.burst.Burst
 import assertk.assertThat
 import assertk.assertions.containsExactly
+import assertk.assertions.hasSize
 import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
 import assertk.assertions.isSameInstanceAs
@@ -130,6 +131,43 @@ class RouteSelectorTest(
       )
     val selection = routeSelector.next()
     assertRoute(selection.next(), address, Proxy.NO_PROXY, dns[uriHost][0], uriPort, echConfigList)
+    dns.assertRequests(uriHost)
+  }
+
+  /** https://www.rfc-editor.org/rfc/rfc9848.html#section-5.1 */
+  @Test fun echAddressesDoNotFallBackToNonEch() {
+    assumeTrue(entryPoint == EntryPoint.NewCall)
+
+    val echAddress = dns.allocate(1).single()
+    val nonEchAddress = dns.allocate(1).single()
+    dns[uriHost] =
+      listOf(
+        ResourceRecord.Https(
+          name = uriHost,
+          timeToLive = 5,
+          targetName = "ech.$uriHost",
+          echConfigList = echConfigList,
+        ),
+        ResourceRecord.IpAddress(
+          name = "ech.$uriHost",
+          timeToLive = 5,
+          address = echAddress,
+        ),
+        ResourceRecord.IpAddress(
+          name = "non-ech.$uriHost",
+          timeToLive = 5,
+          address = nonEchAddress,
+        ),
+      )
+    val address = factory.newAddress()
+    val routeSelector = newRouteSelector(address)
+
+    val selection = routeSelector.next()
+
+    assertThat(selection.routes).hasSize(1)
+    assertRoute(selection.next(), address, Proxy.NO_PROXY, echAddress, uriPort, echConfigList)
+    assertThat(selection.hasNext()).isFalse()
+    assertThat(routeSelector.hasNext()).isFalse()
     dns.assertRequests(uriHost)
   }
 
