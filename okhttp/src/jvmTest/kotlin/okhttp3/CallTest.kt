@@ -21,8 +21,6 @@ import assertk.assertions.contains
 import assertk.assertions.containsExactly
 import assertk.assertions.doesNotContain
 import assertk.assertions.hasMessage
-import assertk.assertions.hasSize
-import assertk.assertions.index
 import assertk.assertions.isCloseTo
 import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
@@ -33,8 +31,9 @@ import assertk.assertions.isNotNull
 import assertk.assertions.isNotSameAs
 import assertk.assertions.isNull
 import assertk.assertions.isTrue
-import assertk.assertions.matches
+import assertk.assertions.matchesPredicate
 import assertk.assertions.prop
+import assertk.assertions.single
 import assertk.assertions.startsWith
 import assertk.fail
 import java.io.FileNotFoundException
@@ -117,6 +116,10 @@ import okhttp3.internal.http.RecordingProxySelector
 import okhttp3.java.net.cookiejar.JavaNetCookieJar
 import okhttp3.okio.LoggingFilesystem
 import okhttp3.sockets.DelegatingSSLSocketFactory
+import okhttp3.sockets.FakeNetwork
+import okhttp3.sockets.FakeTls
+import okhttp3.sockets.Handshaker
+import okhttp3.sockets.InsecureHandshaker
 import okhttp3.testing.Flaky
 import okhttp3.testing.PlatformRule
 import okhttp3.tls.HandshakeCertificates
@@ -154,17 +157,34 @@ open class CallTest {
   @RegisterExtension
   val testLogHandler = TestLogHandler(OkHttpClient::class.java)
 
+  private val network = FakeNetwork()
+
+  private val serverTls = FakeTls(
+    handshakeCertificates = platform.localhostHandshakeCertificates(),
+    handshaker = InsecureHandshaker(),
+  )
+  private val clientTls = FakeTls(
+    handshakeCertificates = platform.localhostHandshakeCertificates(),
+    handshaker = InsecureHandshaker(),
+  )
+
   @StartStop
   private val server = MockWebServer()
+    .apply {
+      serverSocketFactory = network.serverSocketFactory
+    }
 
   @StartStop
   private val server2 = MockWebServer()
+    .apply {
+      serverSocketFactory = network.serverSocketFactory
+    }
 
   private var eventRecorder = EventRecorder()
-  private val handshakeCertificates = platform.localhostHandshakeCertificates()
   private var client =
     clientTestRule
       .newClientBuilder()
+      .socketFactory(network.socketFactory)
       .eventListenerFactory(clientTestRule.wrap(eventRecorder))
       .build()
   private val callback = RecordingCallback()
@@ -888,6 +908,7 @@ open class CallTest {
     client =
       OkHttpClient
         .Builder()
+        .socketFactory(network.socketFactory)
         .connectionPool(client.connectionPool)
         .proxy(server.proxyAddress)
         .build()
@@ -895,6 +916,7 @@ open class CallTest {
     client =
       OkHttpClient
         .Builder()
+        .socketFactory(network.socketFactory)
         .connectionPool(client.connectionPool)
         .proxy(server.proxyAddress)
         .build()
@@ -902,6 +924,7 @@ open class CallTest {
     client =
       OkHttpClient
         .Builder()
+        .socketFactory(network.socketFactory)
         .connectionPool(client.connectionPool)
         .proxy(server.proxyAddress)
         .build()
@@ -916,6 +939,7 @@ open class CallTest {
     client =
       OkHttpClient
         .Builder()
+        .socketFactory(network.socketFactory)
         .proxy(server.proxyAddress)
         .build()
     server.enqueue(MockResponse(body = "abc"))
@@ -1066,9 +1090,10 @@ open class CallTest {
       .assertBody("success!")
 
     assertThat(proxySelector.failures)
-      .all {
-        hasSize(1)
-        index(0).matches(".* Connect timed out".toRegex(RegexOption.IGNORE_CASE))
+      .single()
+      .matchesPredicate {
+        it.matches(".* Connect timed out".toRegex(RegexOption.IGNORE_CASE))
+          || it.matches(".* Failed to connect to .*".toRegex(RegexOption.IGNORE_CASE))
       }
   }
 
@@ -1104,6 +1129,7 @@ open class CallTest {
     client =
       clientTestRule
         .newClientBuilder()
+        .socketFactory(network.socketFactory)
         .addInterceptor(
           Interceptor { chain: Interceptor.Chain ->
             val response =
@@ -1333,6 +1359,7 @@ open class CallTest {
     executeSynchronously("/")
       .assertFailure(IOException::class.java)
       .assertFailureMatches(
+        "canceled",
         "stream was reset: CANCEL",
         "unexpected end of stream on " + server.url("/").redact(),
       )
@@ -1349,7 +1376,14 @@ open class CallTest {
   fun tlsHandshakeFailure_noFallbackByDefault() {
     platform.assumeNotBouncyCastle()
 
-    server.useHttps(handshakeCertificates.sslSocketFactory())
+    server.useHttps(serverTls.sslSocketFactory)
+    server.handshakeFailureSslSocketFactory = serverTls.sslSocketFactory
+
+    val clientTls = failHandshakeClientTls(count = 1)
+    client = client.newBuilder()
+      .sslSocketFactory(clientTls.sslSocketFactory, clientTls.trustManager)
+      .build()
+
     server.enqueue(MockResponse.Builder().failHandshake().build())
     server.enqueue(MockResponse(body = "response that will never be received"))
     val response = executeSynchronously("/")
@@ -1368,7 +1402,11 @@ open class CallTest {
   fun recoverFromTlsHandshakeFailure() {
     platform.assumeNotBouncyCastle()
 
-    server.useHttps(handshakeCertificates.sslSocketFactory())
+    server.useHttps(serverTls.sslSocketFactory)
+    server.handshakeFailureSslSocketFactory = serverTls.sslSocketFactory
+
+    val clientTls = failHandshakeClientTls(count = 1)
+
     server.enqueue(MockResponse.Builder().failHandshake().build())
     server.enqueue(MockResponse(body = "abc"))
     client =
@@ -1382,33 +1420,54 @@ open class CallTest {
             ConnectionSpec.MODERN_TLS,
           ),
         ).sslSocketFactory(
-          suppressTlsFallbackClientSocketFactory(),
-          handshakeCertificates.trustManager,
+          FallbackTestClientSocketFactory(clientTls.sslSocketFactory),
+          clientTls.trustManager,
         ).build()
     executeSynchronously("/").assertBody("abc")
+  }
+
+  private fun failHandshakeClientTls(count: Int = Int.MAX_VALUE): FakeTls {
+    return FakeTls(
+      object : Handshaker {
+        var nextId = 0
+        override fun handshake(
+          client: Handshaker.ClientInputs,
+          server: Handshaker.ServerInputs
+        ): Handshaker.Result {
+          val id = nextId++
+          if (id < count) throw SSLHandshakeException("boom!")
+          return InsecureHandshaker().handshake(client, server)
+        }
+      },
+      platform.localhostHandshakeCertificates(),
+    )
   }
 
   @Test
   fun recoverFromTlsHandshakeFailure_tlsFallbackScsvEnabled() {
     platform.assumeNotConscrypt()
     val tlsFallbackScsv = "TLS_FALLBACK_SCSV"
-    val supportedCiphers = listOf(*handshakeCertificates.sslSocketFactory().supportedCipherSuites)
+    val supportedCiphers = listOf(*clientTls.sslSocketFactory.supportedCipherSuites)
     if (!supportedCiphers.contains(tlsFallbackScsv)) {
       // This only works if the client socket supports TLS_FALLBACK_SCSV.
       return
     }
-    server.useHttps(handshakeCertificates.sslSocketFactory())
+    server.useHttps(serverTls.sslSocketFactory)
+    server.handshakeFailureSslSocketFactory = serverTls.sslSocketFactory
+
+    val clientTls = failHandshakeClientTls(count = 1)
+
     server.enqueue(MockResponse.Builder().failHandshake().build())
-    val clientSocketFactory =
+    val clientSslSocketFactory =
       RecordingSSLSocketFactory(
-        handshakeCertificates.sslSocketFactory(),
+        clientTls.sslSocketFactory,
       )
     client =
       client
         .newBuilder()
         .sslSocketFactory(
-          clientSocketFactory,
-          handshakeCertificates.trustManager,
+          clientSslSocketFactory,
+          clientTls.trustManager,
         ) // Attempt RESTRICTED_TLS then fall back to MODERN_TLS.
         .connectionSpecs(listOf(ConnectionSpec.RESTRICTED_TLS, ConnectionSpec.MODERN_TLS))
         .hostnameVerifier(RecordingHostnameVerifier())
@@ -1417,10 +1476,10 @@ open class CallTest {
     assertFailsWith<SSLHandshakeException> {
       client.newCall(request).execute()
     }
-    val firstSocket = clientSocketFactory.socketsCreated[0]
+    val firstSocket = clientSslSocketFactory.socketsCreated[0]
     assertThat(firstSocket.enabledCipherSuites)
       .doesNotContain(tlsFallbackScsv)
-    val secondSocket = clientSocketFactory.socketsCreated[1]
+    val secondSocket = clientSslSocketFactory.socketsCreated[1]
     assertThat(secondSocket.enabledCipherSuites)
       .contains(tlsFallbackScsv)
   }
@@ -1429,7 +1488,11 @@ open class CallTest {
   fun recoverFromTlsHandshakeFailure_Async() {
     platform.assumeNotBouncyCastle()
 
-    server.useHttps(handshakeCertificates.sslSocketFactory())
+    server.useHttps(serverTls.sslSocketFactory)
+    server.handshakeFailureSslSocketFactory = serverTls.sslSocketFactory
+
+    val clientTls = failHandshakeClientTls(count = 1)
+
     server.enqueue(MockResponse.Builder().failHandshake().build())
     server.enqueue(MockResponse(body = "abc"))
     client =
@@ -1440,8 +1503,8 @@ open class CallTest {
         ) // Attempt RESTRICTED_TLS then fall back to MODERN_TLS.
         .connectionSpecs(listOf(ConnectionSpec.RESTRICTED_TLS, ConnectionSpec.MODERN_TLS))
         .sslSocketFactory(
-          suppressTlsFallbackClientSocketFactory(),
-          handshakeCertificates.trustManager,
+          FallbackTestClientSocketFactory(clientTls.sslSocketFactory),
+          clientTls.trustManager,
         ).build()
     val request = Request(server.url("/"))
     client.newCall(request).enqueue(callback)
@@ -1452,16 +1515,21 @@ open class CallTest {
   fun noRecoveryFromTlsHandshakeFailureWhenTlsFallbackIsDisabled() {
     platform.assumeNotBouncyCastle()
 
+
+    val clientTls = failHandshakeClientTls(count = 1)
+
     client =
       client
         .newBuilder()
         .connectionSpecs(listOf(ConnectionSpec.MODERN_TLS, ConnectionSpec.CLEARTEXT))
         .hostnameVerifier(RecordingHostnameVerifier())
         .sslSocketFactory(
-          suppressTlsFallbackClientSocketFactory(),
-          handshakeCertificates.trustManager,
+          FallbackTestClientSocketFactory(clientTls.sslSocketFactory),
+          clientTls.trustManager,
         ).build()
-    server.useHttps(handshakeCertificates.sslSocketFactory())
+    server.useHttps(serverTls.sslSocketFactory)
+    server.handshakeFailureSslSocketFactory = serverTls.sslSocketFactory
+
     server.enqueue(MockResponse.Builder().failHandshake().build())
     val request = Request.Builder().url(server.url("/")).build()
     assertFailsWith<IOException> {
@@ -1511,12 +1579,14 @@ open class CallTest {
         .Builder()
         .addTrustedCertificate(serverCertificate.certificate)
         .build()
+    val clientTls = FakeTls(InsecureHandshaker(), clientCertificates)
+    val serverTls = FakeTls(InsecureHandshaker(), serverCertificates)
     client =
       client
         .newBuilder()
-        .sslSocketFactory(clientCertificates.sslSocketFactory(), clientCertificates.trustManager)
+        .sslSocketFactory(clientTls.sslSocketFactory, clientTls.trustManager)
         .build()
-    server.useHttps(serverCertificates.sslSocketFactory())
+    server.useHttps(serverTls.sslSocketFactory)
     executeSynchronously("/")
       .assertFailureMatches("(?s)Hostname localhost not verified.*")
   }
@@ -1540,12 +1610,13 @@ open class CallTest {
       HandshakeCertificates
         .Builder()
         .build()
+    val clientTls = FakeTls(InsecureHandshaker(), clientCertificates)
     client =
       client
         .newBuilder()
         .sslSocketFactory(
-          socketFactoryWithCipherSuite(clientCertificates.sslSocketFactory(), cipherSuite),
-          clientCertificates.trustManager,
+          socketFactoryWithCipherSuite(clientTls.sslSocketFactory, cipherSuite),
+          clientTls.trustManager,
         ).connectionSpecs(
           listOf(
             ConnectionSpec
@@ -1558,8 +1629,9 @@ open class CallTest {
       HandshakeCertificates
         .Builder()
         .build()
+    val serverTls = FakeTls(InsecureHandshaker(), serverCertificates)
     server.useHttps(
-      socketFactoryWithCipherSuite(serverCertificates.sslSocketFactory(), cipherSuite),
+      socketFactoryWithCipherSuite(serverTls.sslSocketFactory, cipherSuite),
     )
     executeSynchronously("/")
       .assertFailure(SSLHandshakeException::class.java)
@@ -1591,7 +1663,7 @@ open class CallTest {
         .newBuilder()
         .protocols(listOf(Protocol.H2_PRIOR_KNOWLEDGE))
         .build()
-    server.useHttps(handshakeCertificates.sslSocketFactory())
+    server.useHttps(serverTls.sslSocketFactory)
     server.enqueue(MockResponse())
     val call = client.newCall(Request(server.url("/")))
     assertFailsWith<UnknownServiceException> {
@@ -3059,6 +3131,7 @@ open class CallTest {
     call.enqueue(callback)
     assertThat(server.takeRequest().url.encodedPath).isEqualTo("/a")
     callback.await(requestA.url).assertFailure(
+      "canceled",
       "Canceled",
       "stream was reset: CANCEL",
       "Socket closed",
@@ -3725,7 +3798,7 @@ open class CallTest {
   /** Test which headers are sent unencrypted to the HTTP proxy.  */
   @Test
   fun proxyConnectOmitsApplicationHeaders() {
-    server.useHttps(handshakeCertificates.sslSocketFactory())
+    server.useHttps(serverTls.sslSocketFactory)
     server.enqueue(
       MockResponse
         .Builder()
@@ -3740,8 +3813,8 @@ open class CallTest {
       client
         .newBuilder()
         .sslSocketFactory(
-          handshakeCertificates.sslSocketFactory(),
-          handshakeCertificates.trustManager,
+          clientTls.sslSocketFactory,
+          clientTls.trustManager,
         ).proxy(server.proxyAddress)
         .hostnameVerifier(hostnameVerifier)
         .build()
@@ -3786,8 +3859,8 @@ open class CallTest {
       client
         .newBuilder()
         .sslSocketFactory(
-          handshakeCertificates.sslSocketFactory(),
-          handshakeCertificates.trustManager,
+          clientTls.sslSocketFactory,
+          clientTls.trustManager,
         ).proxy(server.proxyAddress)
         .hostnameVerifier(hostnameVerifier)
         .build()
@@ -3802,7 +3875,7 @@ open class CallTest {
   /** Respond to a proxy authorization challenge.  */
   @Test
   fun proxyAuthenticateOnConnect() {
-    server.useHttps(handshakeCertificates.sslSocketFactory())
+    server.useHttps(serverTls.sslSocketFactory)
     server.enqueue(
       MockResponse
         .Builder()
@@ -3824,8 +3897,8 @@ open class CallTest {
       client
         .newBuilder()
         .sslSocketFactory(
-          handshakeCertificates.sslSocketFactory(),
-          handshakeCertificates.trustManager,
+          clientTls.sslSocketFactory,
+          clientTls.trustManager,
         ).proxy(server.proxyAddress)
         .proxyAuthenticator(RecordingOkAuthenticator("password", "Basic"))
         .hostnameVerifier(RecordingHostnameVerifier())
@@ -3879,7 +3952,7 @@ open class CallTest {
    */
   @Test
   fun proxyAuthenticateOnConnectWithConnectionClose() {
-    server.useHttps(handshakeCertificates.sslSocketFactory())
+    server.useHttps(serverTls.sslSocketFactory)
     server.protocols = listOf<Protocol>(Protocol.HTTP_1_1)
     server.enqueue(
       MockResponse
@@ -3908,8 +3981,8 @@ open class CallTest {
       client
         .newBuilder()
         .sslSocketFactory(
-          handshakeCertificates.sslSocketFactory(),
-          handshakeCertificates.trustManager,
+          clientTls.sslSocketFactory,
+          clientTls.trustManager,
         ).proxy(server.proxyAddress)
         .proxyAuthenticator(RecordingOkAuthenticator("password", "Basic"))
         .hostnameVerifier(RecordingHostnameVerifier())
@@ -3930,7 +4003,7 @@ open class CallTest {
 
   @Test
   fun tooManyProxyAuthFailuresWithConnectionClose() {
-    server.useHttps(handshakeCertificates.sslSocketFactory())
+    server.useHttps(serverTls.sslSocketFactory)
     server.protocols = listOf(Protocol.HTTP_1_1)
     for (i in 0..20) {
       server.enqueue(
@@ -3952,8 +4025,8 @@ open class CallTest {
       client
         .newBuilder()
         .sslSocketFactory(
-          handshakeCertificates.sslSocketFactory(),
-          handshakeCertificates.trustManager,
+          clientTls.sslSocketFactory,
+          clientTls.trustManager,
         ).proxy(server.proxyAddress)
         .proxyAuthenticator(RecordingOkAuthenticator("password", "Basic"))
         .hostnameVerifier(RecordingHostnameVerifier())
@@ -3971,7 +4044,7 @@ open class CallTest {
    */
   @Test
   fun noPreemptiveProxyAuthorization() {
-    server.useHttps(handshakeCertificates.sslSocketFactory())
+    server.useHttps(serverTls.sslSocketFactory)
     server.enqueue(
       MockResponse
         .Builder()
@@ -3983,8 +4056,8 @@ open class CallTest {
       client
         .newBuilder()
         .sslSocketFactory(
-          handshakeCertificates.sslSocketFactory(),
-          handshakeCertificates.trustManager,
+          clientTls.sslSocketFactory,
+          clientTls.trustManager,
         ).proxy(server.proxyAddress)
         .hostnameVerifier(RecordingHostnameVerifier())
         .build()
@@ -4005,7 +4078,7 @@ open class CallTest {
   /** Confirm that we can send authentication information without being prompted first.  */
   @Test
   fun preemptiveProxyAuthentication() {
-    server.useHttps(handshakeCertificates.sslSocketFactory())
+    server.useHttps(serverTls.sslSocketFactory)
     server.enqueue(
       MockResponse
         .Builder()
@@ -4018,8 +4091,8 @@ open class CallTest {
       client
         .newBuilder()
         .sslSocketFactory(
-          handshakeCertificates.sslSocketFactory(),
-          handshakeCertificates.trustManager,
+          clientTls.sslSocketFactory,
+          clientTls.trustManager,
         ).proxy(server.proxyAddress)
         .hostnameVerifier(RecordingHostnameVerifier())
         .proxyAuthenticator { _: Route?, response: Response? ->
@@ -4047,7 +4120,7 @@ open class CallTest {
 
   @Test
   fun preemptiveThenReactiveProxyAuthentication() {
-    server.useHttps(handshakeCertificates.sslSocketFactory())
+    server.useHttps(serverTls.sslSocketFactory)
     server.enqueue(
       MockResponse
         .Builder()
@@ -4070,8 +4143,8 @@ open class CallTest {
       client
         .newBuilder()
         .sslSocketFactory(
-          handshakeCertificates.sslSocketFactory(),
-          handshakeCertificates.trustManager,
+          clientTls.sslSocketFactory,
+          clientTls.trustManager,
         ).proxy(server.proxyAddress)
         .hostnameVerifier(RecordingHostnameVerifier())
         .proxyAuthenticator { _: Route?, response: Response ->
@@ -4097,7 +4170,7 @@ open class CallTest {
   @Test
   @Disabled
   fun proxyDisconnectsAfterRequest() {
-    server.useHttps(handshakeCertificates.sslSocketFactory())
+    server.useHttps(serverTls.sslSocketFactory)
     server.enqueue(
       MockResponse
         .Builder()
@@ -4109,8 +4182,8 @@ open class CallTest {
       client
         .newBuilder()
         .sslSocketFactory(
-          handshakeCertificates.sslSocketFactory(),
-          handshakeCertificates.trustManager,
+          clientTls.sslSocketFactory,
+          clientTls.trustManager,
         ).proxy(server.proxyAddress)
         .build()
     val request = Request(server.url("/"))
@@ -4514,7 +4587,7 @@ open class CallTest {
 
   /** Use a proxy to fake IPv6 connectivity, even if localhost doesn't have IPv6.  */
   private fun configureClientAndServerProxies(http2: Boolean) {
-    server.useHttps(handshakeCertificates.sslSocketFactory())
+    server.useHttps(serverTls.sslSocketFactory)
     server.protocols =
       when {
         http2 -> listOf(Protocol.HTTP_2, Protocol.HTTP_1_1)
@@ -4530,8 +4603,8 @@ open class CallTest {
       client
         .newBuilder()
         .sslSocketFactory(
-          handshakeCertificates.sslSocketFactory(),
-          handshakeCertificates.trustManager,
+          clientTls.sslSocketFactory,
+          clientTls.trustManager,
         ).hostnameVerifier(RecordingHostnameVerifier())
         .proxy(server.proxyAddress)
         .build()
@@ -4578,6 +4651,7 @@ open class CallTest {
     client =
       clientTestRule
         .newClientBuilder()
+        .socketFactory(network.socketFactory)
         .connectionPool(ConnectionPool(0, 10, TimeUnit.MILLISECONDS))
         .build()
     val request = Request(server.url("/"))
@@ -4596,6 +4670,7 @@ open class CallTest {
     client =
       clientTestRule
         .newClientBuilder()
+        .socketFactory(network.socketFactory)
         .connectionPool(ConnectionPool(0, 10, TimeUnit.MILLISECONDS))
         .build()
     val request = Request(server.url("/"))
@@ -4679,15 +4754,17 @@ open class CallTest {
         .heldCertificate(heldCertificate)
         .addTrustedCertificate(heldCertificate.certificate)
         .build()
+    val clientTls = FakeTls(InsecureHandshaker(), handshakeCertificates)
+    val serverTls = FakeTls(InsecureHandshaker(), handshakeCertificates)
 
     // Use that certificate on the server and trust it on the client.
-    server.useHttps(handshakeCertificates.sslSocketFactory())
+    server.useHttps(serverTls.sslSocketFactory)
     client =
       client
         .newBuilder()
         .sslSocketFactory(
-          handshakeCertificates.sslSocketFactory(),
-          handshakeCertificates.trustManager,
+          clientTls.sslSocketFactory,
+          clientTls.trustManager,
         ).hostnameVerifier(RecordingHostnameVerifier())
         .protocols(listOf(Protocol.HTTP_1_1))
         .build()
@@ -4803,7 +4880,7 @@ open class CallTest {
         .build()
     executeSynchronously("/")
       .assertFailure(IOException::class.java)
-      .assertFailure("canceled", "Canceled", "Socket closed", "Socket is closed")
+      .assertFailure("closed", "canceled", "Canceled", "Socket closed", "Socket is closed")
   }
 
   @Test
@@ -4981,7 +5058,7 @@ open class CallTest {
     val call = client.newCall(request)
     return try {
       val response = call.execute()
-      val bodyString = response.body.string()
+        val bodyString = response.body.string()
       RecordedResponse(request, response, null, bodyString, null)
     } catch (e: IOException) {
       RecordedResponse(request, null, null, null, e)
@@ -5006,11 +5083,11 @@ open class CallTest {
       client
         .newBuilder()
         .sslSocketFactory(
-          handshakeCertificates.sslSocketFactory(),
-          handshakeCertificates.trustManager,
+          clientTls.sslSocketFactory,
+          clientTls.trustManager,
         ).hostnameVerifier(RecordingHostnameVerifier())
         .build()
-    server.useHttps(handshakeCertificates.sslSocketFactory())
+    server.useHttps(serverTls.sslSocketFactory)
   }
 
   private fun gzip(data: String): Buffer {
@@ -5069,5 +5146,5 @@ open class CallTest {
    * for details.
    */
   private fun suppressTlsFallbackClientSocketFactory(): FallbackTestClientSocketFactory =
-    FallbackTestClientSocketFactory(handshakeCertificates.sslSocketFactory())
+    FallbackTestClientSocketFactory(clientTls.sslSocketFactory)
 }

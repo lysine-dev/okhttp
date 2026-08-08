@@ -638,11 +638,17 @@ public class MockWebServer : Closeable {
     }
   }
 
+  public var handshakeFailureSslSocketFactory: SSLSocketFactory? = null
+
   @Throws(Exception::class)
   private fun processHandshakeFailure(raw: Socket) {
-    val context = SSLContext.getInstance("TLS")
-    context.init(null, arrayOf<TrustManager>(UNTRUSTED_TRUST_MANAGER), SecureRandom())
-    val sslSocketFactory = context.socketFactory
+    val sslSocketFactory = handshakeFailureSslSocketFactory
+      ?: run {
+        val context = SSLContext.getInstance("TLS")
+        context.init(null, arrayOf<TrustManager>(UNTRUSTED_TRUST_MANAGER), SecureRandom())
+        context.socketFactory
+      }
+
     val socket =
       sslSocketFactory.createSocket(
         raw,
@@ -650,6 +656,7 @@ public class MockWebServer : Closeable {
         raw.port,
         true,
       ) as SSLSocket
+    socket.useClientMode = false
     try {
       socket.startHandshake() // we're testing a handshake failure
       throw AssertionError()
