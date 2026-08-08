@@ -111,6 +111,7 @@ internal data class TbsCertificate(
       return when (signature.algorithm) {
         ObjectIdentifiers.SHA256_WITH_RSA_ENCRYPTION -> "SHA256WithRSA"
         ObjectIdentifiers.SHA256_WITH_ECDSA -> "SHA256withECDSA"
+        ObjectIdentifiers.ED25519 -> "Ed25519"
         else -> error("unexpected signature algorithm: ${signature.algorithm}")
       }
     }
