@@ -416,13 +416,14 @@ internal open class SocketStream<T : Closeable>(
   internal enum class StreamState {
     Ready,
     Blocked,
-    Closed
+    Closed,
   }
 }
 
 internal class SocketSource(
   socket: OkioSocket,
-) : SocketStream<Source>(socket, socket.source), Source {
+) : SocketStream<Source>(socket, socket.source),
+  Source {
   override fun read(
     sink: Buffer,
     byteCount: Long,
@@ -437,7 +438,8 @@ internal class SocketSource(
 
 internal class SocketSink(
   socket: OkioSocket,
-) : SocketStream<Sink>(socket, socket.sink), Sink {
+) : SocketStream<Sink>(socket, socket.sink),
+  Sink {
   override fun write(
     source: Buffer,
     byteCount: Long,
