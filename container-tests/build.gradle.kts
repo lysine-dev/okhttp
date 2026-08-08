@@ -21,6 +21,7 @@ tasks.withType<Test> {
   jvmArgs(
     "-Dokhttp.platform=$platform",
   )
+  systemProperty("mockserver.version", libs.versions.mockserver.client.get())
 
   if (platform == "loom") {
     jvmArgs(
