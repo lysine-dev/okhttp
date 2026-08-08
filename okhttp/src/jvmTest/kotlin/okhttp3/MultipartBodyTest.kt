@@ -103,6 +103,33 @@ class MultipartBodyTest {
   }
 
   @Test
+  fun boundaryWithNonTokenCharacterIsQuoted() {
+    val body =
+      MultipartBody
+        .Builder("abc:def")
+        .addPart("Hello, World!".toRequestBody(null))
+        .build()
+    assertThat(body.boundary).isEqualTo("abc:def")
+    assertThat(body.contentType().toString())
+      .isEqualTo("multipart/mixed; boundary=\"abc:def\"")
+    assertThat(body.contentType().parameter("boundary")).isEqualTo("abc:def")
+  }
+
+  @Test
+  fun boundaryContainingQuoteIsRejected() {
+    val builder =
+      MultipartBody
+        .Builder("a\"; charset=\"evil")
+        .addPart("Hello, World!".toRequestBody(null))
+    assertFailsWith<IllegalArgumentException> {
+      builder.build()
+    }.also { expected ->
+      assertThat(expected.message)
+        .isEqualTo("boundary contains a character that can't be quoted: a\"; charset=\"evil")
+    }
+  }
+
+  @Test
   fun fieldAndTwoFiles() {
     val expected =
       """

@@ -35,7 +35,12 @@ class MultipartBody internal constructor(
   @get:JvmName("type") val type: MediaType,
   @get:JvmName("parts") val parts: List<Part>,
 ) : RequestBody() {
-  private val contentType: MediaType = "$type; boundary=$boundary".toMediaType()
+  private val contentType: MediaType =
+    buildString {
+      append(type)
+      append("; boundary=")
+      appendBoundary(boundary)
+    }.toMediaType()
   private var contentLength = -1L
 
   @get:JvmName("boundary")
@@ -353,6 +358,35 @@ class MultipartBody internal constructor(
     private val COLONSPACE = byteArrayOf(':'.code.toByte(), ' '.code.toByte())
     private val CRLF = byteArrayOf('\r'.code.toByte(), '\n'.code.toByte())
     private val DASHDASH = byteArrayOf('-'.code.toByte(), '-'.code.toByte())
+
+    private const val TOKEN_SPECIALS = "-!#\$%&'*+.^_`{|}~"
+
+    /**
+     * Appends [boundary] to this StringBuilder, unchanged if it's a valid RFC 2045 token or as a
+     * quoted-string otherwise. A boundary that contains a character like `:` isn't a token, so it
+     * must be quoted for the `Content-Type` to parse. See RFC 2045 section 5.1. A `"` or `\` can't
+     * round-trip through the quoted-string that `MediaType` reads back, so those are rejected.
+     */
+    private fun StringBuilder.appendBoundary(boundary: String) {
+      var quoted = boundary.isEmpty()
+      for (c in boundary) {
+        require(c != '"' && c != '\\') { "boundary contains a character that can't be quoted: $boundary" }
+        if (!quoted && !c.isTokenChar()) quoted = true
+      }
+      if (quoted) {
+        append('"')
+        append(boundary)
+        append('"')
+      } else {
+        append(boundary)
+      }
+    }
+
+    private fun Char.isTokenChar(): Boolean =
+      this in 'a'..'z' ||
+        this in 'A'..'Z' ||
+        this in '0'..'9' ||
+        this in TOKEN_SPECIALS
 
     /**
      * Appends a quoted-string to a StringBuilder.
