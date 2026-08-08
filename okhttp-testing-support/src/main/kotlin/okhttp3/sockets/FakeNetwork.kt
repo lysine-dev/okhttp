@@ -31,7 +31,6 @@ import okhttp3.internal.concurrent.wait
 import okhttp3.internal.concurrent.withLock
 import okhttp3.internal.connection.asBufferedSocket
 import okio.Buffer
-import okio.Socket
 import okio.Timeout
 import okio.inMemorySocketPair
 
@@ -57,7 +56,7 @@ class FakeNetwork {
     get() = InetAddress.getByAddress(byteArrayOf(0, 0, 0, 0))
 
   /** Generate a new unique address. */
-  internal fun nextSocketAddress(): InetSocketAddress {
+  fun nextSocketAddress(): InetSocketAddress {
     val ipv4AddressInt = nextIpv4Address.getAndIncrement()
     val ipv4AddressBytes =
       Buffer()
@@ -268,13 +267,4 @@ internal class BoundServer(
   }
 
   override fun toString() = "Server@$serverAddress"
-}
-
-internal class FakeConnection(
-  val clientAddress: InetSocketAddress,
-  val serverAddress: InetSocketAddress,
-  val clientSocket: Socket,
-  val serverSocket: Socket,
-) {
-  override fun toString() = "$clientAddress<->$serverAddress"
 }

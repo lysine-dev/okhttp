@@ -22,11 +22,11 @@ import assertk.assertions.isEqualTo
 import java.io.InterruptedIOException
 import java.net.SocketException
 import kotlin.test.assertFailsWith
-import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.measureTime
 import okhttp3.OkHttpClientTestRule
 import okhttp3.internal.concurrent.TaskRunner
+import okhttp3.internal.concurrent.schedule
 import okio.buffer
 import okio.sink
 import okio.source
@@ -261,17 +261,6 @@ class FakeNetworkTest {
           client.connect(serverAddress, 5_000)
         }
       assertThat(e).hasMessage("server closed")
-    }
-  }
-
-  private fun TaskRunner.schedule(
-    name: String,
-    delay: Duration = 0.milliseconds,
-    block: () -> Unit,
-  ) {
-    newQueue().schedule(name, delay.inWholeNanoseconds) {
-      block()
-      -1L
     }
   }
 }

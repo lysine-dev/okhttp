@@ -22,11 +22,28 @@ import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import mockwebserver3.junit5.StartStop
 import okhttp3.sockets.FakeNetwork
+import okhttp3.sockets.FakeTls
+import okhttp3.sockets.InsecureHandshaker
+import okhttp3.tls.internal.TlsUtil
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 
 open class FakeNetworkOkHttpTest {
   private val network = FakeNetwork()
+
+  private val handshaker = InsecureHandshaker()
+
+  private val clientTls =
+    FakeTls(
+      handshaker = handshaker,
+      handshakeCertificates = TlsUtil.localhost(),
+    )
+
+  private val serverTls =
+    FakeTls(
+      handshaker = handshaker,
+      handshakeCertificates = TlsUtil.localhost(),
+    )
 
   @RegisterExtension
   val clientTestRule = OkHttpClientTestRule()
@@ -46,6 +63,16 @@ open class FakeNetworkOkHttpTest {
 
   @Test
   fun `happy path`() {
+    makeRequest()
+  }
+
+  @Test
+  fun `happy path with TLS`() {
+    enableTls()
+    makeRequest()
+  }
+
+  fun makeRequest() {
     server.enqueue(
       MockResponse
         .Builder()
@@ -67,5 +94,14 @@ open class FakeNetworkOkHttpTest {
     val recordedRequest = server.takeRequest()
     assertThat(recordedRequest.method).isEqualTo("GET")
     assertThat(recordedRequest.body).isNull()
+  }
+
+  private fun enableTls() {
+    client =
+      client
+        .newBuilder()
+        .sslSocketFactory(clientTls.sslSocketFactory, clientTls.trustManager)
+        .build()
+    server.useHttps(serverTls.sslSocketFactory)
   }
 }
