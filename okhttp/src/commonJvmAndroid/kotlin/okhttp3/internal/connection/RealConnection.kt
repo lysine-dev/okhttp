@@ -121,6 +121,12 @@ class RealConnection internal constructor(
   /** Timestamp when `allocations.size()` reached zero. Also assigned upon initial connection. */
   var idleAtNs = Long.MAX_VALUE
 
+  /** Wall-clock time (epoch millis) when the connection was created. */
+  internal var connectAtEpochMillis: Long = 0L
+
+  /** Wall-clock time (epoch millis) when the connection became idle, or null if active. */
+  internal var idleAtEpochMillis: Long? = null
+
   /**
    * Returns true if this is an HTTP/2 connection. Such connections can be used in multiple HTTP
    * requests simultaneously.
@@ -129,7 +135,7 @@ class RealConnection internal constructor(
     get() = http2Connection != null
 
   /** Prevent further exchanges from being created on this connection. */
-  override fun noNewExchanges() {
+  override fun prohibitNewExchanges() {
     withLock {
       noNewExchanges = true
     }
@@ -152,6 +158,8 @@ class RealConnection internal constructor(
   @Throws(IOException::class)
   fun start() {
     idleAtNs = System.nanoTime()
+    connectAtEpochMillis = System.currentTimeMillis()
+    idleAtEpochMillis = connectAtEpochMillis
     if (protocol == Protocol.HTTP_2 || protocol == Protocol.H2_PRIOR_KNOWLEDGE) {
       startHttp2()
     }
@@ -284,7 +292,7 @@ class RealConnection internal constructor(
 
   internal fun useAsSocket() {
     javaNetSocket.soTimeout = 0
-    noNewExchanges()
+    prohibitNewExchanges()
   }
 
   override fun route(): Route = route
@@ -416,6 +424,16 @@ class RealConnection internal constructor(
 
   override fun protocol(): Protocol = protocol
 
+  override fun connectAtMillis(): Long = connectAtEpochMillis
+
+  override fun idleAtMillis(): Long? = withLock { idleAtEpochMillis }
+
+  override fun successCount(): Int = withLock { successCount }
+
+  override fun callCount(): Int = withLock { calls.size }
+
+  override fun noNewExchanges(): Boolean = withLock { noNewExchanges }
+
   override fun toString(): String =
     "Connection{${route.address.url.host}:${route.address.url.port}," +
       " proxy=${route.proxy}" +
@@ -456,6 +474,8 @@ class RealConnection internal constructor(
           connectionListener = ConnectionListener.NONE,
         )
       result.idleAtNs = idleAtNs
+      result.connectAtEpochMillis = System.currentTimeMillis()
+      result.idleAtEpochMillis = result.connectAtEpochMillis
       return result
     }
   }

@@ -283,7 +283,7 @@ class Http1ExchangeCodec(
   private fun newUnknownLengthSource(url: HttpUrl): Source {
     check(state == STATE_OPEN_RESPONSE_BODY) { "state: $state" }
     state = STATE_READING_RESPONSE_BODY
-    carrier.noNewExchanges()
+    carrier.prohibitNewExchanges()
     return UnknownLengthSource(url)
   }
 
@@ -396,7 +396,7 @@ class Http1ExchangeCodec(
       try {
         socket.source.read(sink, byteCount)
       } catch (e: IOException) {
-        carrier.noNewExchanges()
+        carrier.prohibitNewExchanges()
         responseBodyComplete(TRAILERS_RESPONSE_BODY_TRUNCATED)
         throw e
       }
@@ -440,7 +440,7 @@ class Http1ExchangeCodec(
 
       val read = super.read(sink, minOf(bytesRemaining, byteCount))
       if (read == -1L) {
-        carrier.noNewExchanges() // The server didn't supply the promised content length.
+        carrier.prohibitNewExchanges() // The server didn't supply the promised content length.
         val e = ProtocolException("unexpected end of stream")
         responseBodyComplete(TRAILERS_RESPONSE_BODY_TRUNCATED)
         throw e
@@ -459,7 +459,7 @@ class Http1ExchangeCodec(
       if (bytesRemaining != 0L &&
         !discard(ExchangeCodec.DISCARD_STREAM_TIMEOUT_MILLIS, MILLISECONDS)
       ) {
-        carrier.noNewExchanges() // Unread bytes remain on the stream.
+        carrier.prohibitNewExchanges() // Unread bytes remain on the stream.
         responseBodyComplete(TRAILERS_RESPONSE_BODY_TRUNCATED)
       }
 
@@ -489,7 +489,7 @@ class Http1ExchangeCodec(
 
       val read = super.read(sink, minOf(byteCount, bytesRemainingInChunk))
       if (read == -1L) {
-        carrier.noNewExchanges() // The server didn't supply the promised chunk length.
+        carrier.prohibitNewExchanges() // The server didn't supply the promised chunk length.
         val e = ProtocolException("unexpected end of stream")
         responseBodyComplete(TRAILERS_RESPONSE_BODY_TRUNCATED)
         throw e
@@ -528,7 +528,7 @@ class Http1ExchangeCodec(
       if (hasMoreChunks &&
         !discard(ExchangeCodec.DISCARD_STREAM_TIMEOUT_MILLIS, MILLISECONDS)
       ) {
-        carrier.noNewExchanges() // Unread bytes remain on the stream.
+        carrier.prohibitNewExchanges() // Unread bytes remain on the stream.
         responseBodyComplete(TRAILERS_RESPONSE_BODY_TRUNCATED)
       }
       closed = true

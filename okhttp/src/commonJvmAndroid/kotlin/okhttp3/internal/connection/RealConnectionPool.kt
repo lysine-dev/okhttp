@@ -314,6 +314,7 @@ class RealConnectionPool internal constructor(
       // If this was the last allocation, the connection is eligible for immediate eviction.
       if (references.isEmpty()) {
         connection.idleAtNs = now - keepAliveDurationNs
+        connection.idleAtEpochMillis = System.currentTimeMillis()
         return 0
       }
     }

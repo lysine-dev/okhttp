@@ -343,10 +343,15 @@ public abstract interface class okhttp3/CompressionInterceptor$DecompressionAlgo
 }
 
 public abstract interface class okhttp3/Connection {
+	public abstract fun callCount ()I
+	public abstract fun connectAtMillis ()J
 	public abstract fun handshake ()Lokhttp3/Handshake;
+	public abstract fun idleAtMillis ()Ljava/lang/Long;
+	public abstract fun noNewExchanges ()Z
 	public abstract fun protocol ()Lokhttp3/Protocol;
 	public abstract fun route ()Lokhttp3/Route;
 	public abstract fun socket ()Ljava/net/Socket;
+	public abstract fun successCount ()I
 }
 
 public final class okhttp3/ConnectionPool {

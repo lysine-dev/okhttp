@@ -533,7 +533,7 @@ class ConnectPlan internal constructor(
     // Do nothing.
   }
 
-  override fun noNewExchanges() {
+  override fun prohibitNewExchanges() {
     // Do nothing.
   }
 
