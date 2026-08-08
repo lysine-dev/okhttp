@@ -313,6 +313,16 @@ class RealConnectionPool internal constructor(
 
       // If this was the last allocation, the connection is eligible for immediate eviction.
       if (references.isEmpty()) {
+        if (!connection.isMultiplexed && !connection.noNewExchanges) {
+          // If we have cleared a leaked call reference for a HTTP/1.1 connection,
+          // we must ensure this can't be reallocated even if multiple connections were leaked
+          // and only one is about to be closed
+          connection.noNewExchanges = true
+
+          // Can't notify while holding lock
+          // connection.connectionListener.noNewExchanges(connection)
+        }
+
         connection.idleAtNs = now - keepAliveDurationNs
         return 0
       }
