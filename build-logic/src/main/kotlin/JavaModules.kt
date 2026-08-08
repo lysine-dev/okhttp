@@ -15,13 +15,17 @@
  */
 
 import me.champeau.mrjar.MultiReleaseExtension
+import org.gradle.api.JavaVersion
 import org.gradle.api.Project
 import org.gradle.api.plugins.JavaPluginExtension
+import org.gradle.api.tasks.bundling.Jar
 import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JavaToolchainService
 import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.named
+import org.gradle.kotlin.dsl.register
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 fun Project.applyJavaModules(
@@ -29,6 +33,30 @@ fun Project.applyJavaModules(
   defaultVersion: Int = 8,
   javaModuleVersion: Int = 9,
   enableValidation: Boolean = true,
+) {
+  plugins.withId("org.jetbrains.kotlin.jvm") {
+    applyJavaModulesJvm(
+      moduleName = moduleName,
+      defaultVersion = defaultVersion,
+      javaModuleVersion = javaModuleVersion,
+      enableValidation = enableValidation,
+    )
+  }
+
+  plugins.withId("org.jetbrains.kotlin.multiplatform") {
+    applyJavaModulesMultiplatform(
+      moduleName = moduleName,
+      javaModuleVersion = javaModuleVersion,
+      enableValidation = enableValidation,
+    )
+  }
+}
+
+private fun Project.applyJavaModulesJvm(
+  moduleName: String,
+  defaultVersion: Int,
+  javaModuleVersion: Int,
+  enableValidation: Boolean,
 ) {
   plugins.apply("me.champeau.mrjar")
 
@@ -38,29 +66,79 @@ fun Project.applyJavaModules(
 
   tasks.named<JavaCompile>("compileJava9Java").configure {
     val compileKotlinTask = tasks.getByName("compileKotlin") as KotlinJvmCompile
-    dependsOn(compileKotlinTask)
 
     if (enableValidation) {
       compileKotlinTask.source(file("src/main/java9"))
     }
 
-    // Ignore warnings about using 'requires transitive' on automatic modules.
-    // not needed when compiling with recent JDKs, e.g. 17
-    options.compilerArgs.add("-Xlint:-requires-transitive-automatic")
-
-    // Patch the compileKotlinJvm output classes into the compilation so exporting packages works correctly.
-    options.compilerArgs.addAll(
-      listOf(
-        "--patch-module",
-        "$moduleName=${compileKotlinTask.destinationDirectory.get().asFile}",
-      ),
-    )
-
-    classpath = compileKotlinTask.libraries
-    modularity.inferModulePath.set(true)
+    configureModuleInfoCompilation(moduleName, compileKotlinTask)
 
     val javaToolchains = project.extensions.getByType<JavaToolchainService>()
     val javaPluginExtension = project.extensions.getByType<JavaPluginExtension>()
     javaCompiler.set(javaToolchains.compilerFor(javaPluginExtension.toolchain))
   }
+}
+
+private fun Project.applyJavaModulesMultiplatform(
+  moduleName: String,
+  javaModuleVersion: Int,
+  enableValidation: Boolean,
+) {
+  val compileJavaModuleInfo =
+    tasks.register<JavaCompile>("compileJavaModuleInfo") {
+      val compileKotlinTask = tasks.getByName("compileKotlinJvm") as KotlinJvmCompile
+      val targetDir = compileKotlinTask.destinationDirectory.dir("../java9")
+      val sourceDir = file("src/jvmMain/java9")
+
+      val javaToolchains = project.extensions.getByType<JavaToolchainService>()
+      javaCompiler.set(
+        javaToolchains.compilerFor {
+          languageVersion.set(JavaLanguageVersion.of(11))
+        },
+      )
+
+      source(sourceDir)
+      if (enableValidation) {
+        compileKotlinTask.source(sourceDir)
+      }
+
+      outputs.dir(targetDir)
+      destinationDirectory.set(targetDir)
+      sourceCompatibility = JavaVersion.toVersion(javaModuleVersion).toString()
+      targetCompatibility = JavaVersion.toVersion(javaModuleVersion).toString()
+      options.release.set(javaModuleVersion)
+
+      configureModuleInfoCompilation(moduleName, compileKotlinTask)
+    }
+
+  tasks.named<Jar>("jvmJar").configure {
+    manifest {
+      attributes(mapOf("Multi-Release" to true))
+    }
+
+    from(compileJavaModuleInfo.map { it.destinationDirectory }) {
+      into("META-INF/versions/9/")
+    }
+  }
+}
+
+private fun JavaCompile.configureModuleInfoCompilation(
+  moduleName: String,
+  compileKotlinTask: KotlinJvmCompile,
+) {
+  dependsOn(compileKotlinTask)
+
+  // Ignore warnings about using 'requires transitive' on automatic modules.
+  options.compilerArgs.add("-Xlint:-requires-transitive-automatic")
+
+  // Patch the Kotlin output into the compilation so exporting packages works correctly.
+  options.compilerArgs.addAll(
+    listOf(
+      "--patch-module",
+      "$moduleName=${compileKotlinTask.destinationDirectory.get().asFile}",
+    ),
+  )
+
+  classpath = compileKotlinTask.libraries
+  modularity.inferModulePath.set(true)
 }
