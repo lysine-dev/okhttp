@@ -311,6 +311,12 @@ class RealConnectionPool internal constructor(
 
       references.removeAt(i)
 
+      // A leaked connection may still hold the abandoned response's unread bytes on its socket, so it
+      // must not be handed to a new exchange. Retire it here rather than relying on eviction: a single
+      // cleanup pass prunes every connection but evicts at most one, so any leaked connection that
+      // isn't the one evicted would otherwise stay eligible for reuse and corrupt the next exchange.
+      connection.noNewExchanges = true
+
       // If this was the last allocation, the connection is eligible for immediate eviction.
       if (references.isEmpty()) {
         connection.idleAtNs = now - keepAliveDurationNs
