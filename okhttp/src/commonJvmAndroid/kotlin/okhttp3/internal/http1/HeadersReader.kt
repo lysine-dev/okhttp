@@ -15,6 +15,8 @@
  */
 package okhttp3.internal.http1
 
+import java.io.EOFException
+import java.net.ProtocolException
 import okhttp3.Headers
 import okhttp3.internal.HEADER_LIMIT
 import okio.BufferedSource
@@ -29,7 +31,20 @@ class HeadersReader(
 
   /** Read a single line counted against the header size limit. */
   fun readLine(): String {
-    val line = source.readUtf8LineStrict(headerLimit)
+    val line =
+      try {
+        source.readUtf8LineStrict(headerLimit)
+      } catch (e: EOFException) {
+        // readUtf8LineStrict() throws EOFException both when the line exceeds the byte limit
+        // and when the stream ends before a line terminator. Only the former means the response
+        // head is too large; a genuinely truncated response must still surface as an EOFException.
+        if (source.buffer.size >= headerLimit) {
+          throw ProtocolException(
+            "response headers exceed the ${HEADER_LIMIT / 1024} KiB limit",
+          ).initCause(e)
+        }
+        throw e
+      }
     headerLimit -= line.length.toLong()
     return line
   }
