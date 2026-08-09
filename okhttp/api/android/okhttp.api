@@ -1382,23 +1382,9 @@ public abstract class okhttp3/WebSocketListener {
 }
 
 public final class okhttp3/android/AndroidDns : okhttp3/Dns {
-	public fun <init> ()V
-	public fun <init> (Landroid/net/DnsResolver;Landroid/net/Network;Lokhttp3/DnsCache;ZLjava/util/concurrent/Executor;)V
-	public synthetic fun <init> (Landroid/net/DnsResolver;Landroid/net/Network;Lokhttp3/DnsCache;ZLjava/util/concurrent/Executor;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Landroid/net/DnsResolver;Landroid/net/Network;Lokhttp3/DnsCache;Z)V
+	public synthetic fun <init> (Landroid/net/DnsResolver;Landroid/net/Network;Lokhttp3/DnsCache;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun lookup (Ljava/lang/String;)Ljava/util/List;
 	public fun newCall (Lokhttp3/Dns$Request;)Lokhttp3/Dns$Call;
-}
-
-public final class okhttp3/android/EchAwareDns : okhttp3/Dns {
-	public static final field Companion Lokhttp3/android/EchAwareDns$Companion;
-	public fun <init> ()V
-	public fun <init> (Lokhttp3/Dns;Lokhttp3/Dns;Landroid/security/NetworkSecurityPolicy;)V
-	public synthetic fun <init> (Lokhttp3/Dns;Lokhttp3/Dns;Landroid/security/NetworkSecurityPolicy;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public fun lookup (Ljava/lang/String;)Ljava/util/List;
-	public fun newCall (Lokhttp3/Dns$Request;)Lokhttp3/Dns$Call;
-}
-
-public final class okhttp3/android/EchAwareDns$Companion {
-	public final fun forNetwork (Landroid/net/Network;)Lokhttp3/android/EchAwareDns;
 }
 

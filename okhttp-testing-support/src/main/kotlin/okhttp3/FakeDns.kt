@@ -73,7 +73,7 @@ class FakeDns(
           }
 
         val dnsRequest = DnsMessageReader(encodedDnsQuery).read()
-        requests.put(Request.DnsOverHttpsRequest(request, dnsRequest))
+        requests.put(Request.DnsRequest(dnsRequest, request))
 
         val dnsResponse = invoke(dnsRequest)
 
@@ -183,7 +183,12 @@ class FakeDns(
       }
   }
 
-  fun invoke(request: DnsMessage): DnsMessage {
+  fun query(request: DnsMessage): DnsMessage {
+    requests.put(Request.DnsRequest(request))
+    return invoke(request)
+  }
+
+  private fun invoke(request: DnsMessage): DnsMessage {
     val answers =
       buildList {
         for (question in request.questions) {
@@ -314,9 +319,9 @@ class FakeDns(
   sealed interface Request {
     val hostname: String
 
-    data class DnsOverHttpsRequest(
-      val httpRequest: RecordedRequest,
+    data class DnsRequest(
       val dnsRequest: DnsMessage,
+      val httpRequest: RecordedRequest? = null,
     ) : Request {
       override val hostname: String
         get() = dnsRequest.questions.single().name

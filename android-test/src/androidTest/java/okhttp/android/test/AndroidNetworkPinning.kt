@@ -17,12 +17,9 @@ package okhttp.android.test
 
 import android.annotation.SuppressLint
 import android.net.Network
-import android.os.Build
-import java.net.InetAddress
-import okhttp3.Dns
 import okhttp3.Interceptor
 import okhttp3.Response
-import okhttp3.android.EchAwareDns
+import okhttp3.android.AndroidDns
 
 /**
  * Interceptor that supports Network Pinning on Android via Request tags.
@@ -43,34 +40,11 @@ class AndroidNetworkPinning : Interceptor {
       if (pinnedNetwork != null) {
         chain
           .withSocketFactory(pinnedNetwork.socketFactory)
-          .withDns(dnsForNetwork(pinnedNetwork))
+          .withDns(AndroidDns(network = pinnedNetwork))
       } else {
         chain
       }
 
     return effectiveChain.proceed(request)
   }
-
-  /**
-   * ECH needs the `HTTPS` record, which is only reachable through `DnsResolver.rawQuery()` and only
-   * consulted by the platform from API 37. Below that there's nothing to gain from the extra query,
-   * so [AndroidNetworkDns] does the plain address lookup.
-   */
-  private fun dnsForNetwork(network: Network): Dns =
-    when {
-      Build.VERSION.SDK_INT >= 37 -> EchAwareDns.forNetwork(network)
-      else -> AndroidNetworkDns(network)
-    }
-}
-
-/**
- * A [Dns] scoped to [network], used below API 37 where there's no ECH to resolve for.
- *
- * [Network.getAllByName] is the whole implementation: it resolves on that network and nothing else,
- * with no service metadata.
- */
-class AndroidNetworkDns(
-  private val network: Network,
-) : Dns {
-  override fun lookup(hostname: String): List<InetAddress> = network.getAllByName(hostname).toList()
 }

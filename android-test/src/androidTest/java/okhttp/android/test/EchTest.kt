@@ -25,10 +25,11 @@ import assertk.assertions.doesNotContain
 import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
 import assertk.assertions.isTrue
+import okhttp3.Dns
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.android.EchAwareDns
+import okhttp3.android.AndroidDns
 import okhttp3.dnsoverhttps.DnsOverHttps
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeEach
@@ -37,9 +38,9 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.fail
 
 /**
- * Confirms Encrypted Client Hello (ECH) end to end, with [EchAwareDns].
+ * Confirms Encrypted Client Hello (ECH) end to end.
  *
- * Test with both [okhttp3.android.AndroidDns] and [DnsOverHttps].
+ * Test with both [AndroidDns] and [DnsOverHttps].
  *
  * See `res/xml/network_security_config.xml` for overrides.
  */
@@ -47,19 +48,20 @@ import org.junit.jupiter.api.fail
 @Tag("Remote")
 @Burst
 class EchTest(
-  private val useDoh: Boolean = false,
+  private val dnsApi: DnsApi = DnsApi.Doh,
 ) {
   private lateinit var client: OkHttpClient
 
   @BeforeEach
   fun setUp() {
-    // EchAwareDns reads API 37 NetworkSecurityPolicy.getDomainEncryptionMode().
+    // ECH requires API 37.
     assumeTrue(Build.VERSION.SDK_INT >= 37)
 
+    val bootstrapClient = OkHttpClient()
+    val dns = dnsApi.create(bootstrapClient)
     client =
-      OkHttpClient
-        .Builder()
-        .dns(dns())
+      bootstrapClient.newBuilder()
+        .dns(dns)
         .build()
   }
 
@@ -131,36 +133,25 @@ class EchTest(
     assertThat(client.get("https://crypto.cloudflare.com/cdn-cgi/trace")).contains("sni=plaintext")
   }
 
-  /**
-   * [EchAwareDns] over the platform resolver, or over DoH when [useDoh]. Both arms use the same
-   * source: the ECH one carries service metadata, the other doesn't.
-   */
-  private fun dns(): EchAwareDns =
-    when {
-      useDoh -> {
-        val bootstrapClient = OkHttpClient()
-        EchAwareDns(
-          echDns = dnsOverHttps(bootstrapClient, includeServiceMetadata = true),
-          addressOnlyDns = dnsOverHttps(bootstrapClient, includeServiceMetadata = false),
-        )
-      }
-      else -> EchAwareDns()
-    }
-
-  /** Addressed by IP, so resolving the resolver doesn't need a resolver. */
-  private fun dnsOverHttps(
-    bootstrapClient: OkHttpClient,
-    includeServiceMetadata: Boolean,
-  ): DnsOverHttps =
-    DnsOverHttps
-      .Builder()
-      .client(bootstrapClient)
-      .url("https://1.1.1.1/dns-query".toHttpUrl())
-      .includeServiceMetadata(includeServiceMetadata)
-      .build()
-
-  private fun OkHttpClient.get(url: String): String =
-    newCall(Request.Builder().url(url).build()).execute().use { response ->
+  fun OkHttpClient.get(url: String): String =
+    newCall(Request(url.toHttpUrl())).execute().use { response ->
       response.body.string()
     }
+
+  enum class DnsApi {
+    Android {
+      override fun create(client: OkHttpClient) = AndroidDns()
+    },
+
+    Doh {
+      /** DNS server is addressed by IP, so resolving the resolver doesn't need a resolver. */
+      override fun create(client: OkHttpClient) = DnsOverHttps.Builder()
+        .client(client)
+        .url("https://1.1.1.1/dns-query".toHttpUrl())
+        .includeServiceMetadata(true)
+        .build()
+    };
+
+    abstract fun create(client: OkHttpClient): Dns
+  }
 }
