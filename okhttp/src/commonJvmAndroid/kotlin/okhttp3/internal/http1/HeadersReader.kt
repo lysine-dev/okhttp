@@ -38,7 +38,10 @@ class HeadersReader(
         // readUtf8LineStrict() throws EOFException both when the line exceeds the byte limit
         // and when the stream ends before a line terminator. Only the former means the response
         // head is too large; a genuinely truncated response must still surface as an EOFException.
-        if (source.buffer.size >= headerLimit) {
+        // A line of exactly headerLimit bytes is legal (okio accepts headerLimit bytes plus a
+        // terminator), so buffer.size == headerLimit is a truncated legal line, not an oversized
+        // one; only a strictly larger buffer proves the limit was exceeded.
+        if (source.buffer.size > headerLimit) {
           throw ProtocolException(
             "response headers exceed the ${HEADER_LIMIT / 1024} KiB limit",
           ).initCause(e)

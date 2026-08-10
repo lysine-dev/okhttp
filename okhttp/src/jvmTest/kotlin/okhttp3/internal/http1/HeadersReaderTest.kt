@@ -64,4 +64,17 @@ class HeadersReaderTest {
       HeadersReader(source).readHeaders()
     }
   }
+
+  /**
+   * A line of exactly [HEADER_LIMIT] bytes is a legal header line, so a stream that ends after that
+   * many bytes with no terminator is a truncated legal line, not an oversized header. It must still
+   * surface as an [EOFException]; the limit message is reserved for lines strictly over the limit.
+   */
+  @Test
+  fun truncatedHeadersAtLimitStillThrowEof() {
+    val source = Buffer().writeUtf8("a".repeat(HEADER_LIMIT.toInt()))
+    assertFailsWith<EOFException> {
+      HeadersReader(source).readHeaders()
+    }
+  }
 }
