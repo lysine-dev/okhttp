@@ -1,8 +1,7 @@
 # Android ECH sample
 
 This instrumentation test makes HTTPS requests with Encrypted Client Hello (ECH). The sample keeps
-OkHttp's API 21 minimum and only enables ECH on Android 17 (API 37) or newer. The tests are skipped
-on older devices.
+OkHttp's API 21 minimum and only enables ECH on Android 17 (API 37) or newer.
 
 The important pieces are:
 
