@@ -207,7 +207,7 @@ class RouteSelector internal constructor(
       domainName = socketHost,
     )
 
-    val dnsRequest = Dns.Request(socketHost)
+    val dnsRequest = Dns.Request(socketHost, socketPort)
     val result =
       when (val dnsCall = address.dns.newCall(dnsRequest)) {
         is LookupDnsCall -> {

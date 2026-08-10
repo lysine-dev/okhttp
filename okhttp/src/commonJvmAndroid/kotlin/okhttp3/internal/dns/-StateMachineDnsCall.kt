@@ -68,7 +68,17 @@ class StateMachineDnsCall(
     val questions =
       buildList {
         if (includeServiceMetadata) {
-          add(Question(request.hostname, TYPE_HTTPS))
+          // If this query doesn't use the default port, we need to put that into the query name
+          // using Attrleaf syntax. See RFC 9460 section 2.3.
+          add(
+            Question(
+              name = when {
+                request.port == 443 || request.port == 80 -> request.hostname
+                else -> "_${request.port}._https.${request.hostname}"
+              },
+              type = TYPE_HTTPS,
+            ),
+          )
         }
         if (includeIPv6) {
           add(Question(request.hostname, TYPE_AAAA))
