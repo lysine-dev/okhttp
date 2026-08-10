@@ -15,7 +15,6 @@
  */
 package okhttp3.sample.ech
 
-import android.os.Build
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
 import assertk.assertThat
@@ -25,7 +24,7 @@ import okhttp3.Dns
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.android.EchAwareDns
+import okhttp3.android.AndroidDns
 import okhttp3.dnsoverhttps.DnsOverHttps
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -35,85 +34,56 @@ import org.junit.runner.RunWith
 class EchClientTest {
   @Test
   fun androidDns() {
-    testEch(Resolver.AndroidDns)
+    testEch(AndroidDns())
   }
 
   @Test
   fun dnsOverHttps() {
-    testEch(Resolver.DnsOverHttps)
+    testEch(
+      DnsOverHttps.Builder()
+        .client(OkHttpClient())
+        .url("https://1.1.1.1/dns-query".toHttpUrl())
+        .build()
+    )
   }
 
-  private fun testEch(resolver: Resolver) {
-    val client = echClient(resolver)
+  /**
+   * ```
+   * DNS record: cloudflare-ech.com/104.18.10.118
+   * DNS record: cloudflare-ech.com/104.18.11.118
+   * DNS record: cloudflare-ech.com/2606:4700::6812:a76
+   * DNS record: cloudflare-ech.com/2606:4700::6812:b76
+   * DNS record: ServiceMetadata{
+   *   cloudflare-ech.com,
+   *   alpnIds=[h3, h2, http/1.1],
+   *   ipAddressHints=[104.18.10.118, 104.18.11.118, 2606:4700::6812:a76, 2606:4700::6812:b76],
+   *   echConfigList=0045fe0d0041da002000201e8ee5aa34c64a7439d45dfd1157ab774e2f70abccceef4cd24ae0998286cc760004000100010012636c6f7564666c6172652d6563682e636f6d0000
+   * }
+   * Parsed ECHConfigList:
+   *   config[0]:
+   *     version: 0xfe0d
+   *     contents length: 65
+   *     config ID: 218
+   *     KEM ID: 0x0020
+   *     public key: 1e8ee5aa34c64a7439d45dfd1157ab774e2f70abccceef4cd24ae0998286cc76
+   *     maximum name length: 0
+   *     public name: cloudflare-ech.com
+   *     cipher suites:
+   *       KDF 0x0001, AEAD 0x0001
+   *     extensions:
+   * ```
+   */
+  private fun testEch(dns: Dns) {
+    val client = OkHttpClient.Builder()
+      .dns(dns)
+      .build()
 
-    client.newCall(ECH_CHECK_REQUEST).execute().use { response ->
+    val echCheckRequest =
+      Request("https://cloudflare-ech.com/cdn-cgi/trace".toHttpUrl())
+
+    client.newCall(echCheckRequest).execute().use { response ->
       assertThat(response.isSuccessful).isTrue()
       assertThat(response.body.string()).contains("sni=encrypted")
     }
   }
 }
-
-private enum class Resolver {
-  AndroidDns,
-  DnsOverHttps,
-}
-
-private fun echClient(resolver: Resolver): OkHttpClient {
-  return OkHttpClient
-    .Builder()
-    .apply {
-      if (Build.VERSION.SDK_INT >= 37) {
-        dns(
-          when (resolver) {
-            Resolver.AndroidDns -> EchAwareDns()
-            Resolver.DnsOverHttps -> echAwareDnsOverHttps()
-          },
-        )
-      }
-    }.build()
-}
-
-private fun echAwareDnsOverHttps(): Dns {
-  val bootstrapClient = OkHttpClient()
-  val dnsUrl = "https://1.1.1.1/dns-query".toHttpUrl()
-
-  fun dns(includeServiceMetadata: Boolean): DnsOverHttps =
-    DnsOverHttps
-      .Builder()
-      .client(bootstrapClient)
-      .url(dnsUrl)
-      .includeServiceMetadata(includeServiceMetadata)
-      .build()
-
-  return EchAwareDns(
-    echDns = dns(includeServiceMetadata = true),
-    addressOnlyDns = dns(includeServiceMetadata = false),
-  )
-}
-
-/*
-DNS record: cloudflare-ech.com/104.18.10.118
-DNS record: cloudflare-ech.com/104.18.11.118
-DNS record: cloudflare-ech.com/2606:4700::6812:a76
-DNS record: cloudflare-ech.com/2606:4700::6812:b76
-DNS record: ServiceMetadata{
-  cloudflare-ech.com,
-  alpnIds=[h3, h2, http/1.1],
-  ipAddressHints=[104.18.10.118, 104.18.11.118, 2606:4700::6812:a76, 2606:4700::6812:b76],
-  echConfigList=0045fe0d0041da002000201e8ee5aa34c64a7439d45dfd1157ab774e2f70abccceef4cd24ae0998286cc760004000100010012636c6f7564666c6172652d6563682e636f6d0000
-}
-Parsed ECHConfigList:
-  config[0]:
-    version: 0xfe0d
-    contents length: 65
-    config ID: 218
-    KEM ID: 0x0020
-    public key: 1e8ee5aa34c64a7439d45dfd1157ab774e2f70abccceef4cd24ae0998286cc76
-    maximum name length: 0
-    public name: cloudflare-ech.com
-    cipher suites:
-      KDF 0x0001, AEAD 0x0001
-    extensions:
-*/
-private val ECH_CHECK_REQUEST =
-  Request("https://cloudflare-ech.com/cdn-cgi/trace".toHttpUrl())
