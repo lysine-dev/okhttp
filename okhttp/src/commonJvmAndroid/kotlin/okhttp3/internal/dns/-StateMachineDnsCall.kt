@@ -72,10 +72,11 @@ class StateMachineDnsCall(
           // using Attrleaf syntax. See RFC 9460 section 2.3.
           add(
             Question(
-              name = when {
-                request.port == 443 || request.port == 80 -> request.hostname
-                else -> "_${request.port}._https.${request.hostname}"
-              },
+              name =
+                when {
+                  request.port == 443 || request.port == 80 -> request.hostname
+                  else -> "_${request.port}._https.${request.hostname}"
+                },
               type = TYPE_HTTPS,
             ),
           )

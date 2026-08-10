@@ -95,6 +95,30 @@ class AndroidDnsRobolectricTest {
   }
 
   @Test
+  fun attrLeafUsedForNonDefaultPort() {
+    val customPortEchConfigList = "this is the ECH config for port 8443".encodeUtf8()
+    dnsServer.setRecords(
+      hostname = "_8443._https.custom-port.publicobject.com",
+      address = InetAddress.getByName("0:0::0:1"),
+      echConfigList = customPortEchConfigList,
+    )
+    dnsServer.setRecords(
+      hostname = "custom-port.publicobject.com",
+      address = InetAddress.getByName("10.20.30.40"),
+      echConfigList = "this ECH config should not be used!".encodeUtf8(),
+    )
+    domainEncryptionModes["custom-port.publicobject.com"] = DOMAIN_ENCRYPTION_MODE_ENABLED
+    val records =
+      androidDns.recordsFor(
+        hostname = "custom-port.publicobject.com",
+        port = 8443,
+      )
+    assertThat(records.addresses()).containsExactly(InetAddress.getByName("10.20.30.40"))
+    assertThat(records.echConfigLists()).containsExactly(customPortEchConfigList)
+    assertThat(dnsServer.takeAllRequests()).hasSize(2)
+  }
+
+  @Test
   fun disabledPolicySkipsHttpsMetadata() {
     domainEncryptionModes["publicobject.com"] = DOMAIN_ENCRYPTION_MODE_DISABLED
     val records = androidDns.recordsFor("publicobject.com")
@@ -144,7 +168,10 @@ class AndroidDnsRobolectricTest {
     assertThat(dnsServer.takeAllRequests()).hasSize(1)
   }
 
-  private fun Dns.recordsFor(hostname: String): List<Dns.Record> = newCall(Dns.Request(hostname)).execute()
+  private fun Dns.recordsFor(
+    hostname: String,
+    port: Int = -1,
+  ): List<Dns.Record> = newCall(Dns.Request(hostname, port)).execute()
 
   private fun List<Dns.Record>.addresses() = filterIsInstance<Dns.Record.IpAddress>().map { it.address }
 
