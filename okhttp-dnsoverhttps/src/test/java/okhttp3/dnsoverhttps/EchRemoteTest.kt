@@ -43,7 +43,6 @@ class EchRemoteTest {
         .client(clientTestRule.newClient())
         .url("https://1.1.1.1/dns-query".toHttpUrl())
         .bootstrapDnsHosts(InetAddress.getByName("1.1.1.1"))
-        .includeHttps(true)
         .build()
     )
     .build()
