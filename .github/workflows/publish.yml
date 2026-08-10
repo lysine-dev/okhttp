@@ -20,7 +20,7 @@ jobs:
       - uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
-          java-version-file: .github/workflows/.java-version
+          java-version: 21
 
       - run: ./gradlew publish
         env:
