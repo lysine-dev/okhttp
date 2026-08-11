@@ -44,8 +44,9 @@ class FakeNetworkPlatform : Platform() {
     get() = network.serverSocketFactory
 
   override fun newSSLContext(): SSLContext {
+    @Suppress("DEPRECATION") // Non-deprecated overload requires Java 9+.
     val provider =
-      object : Provider("FakeNetwork", "0.0", "") {
+      object : Provider("FakeNetwork", 0.0, "") {
       }
     return object : SSLContext(FakeSslContextSpi(), provider, "TLSv1.2") {
     }
