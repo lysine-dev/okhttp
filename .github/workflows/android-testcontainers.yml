@@ -1,0 +1,90 @@
+name: Android ECH Testcontainers
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, labeled, unlabeled, synchronize]
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+env:
+  GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false -Dkotlin.incremental=false"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android-testcontainers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'containers')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Configure JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      # Some act runner images lose their bundled Node path after setup-java updates PATH.
+      - name: Restore act Node path
+        if: env.ACT == 'true'
+        run: |
+          node_path="$(find /opt/acttoolcache/node -path '*/bin/node' -type f | sort -V | tail -1)"
+          test -n "$node_path"
+          dirname "$node_path" >> "$GITHUB_PATH"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-read-only: ${{ env.ACT != 'true' && github.ref != 'refs/heads/main' }}
+
+      # act runs this job in a container, where nested KVM is generally unavailable.
+      # This still exercises the workflow, Gradle launcher, Docker, and Testcontainers locally.
+      - name: Test ECH services with act
+        if: env.ACT == 'true'
+        env:
+          # A cold Gradle build plus the Go fixture image may be slow on Apple Silicon.
+          ANDROID_ECH_TEST_SERVICE_TIMEOUT_SECONDS: 1200
+        run: android-test/run-ech-test.sh --smoke-only
+
+      - name: Enable KVM group permissions
+        if: env.ACT != 'true'
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run Android ECH test against Testcontainers
+        if: env.ACT != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: '37.0'
+          target: google_apis_playstore_ps16k
+          arch: x86_64
+          disable-animations: true
+          emulator-options: >-
+            -no-window
+            -gpu swiftshader_indirect
+            -noaudio
+            -no-boot-anim
+            -camera-back none
+            -memory 2048
+          script: android-test/run-ech-test.sh
+
+      - name: Upload Android test results
+        if: always() && env.ACT != 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-ech-testcontainers-results
+          path: |
+            android-test/build/outputs/androidTest-results/connected/
+            android-test/build/reports/androidTests/connected/

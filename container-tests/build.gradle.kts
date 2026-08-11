@@ -1,3 +1,5 @@
+import org.gradle.language.base.plugins.LifecycleBasePlugin
+
 plugins {
   kotlin("jvm")
   id("okhttp.base-conventions")
@@ -46,4 +48,18 @@ dependencies {
   testImplementation(libs.mockserver)
   testImplementation(libs.mockserver.client)
   testImplementation(libs.testcontainers.junit5)
+}
+
+tasks.register<JavaExec>("runAndroidTestService") {
+  group = LifecycleBasePlugin.VERIFICATION_GROUP
+  description = "Starts the Testcontainers service used by Android instrumentation tests."
+  classpath = sourceSets["test"].runtimeClasspath
+  mainClass = "okhttp3.containers.AndroidTestService"
+}
+
+tasks.register<JavaExec>("runAndroidEchTestService") {
+  group = LifecycleBasePlugin.VERIFICATION_GROUP
+  description = "Starts the DoH and HTTPS containers used by the Android ECH test."
+  classpath = sourceSets["test"].runtimeClasspath
+  mainClass = "okhttp3.containers.AndroidEchTestService"
 }
