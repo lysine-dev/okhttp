@@ -60,7 +60,7 @@ internal class FakeSslSocket(
     }
   private var enableSessionCreation = true
   private var useClientMode = true
-  private var echConfigList: ByteString? = null
+  var echConfigList: ByteString? = null
 
   override fun getEnabledProtocols(): Array<String> = sslParameters.protocols
 
@@ -126,7 +126,7 @@ internal class FakeSslSocket(
             tlsVersions = tlsVersions,
             cipherSuites = cipherSuites,
             protocols = protocols,
-            handshakeCertificates = tls.handshakeCertificates,
+            keyManager = tls.keyManager,
             hostname = hostname,
             echConfigList = echConfigList,
           )
@@ -137,7 +137,7 @@ internal class FakeSslSocket(
             tlsVersions = tlsVersions,
             cipherSuites = cipherSuites,
             protocols = protocols,
-            handshakeCertificates = tls.handshakeCertificates,
+            keyManager = tls.keyManager,
             clientAuth =
               when {
                 sslParameters.needClientAuth -> Handshaker.ClientAuth.Required

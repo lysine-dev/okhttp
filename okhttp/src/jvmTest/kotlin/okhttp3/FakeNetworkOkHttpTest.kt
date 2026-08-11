@@ -20,46 +20,43 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isNull
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
-import mockwebserver3.junit5.StartStop
-import okhttp3.sockets.FakeNetwork
-import okhttp3.sockets.FakeTls
-import okhttp3.sockets.InsecureHandshaker
-import okhttp3.tls.internal.TlsUtil
+import okhttp3.sockets.FakeNetworkPlatform
+import okhttp3.testing.PlatformRule
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 
 open class FakeNetworkOkHttpTest {
-  private val network = FakeNetwork()
+  private val platform = FakeNetworkPlatform()
 
-  private val handshaker = InsecureHandshaker()
-
-  private val clientTls =
-    FakeTls(
-      handshaker = handshaker,
-      handshakeCertificates = TlsUtil.localhost(),
-    )
-
-  private val serverTls =
-    FakeTls(
-      handshaker = handshaker,
-      handshakeCertificates = TlsUtil.localhost(),
+  @RegisterExtension
+  val platformRule =
+    PlatformRule(
+      platform = platform,
     )
 
   @RegisterExtension
   val clientTestRule = OkHttpClientTestRule()
 
-  @StartStop
-  private val server =
-    MockWebServer()
-      .apply {
-        serverSocketFactory = network.serverSocketFactory
-      }
+  private val handshakeCertificates = platformRule.localhostHandshakeCertificates()
 
-  private var client =
-    clientTestRule
-      .newClientBuilder()
-      .socketFactory(network.socketFactory)
-      .build()
+  // We can't create these until after platformRule runs. Sigh.
+  private lateinit var server: MockWebServer
+  private lateinit var client: OkHttpClient
+
+  @BeforeEach
+  fun setUp() {
+    server = MockWebServer()
+    client = clientTestRule.newClient()
+
+    server.start()
+  }
+
+  @AfterEach
+  fun tearDown() {
+    server.close()
+  }
 
   @Test
   fun `happy path`() {
@@ -100,8 +97,10 @@ open class FakeNetworkOkHttpTest {
     client =
       client
         .newBuilder()
-        .sslSocketFactory(clientTls.sslSocketFactory, clientTls.trustManager)
-        .build()
-    server.useHttps(serverTls.sslSocketFactory)
+        .sslSocketFactory(
+          handshakeCertificates.sslSocketFactory(),
+          handshakeCertificates.trustManager,
+        ).build()
+    server.useHttps(handshakeCertificates.sslSocketFactory())
   }
 }

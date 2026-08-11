@@ -23,6 +23,8 @@ import java.security.GeneralSecurityException
 import java.security.KeyStore
 import java.util.logging.Level
 import java.util.logging.Logger
+import javax.net.ServerSocketFactory
+import javax.net.SocketFactory
 import javax.net.ssl.ExtendedSSLSession
 import javax.net.ssl.SNIHostName
 import javax.net.ssl.SSLContext
@@ -72,8 +74,15 @@ import org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement
  * Supported on Android 6.0+ via `NetworkSecurityPolicy`.
  */
 open class Platform {
+  open val socketFactory: SocketFactory
+    get() = SocketFactory.getDefault()
+
+  open val serverSocketFactory: ServerSocketFactory
+    get() = ServerSocketFactory.getDefault()
+
   /** Prefix used on custom headers. */
-  fun getPrefix() = "OkHttp"
+  val prefix: String
+    get() = "OkHttp"
 
   open fun newSSLContext(): SSLContext = SSLContext.getInstance("TLS")
 

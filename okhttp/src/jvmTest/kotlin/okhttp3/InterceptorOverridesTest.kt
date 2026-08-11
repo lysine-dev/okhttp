@@ -530,7 +530,7 @@ class InterceptorOverridesTest {
           override fun configureSocket(socket: Socket): Socket = TODO()
         }
 
-      override fun isDefaultValue(value: SocketFactory): Boolean = value === SocketFactory.getDefault()
+      override fun isDefaultValue(value: SocketFactory): Boolean = value === Platform.get().socketFactory
     }
 
     object AuthenticatorOverride : Override<Authenticator> {

@@ -47,12 +47,12 @@ class InsecureHandshaker : Handshaker {
     val clientCertificates =
       when (server.clientAuth) {
         Handshaker.ClientAuth.Required -> {
-          client.handshakeCertificates.keyManager.clientCertificatesOrNull(keyType)
+          client.keyManager.clientCertificatesOrNull(keyType)
             ?: throw SSLHandshakeException("required client certificates not sent")
         }
 
         Handshaker.ClientAuth.Requested -> {
-          client.handshakeCertificates.keyManager.clientCertificatesOrNull(keyType)
+          client.keyManager.clientCertificatesOrNull(keyType)
             ?: listOf()
         }
 
@@ -61,7 +61,7 @@ class InsecureHandshaker : Handshaker {
         }
       }
 
-    val serverCertificates = server.handshakeCertificates.keyManager.serverCertificates(keyType)
+    val serverCertificates = server.keyManager.serverCertificates(keyType)
 
     val (clientSocket, serverSocket) = inMemorySocketPair(maxBufferSize = 1024 * 1024)
 

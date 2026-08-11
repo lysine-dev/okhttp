@@ -50,7 +50,7 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.internal.addHeaderLenient
 import okhttp3.internal.cacheGet
-import okhttp3.internal.platform.Platform.Companion.get
+import okhttp3.internal.platform.Platform
 import okhttp3.java.net.cookiejar.JavaNetCookieJar
 import okhttp3.testing.PlatformRule
 import okio.Buffer
@@ -352,20 +352,20 @@ class CacheTest {
 
     // OpenJDK 6 fails on this line, complaining that the connection isn't open yet
     val cipherSuite = response1.handshake!!.cipherSuite
-    val localCerts = response1.handshake!!.localCertificates
-    val serverCerts = response1.handshake!!.peerCertificates
-    val peerPrincipal = response1.handshake!!.peerPrincipal
-    val localPrincipal = response1.handshake!!.localPrincipal
+    val localCerts = response1.handshake.localCertificates
+    val serverCerts = response1.handshake.peerCertificates
+    val peerPrincipal = response1.handshake.peerPrincipal
+    val localPrincipal = response1.handshake.localPrincipal
     val response2 = client.newCall(request).execute() // Cached!
     assertThat(response2.body.string()).isEqualTo("ABC")
     assertThat(cache.requestCount()).isEqualTo(2)
     assertThat(cache.networkCount()).isEqualTo(1)
     assertThat(cache.hitCount()).isEqualTo(1)
     assertThat(response2.handshake!!.cipherSuite).isEqualTo(cipherSuite)
-    assertThat(response2.handshake!!.localCertificates).isEqualTo(localCerts)
-    assertThat(response2.handshake!!.peerCertificates).isEqualTo(serverCerts)
-    assertThat(response2.handshake!!.peerPrincipal).isEqualTo(peerPrincipal)
-    assertThat(response2.handshake!!.localPrincipal).isEqualTo(localPrincipal)
+    assertThat(response2.handshake.localCertificates).isEqualTo(localCerts)
+    assertThat(response2.handshake.peerCertificates).isEqualTo(serverCerts)
+    assertThat(response2.handshake.peerPrincipal).isEqualTo(peerPrincipal)
+    assertThat(response2.handshake.localPrincipal).isEqualTo(localPrincipal)
   }
 
   @Test
@@ -798,7 +798,7 @@ class CacheTest {
       override fun contentType(): MediaType? = "application/text-plain".toMediaTypeOrNull()
 
       override fun writeTo(sink: BufferedSink) {
-        internalBody.forEach { item ->
+        internalBody.forEach { _ ->
           sink.writeUtf8(this@toOneShotRequestBody)
         }
       }
@@ -850,8 +850,8 @@ class CacheTest {
     // 2 direct + 2 redirect = 4
     assertThat(cache.requestCount()).isEqualTo(4)
     assertThat(cache.hitCount()).isEqualTo(2)
-    assertThat(response2.handshake!!.cipherSuite).isEqualTo(
-      response1.handshake!!.cipherSuite,
+    assertThat(response2.handshake.cipherSuite).isEqualTo(
+      response1.handshake.cipherSuite,
     )
   }
 
@@ -3355,7 +3355,7 @@ CLEAN $urlKey ${entryMetadata.length} ${entryBody.length}
 
     val url = server.url("/")
     val urlKey = key(url)
-    val prefix = get().getPrefix()
+    val prefix = Platform.get().prefix
     val entryMetadata =
       """
       $url
@@ -3406,7 +3406,7 @@ CLEAN $urlKey ${entryMetadata.length} ${entryBody.length}
 
     val url = server.url("/")
     val urlKey = key(url)
-    val prefix = get().getPrefix()
+    val prefix = Platform.get().prefix
     val entryMetadata =
       """
       |$url
@@ -3461,7 +3461,7 @@ CLEAN $urlKey ${entryMetadata.length} ${entryBody.length}
 
     val url = server.url("/")
     val urlKey = key(url)
-    val prefix = get().getPrefix()
+    val prefix = Platform.get().prefix
     val entryMetadata =
       """
       |$url
@@ -3584,7 +3584,7 @@ CLEAN $urlKey ${entryMetadata.length} ${entryBody.length}
     client =
       client
         .newBuilder()
-        .addNetworkInterceptor(Interceptor { chain: Interceptor.Chain? -> throw AssertionError() })
+        .addNetworkInterceptor(Interceptor { throw AssertionError() })
         .build()
     assertThat(get(url).body.string()).isEqualTo("A")
   }
@@ -4255,6 +4255,6 @@ CLEAN $urlKey ${entryMetadata.length} ${entryBody.length}
   }
 
   companion object {
-    private val NULL_HOSTNAME_VERIFIER = HostnameVerifier { hostname, session -> true }
+    private val NULL_HOSTNAME_VERIFIER = HostnameVerifier { _, _ -> true }
   }
 }

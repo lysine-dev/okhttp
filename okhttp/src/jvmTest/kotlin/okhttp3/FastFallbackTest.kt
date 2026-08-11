@@ -26,7 +26,6 @@ import java.net.InetAddress
 import java.net.Socket
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
-import javax.net.SocketFactory
 import kotlin.test.assertFailsWith
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
@@ -35,6 +34,7 @@ import okhttp3.CallEvent.ConnectEnd
 import okhttp3.CallEvent.ConnectFailed
 import okhttp3.CallEvent.ConnectStart
 import okhttp3.internal.http2.ErrorCode
+import okhttp3.internal.platform.Platform
 import okhttp3.sockets.DelegatingSocketFactory
 import okhttp3.testing.Flaky
 import org.junit.jupiter.api.AfterEach
@@ -284,7 +284,7 @@ class FastFallbackTest {
     // Yield the first IP address so the second IP address completes first.
     val firstConnectLatch = CountDownLatch(1)
     val socketFactory =
-      object : DelegatingSocketFactory(SocketFactory.getDefault()) {
+      object : DelegatingSocketFactory(Platform.get().socketFactory) {
         var first = true
 
         override fun createSocket(): Socket {

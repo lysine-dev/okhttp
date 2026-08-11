@@ -16,11 +16,11 @@
 package okhttp3.sockets
 
 import java.io.IOException
+import javax.net.ssl.X509KeyManager
 import okhttp3.CipherSuite
 import okhttp3.Handshake
 import okhttp3.Protocol
 import okhttp3.TlsVersion
-import okhttp3.tls.HandshakeCertificates
 import okio.ByteString
 import okio.Socket
 
@@ -48,14 +48,14 @@ interface Handshaker {
     val tlsVersions: List<TlsVersion>
     val cipherSuites: List<CipherSuite>
     val protocols: List<Protocol>?
-    val handshakeCertificates: HandshakeCertificates
+    val keyManager: X509KeyManager
   }
 
   class ClientInputs(
     override val tlsVersions: List<TlsVersion>,
     override val cipherSuites: List<CipherSuite>,
     override val protocols: List<Protocol>?,
-    override val handshakeCertificates: HandshakeCertificates,
+    override val keyManager: X509KeyManager,
     val hostname: String?,
     val echConfigList: ByteString?,
   ) : Inputs
@@ -64,7 +64,7 @@ interface Handshaker {
     override val tlsVersions: List<TlsVersion>,
     override val cipherSuites: List<CipherSuite>,
     override val protocols: List<Protocol>?,
-    override val handshakeCertificates: HandshakeCertificates,
+    override val keyManager: X509KeyManager,
     val clientAuth: ClientAuth,
   ) : Inputs
 
