@@ -73,8 +73,8 @@ class StateMachineDnsCall(
           add(
             Question(
               name =
-                when {
-                  request.port == 443 || request.port == 80 -> request.hostname
+                when (request.port) {
+                  443 -> request.hostname
                   else -> "_${request.port}._https.${request.hostname}"
                 },
               type = TYPE_HTTPS,
