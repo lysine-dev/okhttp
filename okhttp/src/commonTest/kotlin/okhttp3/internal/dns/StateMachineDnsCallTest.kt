@@ -1047,4 +1047,83 @@ class StateMachineDnsCallTest {
       assertThat(cache.networkCount).isEqualTo(3)
       assertThat(cache.hitCount).isEqualTo(0)
     }
+
+  @Test
+  fun `alias mode records are ignored`() =
+    testStateMachineDnsCall {
+      val call = newCall(request = Dns.Request(hostname = "lysine.dev"))
+      call.enqueue()
+
+      // Priority 0 means 'AliasMode'. We must ignore all SvcParams in AliasMode.
+      val query0 = queryFactory.takeQuery("lysine.dev", TYPE_HTTPS)
+      query0.respond(
+        ResourceRecord.Https(
+          timeToLive = 300,
+          name = "lysine.dev",
+          priority = 0,
+          alpnIds = listOf("h2"),
+        ),
+      )
+      queryFactory.respondToQuery(
+        hostname = "lysine.dev",
+        type = TYPE_AAAA,
+        addresses = blueIpv6s,
+      )
+      queryFactory.respondToQuery(
+        hostname = "lysine.dev",
+        type = TYPE_A,
+        addresses = blueIpv4s,
+      )
+
+      call.takeOnRecordsIpAddresses(
+        last = false,
+        addresses = blueIpv6s,
+      )
+      call.takeOnRecordsIpAddresses(
+        last = true,
+        addresses = blueIpv4s,
+      )
+    }
+
+  @Test
+  fun `service mode records are ignored if any alias mode record is present`() =
+    testStateMachineDnsCall {
+      val call = newCall(request = Dns.Request(hostname = "lysine.dev"))
+      call.enqueue()
+
+      // Priority 0 means 'AliasMode'. We must ignore all SvcParams in AliasMode.
+      val query0 = queryFactory.takeQuery("lysine.dev", TYPE_HTTPS)
+      query0.respond(
+        ResourceRecord.Https(
+          timeToLive = 300,
+          name = "lysine.dev",
+          priority = 0,
+        ),
+        ResourceRecord.Https(
+          timeToLive = 300,
+          name = "lysine.dev",
+          priority = 1,
+          alpnIds = listOf("h2"),
+        ),
+      )
+      queryFactory.respondToQuery(
+        hostname = "lysine.dev",
+        type = TYPE_AAAA,
+        addresses = blueIpv6s,
+      )
+      queryFactory.respondToQuery(
+        hostname = "lysine.dev",
+        type = TYPE_A,
+        addresses = blueIpv4s,
+      )
+
+      call.takeOnRecordsIpAddresses(
+        last = false,
+        addresses = blueIpv6s,
+      )
+      call.takeOnRecordsIpAddresses(
+        last = true,
+        addresses = blueIpv4s,
+      )
+    }
 }

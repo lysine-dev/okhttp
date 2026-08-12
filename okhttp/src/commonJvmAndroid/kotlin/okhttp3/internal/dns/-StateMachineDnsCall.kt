@@ -105,8 +105,8 @@ class StateMachineDnsCall(
         return
       }
 
-      val queries =
-        questions.map { question ->
+      val questionToQuery =
+        questions.associateWith { question ->
           queryFactory.newQuery(question)
         }
 
@@ -114,17 +114,18 @@ class StateMachineDnsCall(
         State.Running(
           canceled = false,
           callback = callback,
-          runningQueries = queries,
+          runningQueries = questionToQuery.values.toList(),
         )
 
       if (!state.compareAndSet(previous, next)) continue // Lost a race, retry.
 
-      for (query in queries) {
+      for ((question, query) in questionToQuery) {
         query.enqueue(
           callback =
             object : DnsQuery.Callback {
               override fun onResponse(dnsResponse: DnsMessage) {
                 updateStateAndCallCallbacks(
+                  question = question,
                   completedQuery = query,
                   dnsResponse = dnsResponse,
                 )
@@ -160,6 +161,7 @@ class StateMachineDnsCall(
   }
 
   private fun updateStateAndCallCallbacks(
+    question: Question,
     completedQuery: DnsQuery,
     dnsResponse: DnsMessage,
   ) {
@@ -177,10 +179,21 @@ class StateMachineDnsCall(
         )
       }
 
-    val dnsRecords =
-      resourceRecords.map { resourceRecord ->
-        when (resourceRecord) {
-          is ResourceRecord.Https -> {
+    val dnsRecords: List<Dns.Record> =
+      when (question.type) {
+        TYPE_HTTPS -> {
+          resourceRecords.mapNotNull { resourceRecord ->
+            // Discard resource records that don't fit the query.
+            if (resourceRecord !is ResourceRecord.Https) return@mapNotNull null
+
+            // OkHttp doesn't yet implement AliasMode resource records. If any AliasMode record is
+            // returned, we must ignore ALL returned resource records.
+            if (resourceRecord.priority == 0) {
+              return updateStateAndCallCallbacks(
+                completedQuery = completedQuery,
+              )
+            }
+
             Dns.Record.ServiceMetadata(
               hostname = resourceRecord.targetName.takeIf { it != "" } ?: request.hostname,
               alpnIds =
@@ -196,13 +209,22 @@ class StateMachineDnsCall(
               echConfigList = resourceRecord.echConfigList,
             )
           }
+        }
 
-          is ResourceRecord.IpAddress -> {
+        TYPE_A, TYPE_AAAA -> {
+          resourceRecords.mapNotNull { resourceRecord ->
+            // Discard resource records that don't fit the query.
+            if (resourceRecord !is ResourceRecord.IpAddress) return@mapNotNull null
+
             Dns.Record.IpAddress(
               hostname = request.hostname,
               address = resourceRecord.address,
             )
           }
+        }
+
+        else -> {
+          error("unexpected question type")
         }
       }
 

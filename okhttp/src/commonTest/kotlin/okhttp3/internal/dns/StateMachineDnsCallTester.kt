@@ -282,18 +282,12 @@ class StateMachineDnsCallTester internal constructor() {
         alpnIds: List<String>? = null,
         echConfigList: ByteString? = null,
       ) {
-        callback.onResponse(
-          DnsMessage.response(
-            questions = listOf(question),
-            answers =
-              listOf(
-                ResourceRecord.Https(
-                  name = question.name,
-                  timeToLive = timeToLive.inWholeSeconds.toInt(),
-                  alpnIds = alpnIds,
-                  echConfigList = echConfigList,
-                ),
-              ),
+        respond(
+          ResourceRecord.Https(
+            name = question.name,
+            timeToLive = timeToLive.inWholeSeconds.toInt(),
+            alpnIds = alpnIds,
+            echConfigList = echConfigList,
           ),
         )
       }
@@ -308,17 +302,22 @@ class StateMachineDnsCallTester internal constructor() {
         timeToLive: Duration = 300.seconds,
         addresses: List<InetAddress> = listOf(),
       ) {
+        val resourceRecords =
+          addresses.map { address ->
+            ResourceRecord.IpAddress(
+              name = question.name,
+              timeToLive = timeToLive.inWholeSeconds.toInt(),
+              address = address,
+            )
+          }
+        respond(*resourceRecords.toTypedArray())
+      }
+
+      fun respond(vararg resourceRecords: ResourceRecord) {
         callback.onResponse(
           DnsMessage.response(
             questions = listOf(question),
-            answers =
-              addresses.map { address ->
-                ResourceRecord.IpAddress(
-                  name = question.name,
-                  timeToLive = timeToLive.inWholeSeconds.toInt(),
-                  address = address,
-                )
-              },
+            answers = resourceRecords.toList(),
           ),
         )
       }
