@@ -16,25 +16,29 @@
 package okhttp.android.test
 
 import android.annotation.SuppressLint
-import android.net.ssl.EchConfigMismatchException
 import android.os.Build
 import app.cash.burst.Burst
 import assertk.assertThat
 import assertk.assertions.contains
 import assertk.assertions.doesNotContain
-import assertk.assertions.isFalse
-import assertk.assertions.isTrue
+import assertk.assertions.hasSize
+import assertk.assertions.isEqualTo
+import assertk.assertions.isNotNull
+import assertk.assertions.isNull
+import okhttp3.Call
 import okhttp3.Dns
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
+import okhttp3.Route
 import okhttp3.android.AndroidDns
 import okhttp3.dnsoverhttps.DnsOverHttps
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.fail
 
 /**
  * Confirms Encrypted Client Hello (ECH) end to end.
@@ -60,41 +64,59 @@ class EchTest(
     val dns = dnsApi.create(bootstrapClient)
     client =
       bootstrapClient.newBuilder()
+        .addNetworkInterceptor(RouteTagger)
         .dns(dns)
         .build()
   }
 
   @Test
   fun cloudflareUsesEch() {
-    assertThat(client.get("https://cloudflare-ech.com/cdn-cgi/trace")).contains("sni=encrypted")
+    val call = client.newCall(Request("https://cloudflare-ech.com/cdn-cgi/trace".toHttpUrl()))
+    call.execute().use { response ->
+      assertThat(call.routeList.routes.single().echConfigList).isNotNull()
+
+      val body = response.body.string()
+      assertThat(body).contains("sni=encrypted")
+    }
   }
 
   @Test
-  fun tlsEchDevUsesEch() {
-    val body = client.get("https://tls-ech.dev/")
+  fun echIsAcceptedOnTlsEchDev() {
+    val call = client.newCall(Request("https://tls-ech.dev/".toHttpUrl()))
+    call.execute().use { response ->
+      assertThat(call.routeList.routes.single().echConfigList).isNotNull()
 
-    // Only the heading identifies the server we reached; every page links to all of the others.
-    assertThat(body).contains("<h1>tls-ech.dev</h1>")
-    assertThat(body).contains("You are using ECH")
-    assertThat(body).doesNotContain("not using ECH")
+      val body = response.body.string()
+
+      // Only the heading identifies the server we reached; every page links to all of the others.
+      assertThat(body).contains("<h1>tls-ech.dev</h1>")
+      assertThat(body).contains("You are using ECH")
+      assertThat(body).doesNotContain("not using ECH")
+    }
   }
 
-  /** Port 444, because port 443 is the plain tls-ech.dev server. */
   @Test
-  fun staleEchConfigIsRetried() {
-    val body = client.get("https://stale.tls-ech.dev:444/")
+  fun echIsRetriedOnStaleTlsEchDev() {
+    val call = client.newCall(Request("https://stale.tls-ech.dev/".toHttpUrl()))
+    call.execute().use { response ->
+      val routes = call.routeList.routes
+      assertThat(routes).hasSize(2)
+      assertThat(routes[0].echConfigList).isNotNull()
+      assertThat(routes[1].echConfigList).isNotNull()
 
-    assertThat(body).contains("<h1>stale.tls-ech.dev</h1>")
-    assertThat(body).contains("You are using ECH")
-    assertThat(body).doesNotContain("not using ECH")
+      val body = response.body.string()
+      assertThat(body).contains("<h1>stale.tls-ech.dev</h1>")
+      assertThat(body).contains("You are using ECH")
+      assertThat(body).doesNotContain("not using ECH")
+    }
   }
 
-  /** Port 445, because port 443 is the plain tls-ech.dev server. */
+  /**
+   * This page redirects to 'https://wrong.tls-ech.dev:445/', but nothing is listening on that port
+   * on that server.
+   */
   @Test
-  fun differentPublicHostnameIsVerifiedBeforeRetry() {
-    // The outer certificate authenticates public.tls-ech.dev,
-    // so the retry config may be used if it matches.
-    // https://www.rfc-editor.org/rfc/rfc9849.html#section-6.1.6
+  fun echIsAcceptedOnWrongTlsEchDev() {
     val verifiedHostnames = mutableListOf<String>()
     val hostnameVerifier = client.hostnameVerifier
     val client =
@@ -104,44 +126,46 @@ class EchTest(
           verifiedHostnames += hostname
           hostnameVerifier.verify(hostname, session)
         }
+        .followRedirects(false)
         .build()
 
-    val body = client.get("https://wrong.tls-ech.dev:445/")
+    val call = client.newCall(Request("https://wrong.tls-ech.dev/".toHttpUrl()))
+    call.execute().use { response ->
+      assertThat(call.routeList.routes.single().echConfigList).isNotNull()
 
-    assertThat(body).contains("<h1>wrong.tls-ech.dev</h1>")
-    assertThat(body).contains("You are using ECH")
-    assertThat(verifiedHostnames).contains("public.tls-ech.dev")
+      assertThat(response.code).isEqualTo(302)
+      assertThat(response.headers["Location"])
+        .isEqualTo("https://wrong.tls-ech.dev:445/")
+      assertThat(verifiedHostnames).contains("wrong.tls-ech.dev")
+    }
   }
 
-  /**
-   * TLS 1.2 cannot carry ECH.
-   *
-   * Port 446, because port 443 is the plain tls-ech.dev server.
-   */
+  /** TLS 1.2 cannot carry ECH. */
   @Test
-  fun tls12OffersNothingToRetryWith() {
-    val rejection = client.echRejectionFrom("https://tls12.tls-ech.dev:446/")
+  fun tlsIsNotUsedOnTls12TlsEchDev() {
+    val call = client.newCall(Request("https://tls12.tls-ech.dev/".toHttpUrl()))
+    call.execute().use { response ->
+      val routes = call.routeList.routes
+      assertThat(routes).hasSize(2)
+      assertThat(routes[0].echConfigList).isNotNull()
+      assertThat(routes[1].echConfigList).isNull()
 
-    assertThat(rejection.hasRetryConfigList()).isFalse()
-  }
-
-  /**
-   * Makes the call at [url] and returns the ECH rejection it fails with.
-   */
-  private fun OkHttpClient.echRejectionFrom(url: String): EchConfigMismatchException {
-    val body =
-      try {
-        get(url)
-      } catch (e: EchConfigMismatchException) {
-        return e
-      }
-
-    fail("expected $url to reject ECH, but it returned: $body")
+      val body = response.body.string()
+      assertThat(body).contains("<h1>tls12.tls-ech.dev</h1>")
+      assertThat(body).contains("You are not using ECH")
+      assertThat(body).doesNotContain("You are using ECH")
+    }
   }
 
   @Test
-  fun defoUsesEch() {
-    assertThat(client.get("https://defo.ie/ech-check.php")).contains("SSL_ECH_STATUS: success")
+  fun echIsAcceptedOnDefoIe() {
+    val call = client.newCall(Request("https://defo.ie/ech-check.php".toHttpUrl()))
+    call.execute().use { response ->
+      assertThat(call.routeList.routes.single().echConfigList).isNotNull()
+
+      val body = response.body.string()
+      assertThat(body).contains("SSL_ECH_STATUS: success")
+    }
   }
 
   /**
@@ -149,13 +173,14 @@ class EchTest(
    */
   @Test
   fun policyDisabledHostDoesNotUseEch() {
-    assertThat(client.get("https://crypto.cloudflare.com/cdn-cgi/trace")).contains("sni=plaintext")
-  }
+    val call = client.newCall(Request("https://crypto.cloudflare.com/cdn-cgi/trace".toHttpUrl()))
+    call.execute().use { response ->
+      assertThat(call.routeList.routes.single().echConfigList).isNotNull()
 
-  fun OkHttpClient.get(url: String): String =
-    newCall(Request(url.toHttpUrl())).execute().use { response ->
-      response.body.string()
+      val body = response.body.string()
+      assertThat(body).contains("sni=plaintext")
     }
+  }
 
   enum class DnsApi {
     Android {
@@ -173,4 +198,26 @@ class EchTest(
 
     abstract fun create(client: OkHttpClient): Dns
   }
+}
+
+/**
+ * Collect Route information to confirm we sent an ECH config list to our TLS stack. Whether we
+ * actually encrypted the client hello depends on our TLS stack.
+ */
+private object RouteTagger : Interceptor {
+  override fun intercept(chain: Interceptor.Chain): Response {
+    val routeList = chain.call().routeList
+    routeList.routes += chain.connection()!!.route()
+    return chain.proceed(chain.request())
+  }
+}
+
+private val Call.routeList: RouteList
+  get() = tag(RouteList::class) { RouteList() }
+
+/**
+ * All of the routes used to retrieve an HTTP response.
+ */
+private class RouteList {
+  val routes = mutableListOf<Route>()
 }
