@@ -704,10 +704,10 @@ class Cache internal constructor(
 
     companion object {
       /** Synthetic response header: the local time when the request was sent. */
-      private val SENT_MILLIS = "${Platform.get().getPrefix()}-Sent-Millis"
+      private val SENT_MILLIS = "${Platform.get().prefix}-Sent-Millis"
 
       /** Synthetic response header: the local time when the response was received. */
-      private val RECEIVED_MILLIS = "${Platform.get().getPrefix()}-Received-Millis"
+      private val RECEIVED_MILLIS = "${Platform.get().prefix}-Received-Millis"
     }
   }
 

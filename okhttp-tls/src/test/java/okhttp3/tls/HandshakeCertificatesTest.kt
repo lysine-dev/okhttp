@@ -25,13 +25,12 @@ import java.security.PrivateKey
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
-import javax.net.ServerSocketFactory
-import javax.net.SocketFactory
 import javax.net.ssl.SSLSocket
 import okhttp3.Handshake
 import okhttp3.Handshake.Companion.handshake
 import okhttp3.TestUtil.threadFactory
 import okhttp3.internal.closeQuietly
+import okhttp3.internal.platform.Platform
 import okhttp3.testing.PlatformRule
 import okio.ByteString.Companion.toByteString
 import org.junit.jupiter.api.AfterEach
@@ -180,7 +179,7 @@ class HandshakeCertificatesTest {
   }
 
   private fun startTlsServer(): InetSocketAddress {
-    val serverSocketFactory = ServerSocketFactory.getDefault()
+    val serverSocketFactory = Platform.get().serverSocketFactory
     serverSocket = serverSocketFactory.createServerSocket()
     val serverAddress = InetAddress.getByName("localhost")
     serverSocket!!.bind(InetSocketAddress(serverAddress, 0), 50)
@@ -212,7 +211,7 @@ class HandshakeCertificatesTest {
     serverAddress: InetSocketAddress,
   ): Future<Handshake> {
     return executorService.submit<Handshake> {
-      SocketFactory.getDefault().createSocket().use { rawSocket ->
+      Platform.get().socketFactory.createSocket().use { rawSocket ->
         rawSocket.connect(serverAddress)
         val sslSocket =
           client.sslSocketFactory().createSocket(

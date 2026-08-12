@@ -18,13 +18,21 @@
 package okhttp3.sockets
 
 import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.net.SocketAddress
 import java.net.SocketException
 import java.net.SocketOption
 import java.util.concurrent.atomic.AtomicReference
-import okhttp3.internal.connection.BufferedSocket
+import okhttp3.sockets.FakeSslSocket.HandshakeState
+import okio.Buffer
+import okio.Closeable
+import okio.Sink
+import okio.Socket as OkioSocket
+import okio.Source
+import okio.buffer
 
 /**
  * A client or server socket.
@@ -35,17 +43,22 @@ internal class FakeSocket(
   val network: FakeNetwork,
   initialState: State = State.New,
 ) : Socket() {
-  private val atomicState = AtomicReference<State>(initialState)
-  private val state: State
+  internal val atomicState = AtomicReference<State>(initialState)
+  internal val state: State
     get() = atomicState.get()
 
   private var socketReadTimeoutMillis: Long = 0
 
-  private fun connectedSocket() = (state as? State.Connected)?.bufferedSocket ?: throw IOException("not connected")
+  val connection: FakeConnection?
+    get() = (state as? State.Connected)?.connection
 
-  override fun getInputStream() = connectedSocket().source.inputStream()
+  override fun getInputStream() =
+    (state as? State.Connected)?.inputStream
+      ?: throw IOException("not connected")
 
-  override fun getOutputStream() = connectedSocket().sink.outputStream()
+  override fun getOutputStream() =
+    (state as? State.Connected)?.outputStream
+      ?: throw IOException("not connected")
 
   override fun getRemoteSocketAddress() = state.remoteAddress
 
@@ -82,7 +95,7 @@ internal class FakeSocket(
 
     val attempt =
       ConnectAttempt(
-        clientAddress = network.nextClientAddress(),
+        clientAddress = network.nextSocketAddress(),
         serverAddress = endpoint,
       )
 
@@ -108,9 +121,10 @@ internal class FakeSocket(
 
       val next =
         State.Connected(
+          connection = connection,
           localAddress = attempt.clientAddress,
           remoteAddress = attempt.serverAddress,
-          bufferedSocket = connection.clientSocket,
+          socket = connection.clientSocket,
         )
 
       // If the state changed while we were connecting, the other state wins.
@@ -127,19 +141,15 @@ internal class FakeSocket(
   override fun shutdownInput() {
     while (true) {
       val previous = state
-      if (previous !is State.Connected || previous.inputShutdown) {
-        throw SocketException("cannot shutdown input")
+      if (previous !is State.Connected) throw SocketException("cannot shutdown input")
+
+      if (previous.outputShutdown) {
+        val next = State.Closed(previous)
+        if (!atomicState.compareAndSet(previous, next)) continue // Lost a race, retry.
       }
 
-      val next =
-        when {
-          previous.outputShutdown -> State.Closed(previous)
-          else -> previous.copy(inputShutdown = true)
-        }
-
-      if (!atomicState.compareAndSet(previous, next)) continue // Lost a race, retry.
-
-      previous.bufferedSocket.source.close()
+      previous.inputStream.close()
+      if (previous.outputShutdown) previous.connection.close()
       break
     }
   }
@@ -149,19 +159,15 @@ internal class FakeSocket(
   override fun shutdownOutput() {
     while (true) {
       val previous = state
-      if (previous !is State.Connected || previous.outputShutdown) {
-        throw SocketException("cannot shutdown output")
+      if (previous !is State.Connected) throw SocketException("cannot shutdown output")
+
+      if (previous.inputShutdown) {
+        val next = State.Closed(previous)
+        if (!atomicState.compareAndSet(previous, next)) continue // Lost a race, retry.
       }
 
-      val next =
-        when {
-          previous.inputShutdown -> State.Closed(previous)
-          else -> previous.copy(outputShutdown = true)
-        }
-
-      if (!atomicState.compareAndSet(previous, next)) continue // Lost a race, retry.
-
-      previous.bufferedSocket.sink.close()
+      previous.outputStream.close()
+      if (previous.inputShutdown) previous.connection.close()
       break
     }
   }
@@ -173,8 +179,23 @@ internal class FakeSocket(
 
       if (!atomicState.compareAndSet(previous, next)) continue // Lost a race, retry.
 
-      (previous as? State.Connecting)?.attempt?.cancel(SocketException("client closed"))
-      (previous as? State.Connected)?.bufferedSocket?.cancel()
+      when (previous) {
+        State.New -> {
+        }
+
+        is State.Connecting -> {
+          previous.attempt.cancel(SocketException("client closed"))
+        }
+
+        is State.Connected -> {
+          previous.source.cancel()
+          previous.sink.cancel()
+          previous.connection.close()
+        }
+
+        is State.Closed -> {
+        }
+      }
       break
     }
   }
@@ -239,6 +260,11 @@ internal class FakeSocket(
 
   override fun toString() = "FakeSocket"
 
+  /**
+   * This represents the lifecycle state of the TCP socket, which includes a nested lifecycle for
+   * the TLS handshake. Tracking the TLS lifecycle here is a layering violation, but it lets us
+   * easily keep a single atomic state for both layers.
+   */
   sealed interface State {
     val localAddress: InetSocketAddress?
       get() = null
@@ -252,6 +278,8 @@ internal class FakeSocket(
       get() = false
     val outputShutdown: Boolean
       get() = false
+    val handshakeState: HandshakeState
+      get() = HandshakeState.New
 
     object New : State
 
@@ -259,29 +287,65 @@ internal class FakeSocket(
       val attempt: ConnectAttempt,
     ) : State
 
-    data class Connected(
+    class Connected(
+      val connection: FakeConnection,
       override val localAddress: InetSocketAddress,
       override val remoteAddress: InetSocketAddress,
-      val bufferedSocket: BufferedSocket,
-      override val inputShutdown: Boolean = false,
-      override val outputShutdown: Boolean = false,
+      override val handshakeState: HandshakeState = HandshakeState.New,
+      val socket: OkioSocket,
+      val source: SocketSource = SocketSource(socket),
+      val sink: SocketSink = SocketSink(socket),
+      val inputStream: InputStream = source.buffer().inputStream(),
+      val outputStream: OutputStream = sink.buffer().outputStream(),
     ) : State {
       override val bound: Boolean
         get() = true
       override val connected: Boolean
         get() = true
+      override val inputShutdown: Boolean
+        get() = source.closed
+      override val outputShutdown: Boolean
+        get() = sink.closed
+
+      /** Note that this yields a new [inputStream] and [outputStream]. */
+      fun withHandshakeSuccess(
+        handshakeState: HandshakeState.Success,
+        socket: OkioSocket,
+      ) = Connected(
+        connection = connection,
+        localAddress = localAddress,
+        remoteAddress = remoteAddress,
+        handshakeState = handshakeState,
+        socket = socket,
+      )
+
+      /** Note that this retains the previous [inputStream] and [outputStream]. */
+      fun withHandshakeState(handshakeState: HandshakeState) =
+        Connected(
+          connection = connection,
+          localAddress = localAddress,
+          remoteAddress = remoteAddress,
+          handshakeState = handshakeState,
+          socket = socket,
+          source = source,
+          sink = sink,
+          inputStream = inputStream,
+          outputStream = outputStream,
+        )
     }
 
     /** A closed socket remembers what happened before it was closed. */
     class Closed(
       override val localAddress: InetSocketAddress?,
       override val remoteAddress: InetSocketAddress?,
+      override val handshakeState: HandshakeState,
       override val bound: Boolean,
       override val connected: Boolean,
     ) : State {
       constructor(previous: State) : this(
         localAddress = previous.localAddress,
         remoteAddress = previous.remoteAddress,
+        handshakeState = previous.handshakeState,
         bound = previous.bound,
         connected = previous.connected,
       )
@@ -292,4 +356,104 @@ internal class FakeSocket(
         get() = true
     }
   }
+}
+
+/**
+ * This wraps an `okio.Socket` and exposes it as either the source or sink of a `java.net.Socket`.
+ *
+ * It's made complicated by how [okio.inMemorySocketPair] handles asynchronous cancellation.
+ * Canceling an in-memory socket cancels both streams for both peers. In-flight operations
+ * immediately fail and all following operations throw an [IOException].
+ *
+ * To contrast, closing a [java.net.Socket] immediately fails local operations only. The peer can
+ * read the remainder of the stream until it is exhausted.
+ *
+ * Our mitigation is straightforward enough: if the [FakeSocket] is closed while a local operation
+ * is in-flight, we trigger a maximally invasive cancel. Otherwise, we do a graceful close.
+ */
+internal open class SocketStream<T : Closeable>(
+  val socket: OkioSocket,
+  val stream: T,
+) : Closeable {
+  val closed: Boolean
+    get() = state.get() == StreamState.Closed
+
+  private val state = AtomicReference(StreamState.Ready)
+
+  override fun close() {
+    val previous = state.getAndSet(StreamState.Closed)
+    if (previous != StreamState.Closed) {
+      stream.close()
+    }
+  }
+
+  /**
+   * Equivalent to [close] unless there's a local operation in-flight, in which case the entire
+   * socket is interrupted.
+   */
+  fun cancel() {
+    val previous = state.getAndSet(StreamState.Closed)
+    if (previous != StreamState.Closed) {
+      stream.close()
+    }
+    if (previous == StreamState.Blocked) {
+      socket.cancel()
+    }
+  }
+
+  protected inline fun <T> blockingOp(block: () -> T): T {
+    if (!state.compareAndSet(StreamState.Ready, StreamState.Blocked)) {
+      throw IOException("closed")
+    }
+    try {
+      return block()
+    } finally {
+      // If the state is since closed, that's okay.
+      state.compareAndSet(StreamState.Blocked, StreamState.Ready)
+    }
+  }
+
+  internal enum class StreamState {
+    Ready,
+    Blocked,
+    Closed,
+  }
+}
+
+internal class SocketSource(
+  socket: OkioSocket,
+) : SocketStream<Source>(socket, socket.source),
+  Source {
+  override fun read(
+    sink: Buffer,
+    byteCount: Long,
+  ): Long {
+    blockingOp {
+      return stream.read(sink, byteCount)
+    }
+  }
+
+  override fun timeout() = stream.timeout()
+}
+
+internal class SocketSink(
+  socket: OkioSocket,
+) : SocketStream<Sink>(socket, socket.sink),
+  Sink {
+  override fun write(
+    source: Buffer,
+    byteCount: Long,
+  ) {
+    blockingOp {
+      stream.write(source, byteCount)
+    }
+  }
+
+  override fun flush() {
+    blockingOp {
+      stream.flush()
+    }
+  }
+
+  override fun timeout() = stream.timeout()
 }

@@ -328,7 +328,7 @@ public class MockWebServer : Closeable {
     try {
       val serverSocketFactory =
         serverSocketFactory_
-          ?: (ServerSocketFactory.getDefault()!!.also { this.serverSocketFactory_ = it })
+          ?: (Platform.get().serverSocketFactory.also { this.serverSocketFactory_ = it })
 
       val serverSocket =
         serverSocketFactory

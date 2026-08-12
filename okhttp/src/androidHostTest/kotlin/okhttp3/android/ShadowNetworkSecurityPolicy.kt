@@ -17,6 +17,7 @@ package okhttp3.android
 
 import android.security.NetworkSecurityPolicy
 import android.security.NetworkSecurityPolicy.DOMAIN_ENCRYPTION_MODE_UNKNOWN
+import okhttp3.android.ShadowNetworkSecurityPolicy.Companion.create
 import okhttp3.internal.SuppressSignatureCheck
 import org.robolectric.annotation.Implementation
 import org.robolectric.annotation.Implements
@@ -24,23 +25,27 @@ import org.robolectric.shadow.api.Shadow
 
 /**
  * Gives tests a [NetworkSecurityPolicy] with domain encryption modes of their choosing. The
- * platform constructor is private, so instances come from [newNetworkSecurityPolicy] rather than
+ * platform constructor is private, so instances come from [create] rather than
  * from a subclass.
  */
 @SuppressSignatureCheck
 @Implements(NetworkSecurityPolicy::class)
 class ShadowNetworkSecurityPolicy {
-  var domainEncryptionModes: Map<String, Int> = mapOf()
+  lateinit var domainEncryptionModes: Map<String, Int>
 
   @Implementation
   fun getDomainEncryptionMode(hostname: String): Int = domainEncryptionModes[hostname] ?: DOMAIN_ENCRYPTION_MODE_UNKNOWN
 
   companion object {
-    /** Returns a policy that reports [domainEncryptionModes], and [DOMAIN_ENCRYPTION_MODE_UNKNOWN] for other hosts. */
-    fun newNetworkSecurityPolicy(vararg domainEncryptionModes: Pair<String, Int>): NetworkSecurityPolicy {
-      val policy = Shadow.newInstanceOf(NetworkSecurityPolicy::class.java)
-      Shadow.extract<ShadowNetworkSecurityPolicy>(policy).domainEncryptionModes = domainEncryptionModes.toMap()
-      return policy
+    /**
+     * Returns a policy that reports [domainEncryptionModes], and [DOMAIN_ENCRYPTION_MODE_UNKNOWN]
+     * for other hosts.
+     */
+    fun create(domainEncryptionModes: Map<String, Int>): NetworkSecurityPolicy {
+      val result = Shadow.newInstanceOf(NetworkSecurityPolicy::class.java)
+      val shadow = Shadow.extract<ShadowNetworkSecurityPolicy>(result)
+      shadow.domainEncryptionModes = domainEncryptionModes
+      return result
     }
   }
 }

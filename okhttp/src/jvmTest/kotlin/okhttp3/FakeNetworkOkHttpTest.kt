@@ -20,32 +20,56 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isNull
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
-import mockwebserver3.junit5.StartStop
-import okhttp3.sockets.FakeNetwork
+import okhttp3.sockets.FakeNetworkPlatform
+import okhttp3.testing.PlatformRule
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 
 open class FakeNetworkOkHttpTest {
-  private val network = FakeNetwork()
+  private val platform = FakeNetworkPlatform()
+
+  @RegisterExtension
+  val platformRule =
+    PlatformRule(
+      platform = platform,
+    )
 
   @RegisterExtension
   val clientTestRule = OkHttpClientTestRule()
 
-  @StartStop
-  private val server =
-    MockWebServer()
-      .apply {
-        serverSocketFactory = network.serverSocketFactory
-      }
+  private val handshakeCertificates = platformRule.localhostHandshakeCertificates()
 
-  private var client =
-    clientTestRule
-      .newClientBuilder()
-      .socketFactory(network.socketFactory)
-      .build()
+  // We can't create these until after platformRule runs. Sigh.
+  private lateinit var server: MockWebServer
+  private lateinit var client: OkHttpClient
+
+  @BeforeEach
+  fun setUp() {
+    server = MockWebServer()
+    client = clientTestRule.newClient()
+
+    server.start()
+  }
+
+  @AfterEach
+  fun tearDown() {
+    server.close()
+  }
 
   @Test
   fun `happy path`() {
+    makeRequest()
+  }
+
+  @Test
+  fun `happy path with TLS`() {
+    enableTls()
+    makeRequest()
+  }
+
+  fun makeRequest() {
     server.enqueue(
       MockResponse
         .Builder()
@@ -67,5 +91,16 @@ open class FakeNetworkOkHttpTest {
     val recordedRequest = server.takeRequest()
     assertThat(recordedRequest.method).isEqualTo("GET")
     assertThat(recordedRequest.body).isNull()
+  }
+
+  private fun enableTls() {
+    client =
+      client
+        .newBuilder()
+        .sslSocketFactory(
+          handshakeCertificates.sslSocketFactory(),
+          handshakeCertificates.trustManager,
+        ).build()
+    server.useHttps(handshakeCertificates.sslSocketFactory())
   }
 }

@@ -20,7 +20,7 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    if: github.repository == 'square/okhttp' && github.ref == 'refs/heads/main'
+    if: github.repository == 'lysine-dev/okhttp' && github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout
@@ -115,7 +115,7 @@ jobs:
         run: ./gradlew test allTests -Ptest.java.version=${{ matrix.java-version }}
 
       - name: Publish Test Report
-        if: github.repository == 'square/okhttp' && github.ref == 'refs/heads/main' && matrix.java-version == '11'
+        if: github.repository == 'lysine-dev/okhttp' && github.ref == 'refs/heads/main' && matrix.java-version == '11'
         uses: mikepenz/action-junit-report@v6
         with:
           report_paths: '**/build/test-results/*/TEST-*.xml'
@@ -123,7 +123,7 @@ jobs:
 
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
-        if: github.repository == 'square/okhttp' && github.ref == 'refs/heads/main' && matrix.java-version == '11'
+        if: github.repository == 'lysine-dev/okhttp' && github.ref == 'refs/heads/main' && matrix.java-version == '11'
         with:
           files: |
             **/build/test-results/*/TEST-*.xml

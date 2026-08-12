@@ -211,7 +211,15 @@ class RouteSelector internal constructor(
       domainName = socketHost,
     )
 
-    val dnsRequest = Dns.Request(socketHost)
+    // If it's a 'http://' URL on the default port, do the DNS query for a 'https://' URL on the
+    // default port. DNS records that have a port promote HTTP to HTTPS.
+    val dnsPort =
+      when {
+        !address.url.isHttps && socketPort == 80 -> -1
+        else -> socketPort
+      }
+
+    val dnsRequest = Dns.Request(socketHost, dnsPort)
     val result =
       when (val dnsCall = address.dns.newCall(dnsRequest)) {
         is LookupDnsCall -> {

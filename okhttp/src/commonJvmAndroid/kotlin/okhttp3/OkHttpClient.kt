@@ -601,7 +601,7 @@ open class OkHttpClient internal constructor(
     internal var proxy: Proxy? = null
     internal var proxySelector: ProxySelector? = null
     internal var proxyAuthenticator: Authenticator = Authenticator.NONE
-    internal var socketFactory: SocketFactory = SocketFactory.getDefault()
+    internal var socketFactory: SocketFactory = Platform.get().socketFactory
     internal var sslSocketFactoryOrNull: SSLSocketFactory? = null
     internal var x509TrustManagerOrNull: X509TrustManager? = null
     internal var connectionSpecs: List<ConnectionSpec> = DEFAULT_CONNECTION_SPECS

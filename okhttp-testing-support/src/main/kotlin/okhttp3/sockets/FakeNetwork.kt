@@ -29,7 +29,6 @@ import okhttp3.internal.concurrent.Lockable
 import okhttp3.internal.concurrent.notifyAll
 import okhttp3.internal.concurrent.wait
 import okhttp3.internal.concurrent.withLock
-import okhttp3.internal.connection.BufferedSocket
 import okhttp3.internal.connection.asBufferedSocket
 import okio.Buffer
 import okio.Timeout
@@ -42,7 +41,7 @@ import okio.inMemorySocketPair
 class FakeNetwork {
   private val boundServers = ConcurrentHashMap<SocketAddress, BoundServer>()
 
-  private val nextClientIpv4Address =
+  private val nextIpv4Address =
     Buffer().run {
       writeByte(192)
       writeByte(168)
@@ -51,27 +50,26 @@ class FakeNetwork {
       AtomicInteger(readInt())
     }
 
-  private var nextClientPort = AtomicInteger(5_000)
-  private var nextServerPort = AtomicInteger(6_000)
+  private var nextPort = AtomicInteger(5_000)
 
   internal val anyAddress: InetAddress
     get() = InetAddress.getByAddress(byteArrayOf(0, 0, 0, 0))
 
-  /** Generate a new unique client address. */
-  internal fun nextClientAddress(): InetSocketAddress {
-    val ipv4AddressInt = nextClientIpv4Address.getAndIncrement()
+  /** Generate a new unique address. */
+  fun nextSocketAddress(): InetSocketAddress {
+    val ipv4AddressInt = nextIpv4Address.getAndIncrement()
     val ipv4AddressBytes =
       Buffer()
         .writeInt(ipv4AddressInt)
         .readByteArray()
     return InetSocketAddress(
       InetAddress.getByAddress(ipv4AddressBytes),
-      nextClientPort.getAndIncrement(),
+      nextPort(),
     )
   }
 
-  /** Generate a new unique server port. */
-  fun nextServerPort() = nextServerPort.getAndIncrement()
+  /** Generate a new unique port. */
+  fun nextPort() = nextPort.getAndIncrement()
 
   val serverSocketFactory =
     object : ServerSocketFactory() {
@@ -142,7 +140,7 @@ class FakeNetwork {
   ): BoundServer? {
     val serverAddress =
       when (endpoint.port) {
-        0 -> InetSocketAddress(endpoint.address, nextServerPort())
+        0 -> InetSocketAddress(endpoint.address, nextPort())
         else -> endpoint
       }
 
@@ -269,13 +267,4 @@ internal class BoundServer(
   }
 
   override fun toString() = "Server@$serverAddress"
-}
-
-internal class FakeConnection(
-  val clientAddress: InetSocketAddress,
-  val serverAddress: InetSocketAddress,
-  val clientSocket: BufferedSocket,
-  val serverSocket: BufferedSocket,
-) {
-  override fun toString() = "$clientAddress<->$serverAddress"
 }

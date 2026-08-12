@@ -335,6 +335,8 @@ class Http1ExchangeCodec(
     override fun close() {
       if (closed) return
       closed = true
+      // Flush before detachTimeout().
+      socket.sink.flush()
       detachTimeout(timeout)
       state = STATE_READ_RESPONSE_HEADERS
     }
@@ -376,6 +378,8 @@ class Http1ExchangeCodec(
       if (closed) return
       closed = true
       socket.sink.writeUtf8("0\r\n\r\n")
+      // Flush before detachTimeout().
+      socket.sink.flush()
       detachTimeout(timeout)
       state = STATE_READ_RESPONSE_HEADERS
     }

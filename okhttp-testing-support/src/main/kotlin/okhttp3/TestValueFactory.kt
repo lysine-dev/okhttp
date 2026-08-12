@@ -27,7 +27,6 @@ import java.net.Proxy
 import java.net.ProxySelector
 import java.net.Socket
 import java.util.concurrent.TimeUnit
-import javax.net.SocketFactory
 import javax.net.ssl.HostnameVerifier
 import javax.net.ssl.HttpsURLConnection
 import javax.net.ssl.SSLSocketFactory
@@ -42,6 +41,7 @@ import okhttp3.internal.connection.RealConnectionPool
 import okhttp3.internal.connection.RealRoutePlanner
 import okhttp3.internal.http.RealInterceptorChain
 import okhttp3.internal.http.RecordingProxySelector
+import okhttp3.internal.platform.Platform
 import okhttp3.tls.HandshakeCertificates
 import okhttp3.tls.internal.TlsUtil.localhost
 
@@ -118,7 +118,7 @@ class TestValueFactory : Closeable {
       uriHost = uriHost,
       uriPort = uriPort,
       dns = dns,
-      socketFactory = SocketFactory.getDefault(),
+      socketFactory = Platform.get().socketFactory,
       sslSocketFactory = null,
       hostnameVerifier = null,
       certificatePinner = null,
@@ -141,7 +141,7 @@ class TestValueFactory : Closeable {
       uriHost = uriHost,
       uriPort = uriPort,
       dns = dns,
-      socketFactory = SocketFactory.getDefault(),
+      socketFactory = Platform.get().socketFactory,
       sslSocketFactory = sslSocketFactory,
       hostnameVerifier = hostnameVerifier,
       certificatePinner = null,

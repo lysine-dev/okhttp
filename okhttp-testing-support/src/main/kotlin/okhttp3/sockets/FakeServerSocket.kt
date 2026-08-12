@@ -79,9 +79,10 @@ internal class FakeServerSocket(
         network = network,
         initialState =
           FakeSocket.State.Connected(
+            connection = connection,
             localAddress = connection.serverAddress,
             remoteAddress = connection.clientAddress,
-            bufferedSocket = connection.serverSocket,
+            socket = connection.serverSocket,
           ),
       )
 

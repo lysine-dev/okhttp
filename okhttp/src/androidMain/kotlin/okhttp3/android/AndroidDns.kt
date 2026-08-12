@@ -20,7 +20,11 @@ package okhttp3.android
 import android.annotation.SuppressLint
 import android.net.DnsResolver
 import android.net.Network
+import android.os.Build
 import android.os.CancellationSignal
+import android.security.NetworkSecurityPolicy
+import android.security.NetworkSecurityPolicy.DOMAIN_ENCRYPTION_MODE_ENABLED
+import android.security.NetworkSecurityPolicy.DOMAIN_ENCRYPTION_MODE_OPPORTUNISTIC
 import androidx.annotation.RequiresApi
 import java.io.IOException
 import java.net.InetAddress
@@ -51,20 +55,37 @@ import okio.Buffer
  */
 @RequiresApi(29)
 @SuppressSignatureCheck
-class AndroidDns(
-  internal val dnsResolver: DnsResolver = DnsResolver.getInstance(),
-  internal val network: Network? = null,
-  dnsCache: DnsCache = DnsCache(),
-  /**
-   * True to also query the `HTTPS` record for service metadata. Keep this on: it enables privacy
-   * features such as Encrypted Client Hello (ECH) for the HTTPS call. Set it to false only when
-   * you want to disable ECH.
-   */
-  internal val includeServiceMetadata: Boolean = true,
-  // Runs inline; the executor only hands off DnsResolver's callbacks.
-  internal val executor: Executor = Executor { it.run() },
+class AndroidDns internal constructor(
+  internal val dnsResolver: DnsResolver,
+  internal val network: Network?,
+  dnsCache: DnsCache,
+  internal val includeServiceMetadata: Boolean,
+  /** Runs inline; the executor only hands off DnsResolver's callbacks. */
+  internal val executor: Executor,
+  private val taskRunner: TaskRunner,
+  lazyNetworkSecurityPolicy: Lazy<NetworkSecurityPolicy>,
 ) : Dns {
-  private val taskRunner: TaskRunner = TaskRunner.INSTANCE
+  constructor(
+    dnsResolver: DnsResolver = DnsResolver.getInstance(),
+    network: Network? = null,
+    dnsCache: DnsCache = DnsCache(),
+    /**
+     * True to also query the `HTTPS` record for service metadata. Keep this on: it enables privacy
+     * features such as Encrypted Client Hello (ECH) for the HTTPS call. Set it to false only when
+     * you want to disable ECH.
+     */
+    includeServiceMetadata: Boolean = true,
+  ) : this(
+    dnsResolver = dnsResolver,
+    network = network,
+    dnsCache = dnsCache,
+    includeServiceMetadata = includeServiceMetadata,
+    executor = Executor { it.run() },
+    taskRunner = TaskRunner.INSTANCE,
+    lazyNetworkSecurityPolicy = lazy { NetworkSecurityPolicy.getInstance() },
+  )
+
+  private val networkSecurityPolicy: NetworkSecurityPolicy by lazyNetworkSecurityPolicy
 
   /** Drives [StateMachineDnsCall] using the system resolver and [DnsResolver]. */
   private val queryFactory =
@@ -87,16 +108,32 @@ class AndroidDns(
   private fun call(
     request: Dns.Request,
     includeServiceMetadata: Boolean,
-  ): Dns.Call =
-    StateMachineDnsCall(
-      taskRunner = taskRunner,
-      request = request,
-      queryFactory = queryFactory,
-      // A single `A` query stands in for both families: the system resolver returns IPv4 and
-      // IPv6 addresses together, so there's no separate `AAAA` query.
-      includeIPv6 = false,
-      includeServiceMetadata = includeServiceMetadata,
-    )
+  ) = StateMachineDnsCall(
+    taskRunner = taskRunner,
+    request = request,
+    queryFactory = queryFactory,
+    // A single `A` query stands in for both families: the system resolver returns IPv4 and
+    // IPv6 addresses together, so there's no separate `AAAA` query.
+    includeIPv6 = false,
+    includeServiceMetadata = includeServiceMetadata && includeServiceMetadataForRequest(request),
+  )
+
+  /**
+   * Returns true to fetch HTTPS DNS records. Fetching these records requires a network round trip,
+   * so we only fetch them if they'll be useful.
+   *
+   * The main user of these records is Encrypted Client Hello (ECH). Android's HTTPS stack only
+   * supports ECH on API 37+, and only if configured via [NetworkSecurityPolicy]. If both are true,
+   * we fetch the ECH records.
+   */
+  private fun includeServiceMetadataForRequest(request: Dns.Request): Boolean {
+    if (Build.VERSION.SDK_INT < 37) return false
+
+    return when (networkSecurityPolicy.getDomainEncryptionMode(request.hostname)) {
+      DOMAIN_ENCRYPTION_MODE_ENABLED, DOMAIN_ENCRYPTION_MODE_OPPORTUNISTIC -> true
+      else -> false
+    }
+  }
 
   /** One outstanding transport-layer query. */
   private inner class AndroidQuery(

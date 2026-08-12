@@ -81,6 +81,51 @@ class StateMachineDnsCallTest {
   }
 
   @Test
+  fun `attrleaf is used for nondefault ports`(caching: Boolean = true) {
+    testStateMachineDnsCall {
+      val call =
+        newCall(
+          request = Dns.Request(hostname = "lysine.dev", port = 8443),
+          caching = caching,
+        )
+      call.enqueue()
+
+      val query0 = queryFactory.takeQuery("_8443._https.lysine.dev", TYPE_HTTPS)
+      val query1 = queryFactory.takeQuery("lysine.dev", TYPE_AAAA)
+      val query2 = queryFactory.takeQuery("lysine.dev", TYPE_A)
+
+      query0.respondServiceMetadata(
+        alpnIds = listOf("h2"),
+      )
+      call.takeOnRecordsServiceMetadata(
+        alpnIds = listOf(Protocol.HTTP_2),
+      )
+
+      query1.respondIpAddresses(
+        addresses = blueIpv6s,
+      )
+      call.takeOnRecordsIpAddresses(
+        addresses = blueIpv6s,
+      )
+
+      query2.respondIpAddresses(
+        addresses = blueIpv4s,
+      )
+      call.takeOnRecordsIpAddresses(
+        last = true,
+        addresses = blueIpv4s,
+      )
+
+      if (caching) {
+        assertThat(cache.size).isEqualTo(3)
+        assertThat(cache.requestCount).isEqualTo(3)
+        assertThat(cache.networkCount).isEqualTo(3)
+        assertThat(cache.hitCount).isEqualTo(0)
+      }
+    }
+  }
+
+  @Test
   fun `caches are independent per hostname`() {
     testStateMachineDnsCall {
       val lysineCall0 =
