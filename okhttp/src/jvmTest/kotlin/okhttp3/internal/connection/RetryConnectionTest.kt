@@ -35,7 +35,7 @@ import okhttp3.OkHttpClientTestRule
 import okhttp3.Route
 import okhttp3.TestValueFactory
 import okhttp3.TlsVersion
-import okhttp3.internal.dns.EchRetryConfig
+import okhttp3.internal.dns.EchRetryPlan
 import okhttp3.internal.dns.ResourceRecord
 import okhttp3.internal.platform.Platform
 import okhttp3.testing.PlatformRule
@@ -52,16 +52,16 @@ class RetryConnectionTest {
   private val retryableException = SSLHandshakeException("Simulated handshake exception")
   private val echRetryException = SSLHandshakeException("ECH Mismatch with updated config")
   private val echDisabledException = SSLHandshakeException("ECH Mismatch without config")
-  private val echRetryConfig =
-    EchRetryConfig(
+  private val echRetryPlan =
+    EchRetryPlan.getOrNull(
+      publicName = "public.tls-ech.dev",
       configList = "retry config".encodeUtf8(),
-      publicHostname = "public.tls-ech.dev",
-    )
+    )!!
   private val echDisabledConfig =
-    EchRetryConfig(
+    EchRetryPlan.getOrNull(
+      publicName = "public.tls-ech.dev",
       configList = null,
-      publicHostname = "public.tls-ech.dev",
-    )
+    )!!
 
   @RegisterExtension
   val clientTestRule = OkHttpClientTestRule()
@@ -71,9 +71,9 @@ class RetryConnectionTest {
     PlatformRule(
       platform =
         object : Platform() {
-          override fun getEchRetryConfig(exception: SSLException): EchRetryConfig? =
+          override fun echRetryPlan(exception: SSLException): EchRetryPlan? =
             when {
-              exception === echRetryException -> echRetryConfig
+              exception === echRetryException -> echRetryPlan
               exception === echDisabledException -> echDisabledConfig
               else -> null
             }
@@ -117,9 +117,9 @@ class RetryConnectionTest {
     val attempt1 = attempt0.nextConnectionSpec(connectionSpecs, socket, echRetryException)
 
     assertThat(attempt1).isNotNull()
-    assertThat(attempt1!!.route.echConfigList).isEqualTo(echRetryConfig.configList)
+    assertThat(attempt1!!.route.echConfigList).isEqualTo(echRetryPlan.configList)
     assertThat(attempt1.isTlsFallback).isFalse()
-    assertThat(verifiedHostnames).isEqualTo(listOf(echRetryConfig.publicHostname))
+    assertThat(verifiedHostnames).isEqualTo(listOf(echRetryPlan.publicName))
 
     verifiedHostnames.clear()
     val attempt2 = attempt1.nextConnectionSpec(connectionSpecs, socket, retryableException)
@@ -169,7 +169,7 @@ class RetryConnectionTest {
     assertThat(attempt1).isNotNull()
     assertThat(attempt1!!.route.socketAddress.address).isEqualTo(originalAddresses[0])
     assertThat(attempt1.route.socketAddress.address).isNotEqualTo(newAddress)
-    assertThat(verifiedHostnames).isEqualTo(listOf(echRetryConfig.publicHostname))
+    assertThat(verifiedHostnames).isEqualTo(listOf(echRetryPlan.publicName))
     dns.assertRequests(hostname)
     socket.close()
   }
@@ -189,7 +189,7 @@ class RetryConnectionTest {
     val attempt1 = attempt0.nextConnectionSpec(connectionSpecs, socket, echRetryException)
 
     assertThat(attempt1).isNull()
-    assertThat(verifiedHostnames).isEqualTo(listOf(echRetryConfig.publicHostname))
+    assertThat(verifiedHostnames).isEqualTo(listOf(echRetryPlan.publicName))
     socket.close()
   }
 
@@ -214,7 +214,7 @@ class RetryConnectionTest {
     assertThat(attempt1).isNotNull()
     assertThat(attempt1!!.route.echConfigList).isNull()
     assertThat(attempt1.isTlsFallback).isFalse()
-    assertThat(verifiedHostnames).isEqualTo(listOf(echDisabledConfig.publicHostname))
+    assertThat(verifiedHostnames).isEqualTo(listOf(echDisabledConfig.publicName))
 
     // Having disabled ECH once, we don't do it again.
     verifiedHostnames.clear()
@@ -243,7 +243,7 @@ class RetryConnectionTest {
 
     val attempt1 = attempt0.nextConnectionSpec(connectionSpecs, socket, echRetryException)
     assertThat(attempt1).isNotNull()
-    assertThat(attempt1!!.route.echConfigList).isEqualTo(echRetryConfig.configList)
+    assertThat(attempt1!!.route.echConfigList).isEqualTo(echRetryPlan.configList)
 
     // A second retry config is not honored.
     assertThat(attempt1.nextConnectionSpec(connectionSpecs, socket, echRetryException)).isNull()

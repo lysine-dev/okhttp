@@ -29,4 +29,4 @@ import okio.ByteString
 class FakeNetworkEchRejectedException(
   val publicName: String,
   val nextEchConfigList: ByteString?,
-) : SSLException("ECH rejected")
+) : SSLException("Encrypted Client Hello (ECH) rejected")

@@ -13,12 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@file:OptIn(OkHttpInternalApi::class)
+
 package okhttp3.internal.connection
 
 import java.io.IOException
 import java.net.ConnectException
 import java.net.HttpURLConnection
-import java.net.NoRouteToHostException
 import java.net.ProtocolException
 import java.net.Proxy
 import java.net.Socket as JavaNetSocket
@@ -35,11 +36,12 @@ import okhttp3.Handshake.Companion.handshake
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Route
+import okhttp3.internal.OkHttpInternalApi
 import okhttp3.internal.closeQuietly
 import okhttp3.internal.concurrent.TaskRunner
 import okhttp3.internal.concurrent.withLock
 import okhttp3.internal.connection.RoutePlanner.ConnectResult
-import okhttp3.internal.dns.EchRetryConfig
+import okhttp3.internal.dns.EchRetryPlan
 import okhttp3.internal.http.ExchangeCodec
 import okhttp3.internal.http1.Http1ExchangeCodec
 import okhttp3.internal.platform.Platform
@@ -75,7 +77,7 @@ class ConnectPlan internal constructor(
   private val tunnelRequest: Request?,
   internal val connectionSpecIndex: Int,
   internal val isTlsFallback: Boolean,
-  private val echRetryConfig: EchRetryConfig? = null,
+  private val echRetryPlan: EchRetryPlan? = null,
 ) : RoutePlanner.Plan,
   ExchangeCodec.Carrier {
   /** True if this connect was canceled; typically because it lost a race. */
@@ -106,7 +108,7 @@ class ConnectPlan internal constructor(
     tunnelRequest: Request? = this.tunnelRequest,
     connectionSpecIndex: Int = this.connectionSpecIndex,
     isTlsFallback: Boolean = this.isTlsFallback,
-    echRetryConfig: EchRetryConfig? = this.echRetryConfig,
+    echRetryPlan: EchRetryPlan? = this.echRetryPlan,
   ): ConnectPlan =
     ConnectPlan(
       taskRunner = taskRunner,
@@ -125,7 +127,7 @@ class ConnectPlan internal constructor(
       tunnelRequest = tunnelRequest,
       connectionSpecIndex = connectionSpecIndex,
       isTlsFallback = isTlsFallback,
-      echRetryConfig = echRetryConfig,
+      echRetryPlan = echRetryPlan,
     )
 
   override fun connectTcp(): ConnectResult {
@@ -503,26 +505,15 @@ class ConnectPlan internal constructor(
   ): ConnectPlan? {
     if (!retryOnConnectionFailure) return null
 
-    val offeredEchRetryConfig = Platform.get().getEchRetryConfig(sslException)
-    if (offeredEchRetryConfig != null) {
-      // TODO should we emit an event that we considered ech retry?
+    // If this was an ECH retry, don't retry again.
+    if (echRetryPlan != null) return null
 
-      // https://www.rfc-editor.org/rfc/rfc9849.html#section-6.1.6
-      val retryable =
-        when (offeredEchRetryConfig.configList) {
-          // The server securely disabled ECH. Retry unless we already disabled ECH.
-          null -> echRetryConfig == null || echRetryConfig.configList != null
-
-          // A retry config in response to a retry config signals a misconfigured server.
-          else -> echRetryConfig == null
-        }
-      if (!retryable) return null
-
-      // Validate the publicHostname against the session certificate
-      // The session is protected by the outer client hello (e.g. cloudflare-ech.com)
-      // not the origin server
+    val nextEchRetryPlan = Platform.get().echRetryPlan(sslException)
+    if (nextEchRetryPlan != null) {
+      // Validate the publicHostname against the session certificate. The session is protected by
+      // the outer client hello (e.g. cloudflare-ech.com), not the origin server.
       val hostnameVerifier = route.address.hostnameVerifier!!
-      if (!hostnameVerifier.verify(offeredEchRetryConfig.publicHostname, sslSocket.session)) {
+      if (!hostnameVerifier.verify(nextEchRetryPlan.publicName, sslSocket.session)) {
         return null
       }
 
@@ -532,16 +523,14 @@ class ConnectPlan internal constructor(
             address = route.address,
             proxy = route.proxy,
             socketAddress = route.socketAddress,
-            echConfigList = offeredEchRetryConfig.configList,
+            echConfigList = nextEchRetryPlan.configList,
           ),
-        // echRetryConfig.configList is possibly null to retry with ECH disabled
-        echRetryConfig = offeredEchRetryConfig,
+        echRetryPlan = nextEchRetryPlan,
       )
     }
 
-    // If this was already in response to an ech retry, we are done for this
-    // connection
-    if (echRetryConfig != null || !retryTlsHandshake(sslException)) return null
+    // If the exception is not recoverable, don't retry.
+    if (!retryTlsHandshake(sslException)) return null
 
     return nextCompatibleConnectionSpec(connectionSpecs, sslSocket)
   }
@@ -619,7 +608,7 @@ class ConnectPlan internal constructor(
       tunnelRequest = tunnelRequest,
       connectionSpecIndex = connectionSpecIndex,
       isTlsFallback = isTlsFallback,
-      echRetryConfig = echRetryConfig,
+      echRetryPlan = echRetryPlan,
     )
 
   fun closeQuietly() {

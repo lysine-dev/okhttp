@@ -33,7 +33,7 @@ import javax.net.ssl.TrustManager
 import javax.net.ssl.X509KeyManager
 import javax.net.ssl.X509TrustManager
 import okhttp3.Protocol
-import okhttp3.internal.dns.EchRetryConfig
+import okhttp3.internal.dns.EchRetryPlan
 import okhttp3.internal.platform.Platform
 import okhttp3.tls.internal.TlsUtil.newKeyManager
 import okio.ByteString
@@ -91,11 +91,11 @@ class FakeNetworkPlatform : Platform() {
     return sslContext.socketFactory
   }
 
-  override fun getEchRetryConfig(exception: SSLException): EchRetryConfig? =
+  override fun echRetryPlan(exception: SSLException): EchRetryPlan? =
     when (exception) {
       is FakeNetworkEchRejectedException -> {
-        EchRetryConfig(
-          publicHostname = exception.publicName,
+        EchRetryPlan.getOrNull(
+          publicName = exception.publicName,
           configList = exception.nextEchConfigList,
         )
       }

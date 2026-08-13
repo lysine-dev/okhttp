@@ -30,7 +30,7 @@ import javax.net.ssl.SSLSocketFactory
 import javax.net.ssl.X509TrustManager
 import okhttp3.Protocol
 import okhttp3.internal.SuppressSignatureCheck
-import okhttp3.internal.dns.EchRetryConfig
+import okhttp3.internal.dns.EchRetryPlan
 import okhttp3.internal.platform.AndroidPlatform.Companion.Tag
 import okhttp3.internal.platform.android.Android10SocketAdapter
 import okhttp3.internal.platform.android.Android17SocketAdapter
@@ -91,20 +91,13 @@ class Android10Platform :
   }
 
   @SuppressLint("NewApi")
-  override fun getEchRetryConfig(exception: SSLException): EchRetryConfig? {
+  override fun echRetryPlan(exception: SSLException): EchRetryPlan? {
     if (Build.VERSION.SDK_INT < 37 || exception !is EchConfigMismatchException) return null
 
-    // From https://cs.android.com/android/platform/superproject/+/android-latest-release:external/conscrypt/platform/src/main/java/org/conscrypt/Platform.java;bpv=0
-    // we can get neither, publicHostname only, or both. Conscrypt only hands us an EchConfigList
-    // if it is non-empty and self-consistent; BoringSSL does the real validation (version checks
-    // and such) when we hand the list back to it.
-    return EchRetryConfig(
-      publicHostname = exception.publicHostname ?: return null,
-      // An absent retry config list is how a server securely disables ECH.
-      configList =
-        exception.retryConfigList
-          ?.toBytes()
-          ?.toByteString(),
+    val publicName = exception.publicHostname ?: return null
+    return EchRetryPlan.getOrNull(
+      publicName = publicName,
+      configList = exception.retryConfigList?.toBytes()?.toByteString(),
     )
   }
 

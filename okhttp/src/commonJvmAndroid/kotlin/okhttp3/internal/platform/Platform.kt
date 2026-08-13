@@ -38,7 +38,7 @@ import okhttp3.Dns
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.internal.OkHttpInternalApi
-import okhttp3.internal.dns.EchRetryConfig
+import okhttp3.internal.dns.EchRetryPlan
 import okhttp3.internal.publicsuffix.PublicSuffixDatabase
 import okhttp3.internal.readFieldOrNull
 import okhttp3.internal.tls.BasicCertificateChainCleaner
@@ -135,8 +135,8 @@ open class Platform {
   ) {
   }
 
-  /** Returns the ECH retry configuration carried by [exception]. */
-  open fun getEchRetryConfig(exception: SSLException): EchRetryConfig? = null
+  /** Returns a plan to recover when a handshake that failed due to Encrypted Client Hello. */
+  open fun echRetryPlan(exception: SSLException): EchRetryPlan? = null
 
   /** Called after the TLS handshake to release resources allocated by [configureTlsExtensions]. */
   open fun afterHandshake(sslSocket: SSLSocket) {
