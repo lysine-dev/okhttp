@@ -37,6 +37,7 @@ import javax.net.ssl.X509TrustManager
 import okhttp3.Dns
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
+import okhttp3.internal.OkHttpInternalApi
 import okhttp3.internal.dns.EchRetryConfig
 import okhttp3.internal.publicsuffix.PublicSuffixDatabase
 import okhttp3.internal.readFieldOrNull
@@ -75,6 +76,7 @@ import org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement
  *
  * Supported on Android 6.0+ via `NetworkSecurityPolicy`.
  */
+@OkHttpInternalApi
 open class Platform {
   open val socketFactory: SocketFactory
     get() = SocketFactory.getDefault()
@@ -134,7 +136,7 @@ open class Platform {
   }
 
   /** Returns the ECH retry configuration carried by [exception]. */
-  internal open fun getEchRetryConfig(exception: SSLException): EchRetryConfig? = null
+  open fun getEchRetryConfig(exception: SSLException): EchRetryConfig? = null
 
   /** Called after the TLS handshake to release resources allocated by [configureTlsExtensions]. */
   open fun afterHandshake(sslSocket: SSLSocket) {

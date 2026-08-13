@@ -102,7 +102,9 @@ class FakeTlsTest {
               server: ServerInputs,
             ): Handshaker.Result {
               assertThat(handshakeCount++).isEqualTo(0)
-              throw SSLHandshakeException("boom!")
+              return Handshaker.Result.Failure(
+                exception = SSLHandshakeException("boom!"),
+              )
             }
           },
         handshakeCertificates = TlsUtil.localhost(),

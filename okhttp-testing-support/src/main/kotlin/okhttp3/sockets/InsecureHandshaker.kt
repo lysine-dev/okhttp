@@ -65,7 +65,7 @@ class InsecureHandshaker : Handshaker {
 
     val (clientSocket, serverSocket) = inMemorySocketPair(maxBufferSize = 1024 * 1024)
 
-    return Handshaker.Result(
+    return Handshaker.Result.Success(
       clientSocket = clientSocket.asBufferedSocket(),
       serverSocket = serverSocket.asBufferedSocket(),
       clientHandshake =

@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 @file:Suppress("Since15")
+@file:SuppressLint("NewApi")
 
 package okhttp3.sockets
 
+import android.annotation.SuppressLint
 import java.security.Provider
 import java.security.SecureRandom
 import javax.net.ServerSocketFactory
@@ -24,18 +26,22 @@ import javax.net.SocketFactory
 import javax.net.ssl.KeyManager
 import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLContextSpi
+import javax.net.ssl.SSLException
 import javax.net.ssl.SSLSocket
 import javax.net.ssl.SSLSocketFactory
 import javax.net.ssl.TrustManager
 import javax.net.ssl.X509KeyManager
 import javax.net.ssl.X509TrustManager
 import okhttp3.Protocol
+import okhttp3.internal.dns.EchRetryConfig
 import okhttp3.internal.platform.Platform
 import okhttp3.tls.internal.TlsUtil.newKeyManager
 import okio.ByteString
 
 class FakeNetworkPlatform : Platform() {
   val network = FakeNetwork()
+
+  var handshaker: Handshaker = InsecureHandshaker()
 
   override val socketFactory: SocketFactory
     get() = network.socketFactory
@@ -85,7 +91,21 @@ class FakeNetworkPlatform : Platform() {
     return sslContext.socketFactory
   }
 
-  private class FakeSslContextSpi : SSLContextSpi() {
+  override fun getEchRetryConfig(exception: SSLException): EchRetryConfig? =
+    when (exception) {
+      is FakeNetworkEchRejectedException -> {
+        EchRetryConfig(
+          publicHostname = exception.publicName,
+          configList = exception.nextEchConfigList,
+        )
+      }
+
+      else -> {
+        null
+      }
+    }
+
+  private inner class FakeSslContextSpi : SSLContextSpi() {
     private var fakeTls: FakeTls? = null
 
     override fun engineInit(
@@ -94,9 +114,19 @@ class FakeNetworkPlatform : Platform() {
       secureRandom: SecureRandom,
     ) {
       check(this.fakeTls == null) { "already initialized" }
+
+      // FakeNetworkPlatform.handshaker may change after engineInit(), and we want the latest value.
+      val forwardingHandshaker =
+        object : Handshaker {
+          override fun handshake(
+            client: Handshaker.ClientInputs,
+            server: Handshaker.ServerInputs,
+          ) = this@FakeNetworkPlatform.handshaker.handshake(client, server)
+        }
+
       fakeTls =
         FakeTls(
-          handshaker = InsecureHandshaker(),
+          handshaker = forwardingHandshaker,
           keyManager = keyManagers.filterIsInstance<X509KeyManager>().single(),
           trustManager = trustManagers.filterIsInstance<X509TrustManager>().single(),
         )

@@ -39,6 +39,7 @@ import okhttp3.internal.dns.TYPE_A
 import okhttp3.internal.dns.TYPE_AAAA
 import okhttp3.internal.dns.TYPE_HTTPS
 import okio.Buffer
+import okio.ByteString
 import okio.ByteString.Companion.decodeBase64
 
 /**
@@ -114,6 +115,44 @@ class FakeDns(
         )
       },
     )
+  }
+
+  fun addRecord(
+    hostname: String,
+    timeToLive: Int = 5,
+    address: InetAddress,
+  ) {
+    val previous = data[hostname] ?: listOf()
+    data[hostname] = previous +
+      ResourceRecord.IpAddress(
+        name = hostname,
+        timeToLive = timeToLive,
+        address = address,
+      )
+  }
+
+  fun addRecord(
+    hostname: String,
+    timeToLive: Int = 5,
+    priority: Int = 1,
+    targetName: String = "",
+    alpnIds: List<String>? = null,
+    port: Int = 443,
+    ipAddressHints: List<InetAddress> = listOf(),
+    echConfigList: ByteString? = null,
+  ) {
+    val previous = data[hostname] ?: listOf()
+    data[hostname] = previous +
+      ResourceRecord.Https(
+        name = hostname,
+        timeToLive = timeToLive,
+        priority = priority,
+        targetName = targetName,
+        alpnIds = alpnIds,
+        port = port,
+        ipAddressHints = ipAddressHints,
+        echConfigList = echConfigList,
+      )
   }
 
   override fun newCall(request: Dns.Request): Dns.Call = FakeDnsCall(request)

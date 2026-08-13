@@ -15,6 +15,7 @@
  */
 package okhttp3.internal.dns
 
+import okhttp3.internal.OkHttpInternalApi
 import okio.ByteString
 
 /**
@@ -34,7 +35,8 @@ import okio.ByteString
  *
  * https://www.rfc-editor.org/rfc/rfc9849.html#section-6.1.6
  */
-internal data class EchRetryConfig(
+@OkHttpInternalApi
+data class EchRetryConfig(
   /** The client-facing server's name from `ECHConfig.contents.public_name`. */
   val publicHostname: String,
   /** updated ECH configList or null to retry without ECH */

@@ -91,7 +91,7 @@ class Android10Platform :
   }
 
   @SuppressLint("NewApi")
-  internal override fun getEchRetryConfig(exception: SSLException): EchRetryConfig? {
+  override fun getEchRetryConfig(exception: SSLException): EchRetryConfig? {
     if (Build.VERSION.SDK_INT < 37 || exception !is EchConfigMismatchException) return null
 
     // From https://cs.android.com/android/platform/superproject/+/android-latest-release:external/conscrypt/platform/src/main/java/org/conscrypt/Platform.java;bpv=0

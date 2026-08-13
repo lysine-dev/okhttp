@@ -50,7 +50,7 @@ import org.junit.jupiter.api.Test
 @SuppressLint("NewApi")
 @Tag("Remote")
 @Burst
-class EchTest(
+class EchRemoteTest(
   private val dnsApi: DnsApi = DnsApi.Doh,
 ) {
   private lateinit var client: OkHttpClient

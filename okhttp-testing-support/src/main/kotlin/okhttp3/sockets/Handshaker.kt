@@ -15,7 +15,7 @@
  */
 package okhttp3.sockets
 
-import java.io.IOException
+import javax.net.ssl.SSLException
 import javax.net.ssl.X509KeyManager
 import okhttp3.CipherSuite
 import okhttp3.Handshake
@@ -35,10 +35,7 @@ import okio.Socket
 interface Handshaker {
   /**
    * Returns a two-element array containing the client result and the server result.
-   *
-   * @throws [EchRejectedException] if that is why this handshake was rejected.
    */
-  @Throws(IOException::class)
   fun handshake(
     client: ClientInputs,
     server: ServerInputs,
@@ -51,7 +48,7 @@ interface Handshaker {
     val keyManager: X509KeyManager
   }
 
-  class ClientInputs(
+  data class ClientInputs(
     override val tlsVersions: List<TlsVersion>,
     override val cipherSuites: List<CipherSuite>,
     override val protocols: List<Protocol>?,
@@ -60,7 +57,7 @@ interface Handshaker {
     val echConfigList: ByteString?,
   ) : Inputs
 
-  class ServerInputs(
+  data class ServerInputs(
     override val tlsVersions: List<TlsVersion>,
     override val cipherSuites: List<CipherSuite>,
     override val protocols: List<Protocol>?,
@@ -74,11 +71,24 @@ interface Handshaker {
     Required,
   }
 
-  class Result(
-    val clientSocket: Socket,
-    val serverSocket: Socket,
-    val clientHandshake: Handshake,
-    val serverHandshake: Handshake,
-    val selectedProtocol: Protocol?,
-  )
+  sealed interface Result {
+    val clientHandshake: Handshake?
+    val serverHandshake: Handshake?
+    val selectedProtocol: Protocol?
+
+    class Success(
+      val clientSocket: Socket,
+      val serverSocket: Socket,
+      override val clientHandshake: Handshake,
+      override val serverHandshake: Handshake,
+      override val selectedProtocol: Protocol?,
+    ) : Result
+
+    class Failure(
+      val exception: SSLException,
+      override val clientHandshake: Handshake? = null,
+      override val serverHandshake: Handshake? = null,
+      override val selectedProtocol: Protocol? = null,
+    ) : Result
+  }
 }

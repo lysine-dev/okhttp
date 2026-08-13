@@ -108,13 +108,18 @@ internal class FakeSslSocket(
 
   override fun getUseClientMode() = useClientMode
 
-  override fun getSession(): SSLSession = requireSession()
+  override fun getSession(): SSLSession =
+    requireHandshake().session
+      ?: error("unexpected state")
 
   override fun startHandshake() {
-    requireSession()
+    val handshakeState = requireHandshake()
+    if (handshakeState is HandshakeState.Failed) {
+      throw handshakeState.exception
+    }
   }
 
-  private fun requireSession(): SSLSession {
+  private fun requireHandshake(): HandshakeState {
     val tlsVersions = sslParameters.protocols.map { TlsVersion.forJavaName(it) }
     val cipherSuites = sslParameters.cipherSuites.map { CipherSuite.forJavaName(it) }
     val protocols = sslParameters.applicationProtocols.map { Protocol.get(it) }
@@ -170,61 +175,23 @@ internal class FakeSslSocket(
       }
 
       val next =
-        try {
-          when (inputs) {
-            is Handshaker.ClientInputs -> {
-              val result = connection.handshake(tls.handshaker, inputs, handshakeTimeout)
-              previous.withHandshakeSuccess(
-                socket = result.clientSocket,
-                handshakeState =
-                  HandshakeState.Success(
-                    session =
-                      FakeSslSession(
-                        peerAddress = remoteSocketAddress,
-                        handshake = result.clientHandshake,
-                        selectedProtocol = result.selectedProtocol,
-                      ),
-                  ),
-              )
-            }
-
-            is Handshaker.ServerInputs -> {
-              val result = connection.handshake(inputs, handshakeTimeout)
-              previous.withHandshakeSuccess(
-                socket = result.serverSocket,
-                handshakeState =
-                  HandshakeState.Success(
-                    session =
-                      FakeSslSession(
-                        peerAddress = remoteSocketAddress,
-                        handshake = result.serverHandshake,
-                        selectedProtocol = result.selectedProtocol,
-                      ),
-                  ),
-              )
-            }
+        when (inputs) {
+          is Handshaker.ClientInputs -> {
+            val result = connection.handshake(tls.handshaker, inputs, handshakeTimeout)
+            previous.withHandshakeResult(result, client = true)
           }
-        } catch (e: IOException) {
-          previous.withHandshakeState(
-            handshakeState =
-              HandshakeState.Failed(
-                exception = e,
-                session = FakeSslSession(),
-              ),
-          )
+
+          is Handshaker.ServerInputs -> {
+            val result = connection.handshake(inputs, handshakeTimeout)
+            previous.withHandshakeResult(result, client = false)
+          }
         }
 
       // If the state changed while we were connecting, the other state wins.
       socket.atomicState.compareAndSet(handshaking, next)
     }
 
-    val state = socket.state
-    if (state is FakeSocket.State.Closed) throw SocketException("closed")
-
-    return when (val handshakeState = state.handshakeState) {
-      is HandshakeState.Failed -> throw handshakeState.exception
-      else -> handshakeState.session ?: error("unexpected state")
-    }
+    return socket.state.handshakeState
   }
 
   override fun getApplicationProtocol(): String? {
@@ -401,6 +368,48 @@ internal class FakeSslSocket(
       val exception: IOException,
       override val session: FakeSslSession,
     ) : HandshakeState
+  }
+
+  private fun FakeSocket.State.Connected.withHandshakeResult(
+    result: Handshaker.Result,
+    client: Boolean,
+  ): FakeSocket.State.Connected {
+    val session =
+      FakeSslSession(
+        peerAddress = remoteSocketAddress,
+        handshake =
+          when {
+            client -> result.clientHandshake
+            else -> result.serverHandshake
+          },
+        selectedProtocol = result.selectedProtocol,
+      )
+
+    return when (result) {
+      is Handshaker.Result.Failure -> {
+        withHandshakeState(
+          handshakeState =
+            HandshakeState.Failed(
+              exception = result.exception,
+              session = session,
+            ),
+        )
+      }
+
+      is Handshaker.Result.Success -> {
+        withHandshakeSuccess(
+          handshakeState =
+            HandshakeState.Success(
+              session = session,
+            ),
+          socket =
+            when {
+              client -> result.clientSocket
+              else -> result.serverSocket
+            },
+        )
+      }
+    }
   }
 
   /**
