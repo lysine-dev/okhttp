@@ -58,6 +58,12 @@ tasks.register("downloadDependencies") {
   }
 }
 
+tasks.withType<KotlinCompile> {
+  compilerOptions {
+    optIn.add("okhttp3.internal.OkHttpInternalApi")
+  }
+}
+
 normalization {
   runtimeClasspath {
     metaInf {
