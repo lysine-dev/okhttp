@@ -736,6 +736,59 @@ class DuplexTest {
       .contains("StreamResetException: stream was reset: CANCEL")
   }
 
+  @Test
+  fun fixedLengthDuplexRequestCompletedWhenClosedEarly() {
+    enableProtocol(Protocol.HTTP_2)
+    val body =
+      MockSocketHandler()
+        .receiveRequest("partial")
+        .sendResponse("response A\n")
+        .sleep(2, TimeUnit.SECONDS)
+    server.enqueue(
+      MockResponse
+        .Builder()
+        .clearHeaders()
+        .socketHandler(body)
+        .build(),
+    )
+    val requestSinks = LinkedBlockingQueue<BufferedSink>()
+    val requestBody =
+      object : RequestBody() {
+        override fun contentType(): MediaType? = null
+
+        override fun contentLength(): Long = 10L
+
+        override fun isDuplex(): Boolean = true
+
+        override fun writeTo(sink: BufferedSink) {
+          requestSinks.add(sink)
+        }
+      }
+    val call =
+      client.newCall(
+        Request
+          .Builder()
+          .url(server.url("/"))
+          .post(requestBody)
+          .build(),
+      )
+    call.execute().use { response ->
+      val responseBody = response.body.source()
+      val requestBody = requestSinks.poll(5, TimeUnit.SECONDS)!!
+      requestBody.writeUtf8("partial")
+      requestBody.flush()
+      assertThat(responseBody.readUtf8Line()).isEqualTo("response A")
+      val e =
+        assertFailsWith<ProtocolException> {
+          requestBody.close()
+        }
+      assertThat(e.message).isEqualTo("unexpected end of stream")
+    }
+    body.awaitSuccess()
+    assertThat(client.connectionPool.connectionCount()).isEqualTo(1)
+    assertThat(client.connectionPool.idleConnectionCount()).isEqualTo(1)
+  }
+
   /**
    * We delay sending the last byte of the request body 1500 ms. The 1000 ms read timeout should
    * only elapse 1000 ms after the request body is sent.

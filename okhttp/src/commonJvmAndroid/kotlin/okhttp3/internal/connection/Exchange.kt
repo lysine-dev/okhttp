@@ -295,7 +295,7 @@ class Exchange(
       if (closed) return
       closed = true
       if (contentLength != -1L && bytesReceived != contentLength) {
-        throw ProtocolException("unexpected end of stream")
+        throw complete(ProtocolException("unexpected end of stream"))!!
       }
       try {
         super.close()
