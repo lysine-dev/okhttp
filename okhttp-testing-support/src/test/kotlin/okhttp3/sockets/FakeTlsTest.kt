@@ -19,12 +19,14 @@ import assertk.assertThat
 import assertk.assertions.hasMessage
 import assertk.assertions.isBetween
 import assertk.assertions.isEqualTo
+import assertk.assertions.isNotNull
 import java.io.InterruptedIOException
 import java.net.SocketException
 import javax.net.ssl.SSLHandshakeException
 import kotlin.test.assertFailsWith
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.measureTime
+import okhttp3.Handshake.Companion.handshake
 import okhttp3.OkHttpClientTestRule
 import okhttp3.internal.concurrent.TaskRunner
 import okhttp3.internal.concurrent.schedule
@@ -102,8 +104,11 @@ class FakeTlsTest {
               server: ServerInputs,
             ): Handshaker.Result {
               assertThat(handshakeCount++).isEqualTo(0)
+              val original = InsecureHandshaker().handshake(client, server)
               return Handshaker.Result.Failure(
                 exception = SSLHandshakeException("boom!"),
+                clientHandshake = original.clientHandshake,
+                serverHandshake = original.serverHandshake,
               )
             }
           },
@@ -127,10 +132,8 @@ class FakeTlsTest {
       }
     assertThat(e).hasMessage("boom!")
 
-    // Exception is memoized.
-    assertFailsWith<SSLHandshakeException> {
-      serverSslSocket.getSession()
-    }
+    // We can access the session after a failed handshake.
+    assertThat(serverSslSocket.getSession().handshake()).isNotNull()
 
     clientSslSocket.close()
     serverSslSocket.close()

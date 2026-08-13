@@ -191,7 +191,10 @@ internal class FakeSslSocket(
       socket.atomicState.compareAndSet(handshaking, next)
     }
 
-    return socket.state.handshakeState
+    val state = socket.state
+    if (socket.state is FakeSocket.State.Closed) throw SocketException("closed")
+
+    return state.handshakeState
   }
 
   override fun getApplicationProtocol(): String? {
