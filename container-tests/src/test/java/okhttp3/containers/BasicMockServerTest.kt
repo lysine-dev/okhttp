@@ -81,7 +81,7 @@ class BasicMockServerTest {
     val MOCKSERVER_IMAGE: DockerImageName =
       DockerImageName
         .parse("mockserver/mockserver")
-        .withTag("mockserver-7.4.0")
+        .withTag("mockserver-7.5.0")
 
     fun OkHttpClient.Builder.trustMockServer(): OkHttpClient.Builder =
       apply {
