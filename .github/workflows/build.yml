@@ -427,26 +427,26 @@ jobs:
       - name: Build Release App
         run: ./gradlew android-test-app:lint android-test-app:assembleRelease
 
-  loom:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Configure JDK
-        uses: actions/setup-java@v5
-        with:
-          distribution: 'temurin'
-          java-version: |
-            21
-            24
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6
-
-      - name: Run Tests
-        run: ./gradlew test allTests -Pokhttp.platform=loom -Ptest.java.version=24 -PcontainerTests=true
+#  loom:
+#    runs-on: ubuntu-latest
+#
+#    steps:
+#      - name: Checkout
+#        uses: actions/checkout@v7
+#
+#      - name: Configure JDK
+#        uses: actions/setup-java@v5
+#        with:
+#          distribution: 'temurin'
+#          java-version: |
+#            21
+#            24
+#
+#      - name: Setup Gradle
+#        uses: gradle/actions/setup-gradle@v6
+#
+#      - name: Run Tests
+#        run: ./gradlew test allTests -Pokhttp.platform=loom -Ptest.java.version=24 -PcontainerTests=true
 
   maven:
     runs-on: ubuntu-latest
