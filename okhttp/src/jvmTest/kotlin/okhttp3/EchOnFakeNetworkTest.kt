@@ -465,7 +465,7 @@ class EchOnFakeNetworkTest {
       check(attempt <= attemptLimit) { "exceeded attempt limit" }
       events.put("handshake hostname=${client.hostname} echConfigList=${client.echConfigList}")
 
-      when (handshakeCount++) {
+      when (attempt) {
         0 -> {
           val publicClient =
             client.copy(
