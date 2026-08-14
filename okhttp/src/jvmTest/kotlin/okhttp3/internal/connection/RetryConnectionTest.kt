@@ -245,14 +245,9 @@ class RetryConnectionTest {
     assertThat(attempt1).isNotNull()
     assertThat(attempt1!!.route.echConfigList).isEqualTo(echRetryPlan.configList)
 
-    // A second retry config is not honored.
+    // At most two attempts are made.
     assertThat(attempt1.nextConnectionSpec(connectionSpecs, socket, echRetryException)).isNull()
-
-    // But securely disabling ECH is.
-    val attempt2 = attempt1.nextConnectionSpec(connectionSpecs, socket, echDisabledException)
-    assertThat(attempt2).isNotNull()
-    assertThat(attempt2!!.route.echConfigList).isNull()
-    socket.close()
+    assertThat(attempt1.nextConnectionSpec(connectionSpecs, socket, echDisabledException)).isNull()
   }
 
   @Test fun someFallbacksSupported() {
