@@ -29,6 +29,7 @@ import okhttp3.Protocol
 import okio.ByteString
 import org.conscrypt.Conscrypt
 import org.conscrypt.ConscryptHostnameVerifier
+import org.conscrypt.EchParameters
 
 /**
  * Platform using Conscrypt (conscrypt.org) if installed as the first Security Provider.
@@ -88,6 +89,9 @@ class ConscryptPlatform private constructor() : Platform() {
       // Enable ALPN.
       val names = alpnProtocolNames(protocols)
       Conscrypt.setApplicationProtocols(sslSocket, names.toTypedArray())
+
+      // Enable ECH parameters.
+      Conscrypt.setEchParameters(sslSocket, EchParameters(true, echConfigList?.toByteArray()))
     } else {
       super.configureTlsExtensions(sslSocket, hostname, protocols, echConfigList)
     }
