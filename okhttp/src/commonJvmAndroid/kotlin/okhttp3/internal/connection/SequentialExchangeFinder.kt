@@ -16,8 +16,10 @@
 package okhttp3.internal.connection
 
 import java.io.IOException
+import okhttp3.internal.OkHttpInternalApi
 
 /** Attempt routes one at a time until one connects. */
+@OkHttpInternalApi
 internal class SequentialExchangeFinder(
   override val routePlanner: RoutePlanner,
 ) : ExchangeFinder {

@@ -25,6 +25,7 @@ import okhttp3.Address
 import okhttp3.Dns
 import okhttp3.HttpUrl
 import okhttp3.Route
+import okhttp3.internal.OkHttpInternalApi
 import okhttp3.internal.canParseAsIpAddress
 import okhttp3.internal.dns.LookupDnsCall
 import okhttp3.internal.dns.execute
@@ -35,6 +36,7 @@ import okhttp3.internal.toImmutableList
  * Selects routes to connect to an origin server. Each connection requires a choice of proxy server,
  * IP address, and TLS mode. Connections may also be recycled.
  */
+@OkHttpInternalApi
 class RouteSelector internal constructor(
   private val address: Address,
   private val routeDatabase: RouteDatabase,
@@ -249,7 +251,11 @@ class RouteSelector internal constructor(
                 address = address,
                 proxy = proxy,
                 socketAddress = InetSocketAddress(record.address, socketPort),
-                echConfigList = serviceMetadata?.echConfigList,
+                echConfigList =
+                  when (proxy.type()) {
+                    Proxy.Type.DIRECT -> serviceMetadata?.echConfigList
+                    else -> null
+                  },
               )
             }
         }

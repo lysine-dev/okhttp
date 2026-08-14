@@ -16,6 +16,7 @@
 
 @file:JvmName("Internal")
 @file:Suppress("ktlint:standard:filename")
+@file:OptIn(OkHttpInternalApi::class)
 
 package okhttp3.internal
 

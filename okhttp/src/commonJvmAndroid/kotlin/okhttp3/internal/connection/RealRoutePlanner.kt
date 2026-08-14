@@ -26,6 +26,7 @@ import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.Route
+import okhttp3.internal.OkHttpInternalApi
 import okhttp3.internal.USER_AGENT
 import okhttp3.internal.canReuseConnectionFor
 import okhttp3.internal.closeQuietly
@@ -35,6 +36,7 @@ import okhttp3.internal.connection.RoutePlanner.Plan
 import okhttp3.internal.platform.Platform
 import okhttp3.internal.toHostHeader
 
+@OkHttpInternalApi
 class RealRoutePlanner internal constructor(
   private val taskRunner: TaskRunner,
   private val connectionPool: RealConnectionPool,

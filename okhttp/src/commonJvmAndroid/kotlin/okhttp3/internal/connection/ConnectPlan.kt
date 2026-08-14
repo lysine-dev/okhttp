@@ -13,8 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@file:OptIn(OkHttpInternalApi::class)
-
 package okhttp3.internal.connection
 
 import java.io.IOException
@@ -59,6 +57,7 @@ import okhttp3.internal.toHostHeader
  * Each step may fail. If a retry is possible, a new instance is created with the next plan, which
  * will be configured differently.
  */
+@OkHttpInternalApi
 class ConnectPlan internal constructor(
   private val taskRunner: TaskRunner,
   private val connectionPool: RealConnectionPool,

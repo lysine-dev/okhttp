@@ -15,6 +15,9 @@
  */
 package okhttp3.internal.connection
 
+import okhttp3.internal.OkHttpInternalApi
+
+@OkHttpInternalApi
 interface ExchangeFinder {
   val routePlanner: RoutePlanner
 

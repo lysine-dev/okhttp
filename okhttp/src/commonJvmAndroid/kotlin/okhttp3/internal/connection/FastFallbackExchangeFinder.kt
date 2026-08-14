@@ -19,6 +19,7 @@ import java.io.IOException
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.TimeUnit
+import okhttp3.internal.OkHttpInternalApi
 import okhttp3.internal.concurrent.Task
 import okhttp3.internal.concurrent.TaskRunner
 import okhttp3.internal.connection.RoutePlanner.ConnectResult
@@ -29,6 +30,7 @@ import okhttp3.internal.okHttpName
  * Speculatively connects to each IP address of a target address, returning as soon as one of them
  * connects successfully. This kicks off new attempts every 250 ms until a connect succeeds.
  */
+@OkHttpInternalApi
 internal class FastFallbackExchangeFinder(
   override val routePlanner: RoutePlanner,
   private val taskRunner: TaskRunner,

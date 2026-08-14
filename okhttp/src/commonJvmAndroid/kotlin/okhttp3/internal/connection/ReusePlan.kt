@@ -15,7 +15,10 @@
  */
 package okhttp3.internal.connection
 
+import okhttp3.internal.OkHttpInternalApi
+
 /** Reuse a connection from the pool. */
+@OkHttpInternalApi
 internal class ReusePlan(
   val connection: RealConnection,
 ) : RoutePlanner.Plan {
