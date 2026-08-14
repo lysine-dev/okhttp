@@ -82,7 +82,7 @@ bouncycastle-bcpkix = { module = "org.bouncycastle:bcpkix-jdk15to18" }
 bouncycastle-bcprov = { module = "org.bouncycastle:bcprov-jdk15to18" }
 bouncycastle-bcutil = { module = "org.bouncycastle:bcutil-jdk15to18" }
 bouncycastle-bctls = { module = "org.bouncycastle:bctls-jdk15to18" }
-bouncycastle-bom = "org.bouncycastle:bc-jdk15to18-bom:1.85.1"
+bouncycastle-bom = "org.bouncycastle:bc-jdk15to18-bom:1.85.2"
 brotli-dec = { module = "org.brotli:dec", version.ref = "brotli-dec" }
 checkstyle = { module = "com.puppycrawl.tools:checkstyle", version.ref = "checkstyle" }
 clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
