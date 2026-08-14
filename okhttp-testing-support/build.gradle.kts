@@ -13,6 +13,7 @@ dependencies {
   "friendsApi"(projects.okhttpDnsoverhttps)
   api(projects.okhttpTls)
   api(libs.assertk)
+  api(platform(libs.bouncycastle.bom))
   api(libs.bouncycastle.bcprov)
   implementation(libs.bouncycastle.bcpkix)
   implementation(libs.bouncycastle.bcutil)

@@ -117,6 +117,7 @@ kotlin {
     androidMain {
       dependsOn(commonJvmAndroid)
       dependencies {
+        compileOnly(project.dependencies.platform(libs.bouncycastle.bom))
         compileOnly(libs.bouncycastle.bcprov)
         compileOnly(libs.bouncycastle.bcutil)
         compileOnly(libs.bouncycastle.bctls)
@@ -132,6 +133,7 @@ kotlin {
       dependencies {
         // These compileOnly dependencies must also be listed in applyOsgiMultiplatform() below.
         compileOnly(libs.conscrypt.openjdk)
+        compileOnly(project.dependencies.platform(libs.bouncycastle.bom))
         compileOnly(libs.bouncycastle.bcprov)
         compileOnly(libs.bouncycastle.bcutil)
         compileOnly(libs.bouncycastle.bctls)

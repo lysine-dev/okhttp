@@ -43,8 +43,6 @@ maven-sympathy = "0.3.0"
 mockserver-client = "7.5.0"
 mrjar = "0.1.1"
 openjsse = "1.1.14"
-org-bouncycastle = "1.85"
-org-bouncycastle-patch = "1.85.1"
 org-conscrypt = "2.6.1"
 org-junit-jupiter = "5.13.4"
 playservices-safetynet = "18.1.0"
@@ -80,10 +78,11 @@ animalsniffer-annotations = { module = "org.codehaus.mojo:animal-sniffer-annotat
 aqute-bnd = { module = "biz.aQute.bnd:biz.aQute.bnd", version.ref = "bnd" }
 aqute-resolve = { module = "biz.aQute.bnd:biz.aQute.resolve", version.ref = "bnd" }
 assertk = { module = "com.willowtreeapps.assertk:assertk", version.ref = "assertk" }
-bouncycastle-bcpkix = { module = "org.bouncycastle:bcpkix-jdk15to18", version.ref = "org-bouncycastle" }
-bouncycastle-bcprov = { module = "org.bouncycastle:bcprov-jdk15to18", version.ref = "org-bouncycastle-patch" }
-bouncycastle-bcutil = { module = "org.bouncycastle:bcutil-jdk15to18", version.ref = "org-bouncycastle-patch" }
-bouncycastle-bctls = { module = "org.bouncycastle:bctls-jdk15to18", version.ref = "org-bouncycastle" }
+bouncycastle-bcpkix = { module = "org.bouncycastle:bcpkix-jdk15to18" }
+bouncycastle-bcprov = { module = "org.bouncycastle:bcprov-jdk15to18" }
+bouncycastle-bcutil = { module = "org.bouncycastle:bcutil-jdk15to18" }
+bouncycastle-bctls = { module = "org.bouncycastle:bctls-jdk15to18" }
+bouncycastle-bom = "org.bouncycastle:bc-jdk15to18-bom:1.85.1"
 brotli-dec = { module = "org.brotli:dec", version.ref = "brotli-dec" }
 checkstyle = { module = "com.puppycrawl.tools:checkstyle", version.ref = "checkstyle" }
 clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
