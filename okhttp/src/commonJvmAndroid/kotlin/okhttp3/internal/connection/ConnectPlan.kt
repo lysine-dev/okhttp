@@ -39,7 +39,8 @@ import okhttp3.internal.closeQuietly
 import okhttp3.internal.concurrent.TaskRunner
 import okhttp3.internal.concurrent.withLock
 import okhttp3.internal.connection.RoutePlanner.ConnectResult
-import okhttp3.internal.dns.EchRetryPlan
+import okhttp3.internal.ech.EchRetryPlan
+import okhttp3.internal.ech.EchUntrustedException
 import okhttp3.internal.http.ExchangeCodec
 import okhttp3.internal.http1.Http1ExchangeCodec
 import okhttp3.internal.platform.Platform
@@ -510,10 +511,14 @@ class ConnectPlan internal constructor(
     val nextEchRetryPlan = Platform.get().echRetryPlan(sslException)
     if (nextEchRetryPlan != null) {
       // Validate the publicHostname against the session certificate. The session is protected by
-      // the outer client hello (e.g. cloudflare-ech.com), not the origin server.
+      // the outer client hello (e.g. cloudflare-ech.com), not the origin server. If this fails,
+      // we must not retry further.
       val hostnameVerifier = route.address.hostnameVerifier!!
       if (!hostnameVerifier.verify(nextEchRetryPlan.publicName, sslSocket.session)) {
-        return null
+        throw EchUntrustedException(
+          "public_name '${nextEchRetryPlan.publicName}' not verified",
+          sslException,
+        )
       }
 
       return copy(
@@ -529,7 +534,7 @@ class ConnectPlan internal constructor(
     }
 
     // If the exception is not recoverable, don't retry.
-    if (!retryTlsHandshake(sslException)) return null
+    if (!attemptAnotherConnectionSpec(sslException)) return null
 
     return nextCompatibleConnectionSpec(connectionSpecs, sslSocket)
   }

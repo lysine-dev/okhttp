@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package okhttp3.internal.dns
+package okhttp3.internal.ech
 
 import okhttp3.internal.OkHttpInternalApi
 import okhttp3.internal.canParseAsIpAddress

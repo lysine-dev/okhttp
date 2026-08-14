@@ -22,6 +22,7 @@ import assertk.assertions.isNotNull
 import assertk.assertions.isNull
 import kotlin.test.Test
 import okhttp3.internal.OkHttpInternalApi
+import okhttp3.internal.ech.EchRetryPlan
 
 /**
  * Confirm we correctly validate the requirements of RFC 9849 public names. We're stricter with

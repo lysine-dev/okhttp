@@ -93,6 +93,7 @@ internal class FastFallbackExchangeFinder(
           } else {
             firstException.addSuppressed(throwable)
           }
+          if (!attemptAnotherConnection(throwable)) break
         }
 
         val nextPlan = connectResult.nextPlan

@@ -54,6 +54,9 @@ internal class SequentialExchangeFinder(
         } else {
           firstException.addSuppressed(e)
         }
+        if (!attemptAnotherConnection(e)) {
+          throw firstException
+        }
         if (!routePlanner.hasNext()) {
           throw firstException
         }

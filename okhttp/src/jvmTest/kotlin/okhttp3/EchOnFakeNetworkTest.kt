@@ -15,6 +15,7 @@
  */
 package okhttp3
 
+import app.cash.burst.Burst
 import assertk.assertThat
 import assertk.assertions.hasMessage
 import assertk.assertions.isEqualTo
@@ -28,7 +29,8 @@ import kotlin.test.assertFailsWith
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.sockets.FakeNetworkEchRejectedException
+import okhttp3.internal.ech.EchRejectedException
+import okhttp3.internal.http.RecordingProxySelector
 import okhttp3.sockets.FakeNetworkPlatform
 import okhttp3.sockets.Handshaker
 import okhttp3.sockets.InsecureHandshaker
@@ -46,6 +48,7 @@ import org.junit.jupiter.api.extension.RegisterExtension
  * There's no support for Encrypted Client Hello (ECH) in any of our server-side SSL libraries, so
  * we fake it with [FakeNetworkPlatform].
  */
+@Burst
 class EchOnFakeNetworkTest {
   private val platform = FakeNetworkPlatform()
 
@@ -240,6 +243,39 @@ class EchOnFakeNetworkTest {
   }
 
   /**
+   * Unlike all other TLS failures, when ECH fails we don't fall back to another [ConnectionSpec] or
+   * [Route]. This is intended to prevent downgrade attacks.
+   *
+   * This runs with [fastFallback] enabled and disabled, because that mechanism is what decides
+   * whether a retry is attempted.
+   */
+  @Test
+  fun `no fallback after ech failure`(fastFallback: Boolean = false) {
+    platform.handshaker = handshakerWithUnverifiedPublicName(attemptLimit = 1)
+
+    // Configure multiple proxies so there's a route to fall back to. (But we won't use it, because
+    // the purpose of this test is to confirm we don't fall back when doing so is insecure.)
+    val proxySelector =
+      RecordingProxySelector().apply {
+        proxies += Proxy.NO_PROXY
+        proxies += server.proxyAddress
+      }
+
+    client =
+      client
+        .newBuilder()
+        .proxySelector(proxySelector)
+        .fastFallback(fastFallback)
+        .build()
+
+    val e = failHttpExchange()
+    assertThat(e).hasMessage("public_name 'public.ech.example.com' not verified")
+
+    assertThat(events.take())
+      .isEqualTo("handshake hostname=private.ech.example.com echConfigList=$echConfigList")
+  }
+
+  /**
    * The server gets this handshake:
    * ```
    *   ClientHelloOuter=public.ech.example.com
@@ -289,7 +325,7 @@ class EchOnFakeNetworkTest {
     platform.handshaker = handshakerWithUnverifiedPublicName(attemptLimit = 1)
 
     val e = failHttpExchange()
-    assertThat(e).hasMessage("Encrypted Client Hello (ECH) rejected")
+    assertThat(e).hasMessage("public_name 'public.ech.example.com' not verified")
 
     assertThat(events.take())
       .isEqualTo("handshake hostname=private.ech.example.com echConfigList=$echConfigList")
@@ -321,7 +357,7 @@ class EchOnFakeNetworkTest {
           val publicNameHandshake = delegate.handshake(publicClient, publicServer)
           return Handshaker.Result.Failure(
             exception =
-              FakeNetworkEchRejectedException(
+              EchRejectedException(
                 publicName = "public.ech.example.com",
                 nextEchConfigList =
                   when (handshakeCount++) {
@@ -371,7 +407,7 @@ class EchOnFakeNetworkTest {
           val publicNameHandshake = delegate.handshake(publicClient, publicServer)
           return Handshaker.Result.Failure(
             exception =
-              FakeNetworkEchRejectedException(
+              EchRejectedException(
                 publicName = "public.ech.example.com",
                 nextEchConfigList =
                   when (handshakeCount++) {
@@ -421,7 +457,7 @@ class EchOnFakeNetworkTest {
           val publicNameHandshake = delegate.handshake(publicClient, publicServer)
           return Handshaker.Result.Failure(
             exception =
-              FakeNetworkEchRejectedException(
+              EchRejectedException(
                 publicName = "10.20.30.40",
                 nextEchConfigList = null,
               ),
@@ -478,7 +514,7 @@ class EchOnFakeNetworkTest {
           val publicNameHandshake = delegate.handshake(publicClient, publicServer)
           return Handshaker.Result.Failure(
             exception =
-              FakeNetworkEchRejectedException(
+              EchRejectedException(
                 publicName = "public.ech.example.com",
                 nextEchConfigList = updatedEchConfigList,
               ),
@@ -523,7 +559,7 @@ class EchOnFakeNetworkTest {
         val publicNameHandshake = delegate.handshake(publicClient, publicServer)
         return Handshaker.Result.Failure(
           exception =
-            FakeNetworkEchRejectedException(
+            EchRejectedException(
               publicName = "public.ech.example.com",
               nextEchConfigList = null,
             ),

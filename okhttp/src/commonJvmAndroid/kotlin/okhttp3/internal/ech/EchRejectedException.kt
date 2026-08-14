@@ -13,20 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package okhttp3.sockets
+package okhttp3.internal.ech
 
 import javax.net.ssl.SSLException
+import okhttp3.internal.OkHttpInternalApi
 import okio.ByteString
 
 /**
- * Thrown when handshaking with `ClientHelloInner` fails, but handshaking with `ClientHelloOuter`
- * succeeds.
+ * Thrown when handshaking with `ClientHelloInner` failed, but handshaking with `ClientHelloOuter`
+ * succeeded. The public name must be verified.
  *
  * See RFC 9849, section 6.1.4.
  *
  * https://www.rfc-editor.org/rfc/rfc9849.html#section-6.1.4
  */
-class FakeNetworkEchRejectedException(
+@OkHttpInternalApi
+class EchRejectedException(
   val publicName: String,
   val nextEchConfigList: ByteString?,
 ) : SSLException("Encrypted Client Hello (ECH) rejected")

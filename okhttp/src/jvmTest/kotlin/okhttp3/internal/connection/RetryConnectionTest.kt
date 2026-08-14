@@ -35,8 +35,8 @@ import okhttp3.OkHttpClientTestRule
 import okhttp3.Route
 import okhttp3.TestValueFactory
 import okhttp3.TlsVersion
-import okhttp3.internal.dns.EchRetryPlan
 import okhttp3.internal.dns.ResourceRecord
+import okhttp3.internal.ech.EchRetryPlan
 import okhttp3.internal.platform.Platform
 import okhttp3.testing.PlatformRule
 import okhttp3.tls.internal.TlsUtil.localhost
@@ -57,7 +57,7 @@ class RetryConnectionTest {
       publicName = "public.tls-ech.dev",
       configList = "retry config".encodeUtf8(),
     )!!
-  private val echDisabledConfig =
+  private val echDisabledPlan =
     EchRetryPlan.getOrNull(
       publicName = "public.tls-ech.dev",
       configList = null,
@@ -74,7 +74,7 @@ class RetryConnectionTest {
           override fun echRetryPlan(exception: SSLException): EchRetryPlan? =
             when {
               exception === echRetryException -> echRetryPlan
-              exception === echDisabledException -> echDisabledConfig
+              exception === echDisabledException -> echDisabledPlan
               else -> null
             }
         },
@@ -88,7 +88,7 @@ class RetryConnectionTest {
 
   @Test fun nonRetryableIOException() {
     val exception = IOException("Non-handshake exception")
-    assertThat(retryTlsHandshake(exception)).isFalse()
+    assertThat(attemptAnotherConnectionSpec(exception)).isFalse()
   }
 
   @Test fun nonRetryableSSLHandshakeException() {
@@ -96,11 +96,11 @@ class RetryConnectionTest {
       SSLHandshakeException("Certificate handshake exception").apply {
         initCause(CertificateException())
       }
-    assertThat(retryTlsHandshake(exception)).isFalse()
+    assertThat(attemptAnotherConnectionSpec(exception)).isFalse()
   }
 
   @Test fun retryableSSLHandshakeException() {
-    assertThat(retryTlsHandshake(retryableException)).isTrue()
+    assertThat(attemptAnotherConnectionSpec(retryableException)).isTrue()
   }
 
   @Test fun echRetryConfigIsUsedOnceWithoutTlsFallback() {
@@ -214,7 +214,7 @@ class RetryConnectionTest {
     assertThat(attempt1).isNotNull()
     assertThat(attempt1!!.route.echConfigList).isNull()
     assertThat(attempt1.isTlsFallback).isFalse()
-    assertThat(verifiedHostnames).isEqualTo(listOf(echDisabledConfig.publicName))
+    assertThat(verifiedHostnames).isEqualTo(listOf(echDisabledPlan.publicName))
 
     // Having disabled ECH once, we don't do it again.
     verifiedHostnames.clear()

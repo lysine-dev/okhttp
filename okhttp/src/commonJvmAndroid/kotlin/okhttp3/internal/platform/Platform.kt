@@ -38,7 +38,7 @@ import okhttp3.Dns
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.internal.OkHttpInternalApi
-import okhttp3.internal.dns.EchRetryPlan
+import okhttp3.internal.ech.EchRetryPlan
 import okhttp3.internal.publicsuffix.PublicSuffixDatabase
 import okhttp3.internal.readFieldOrNull
 import okhttp3.internal.tls.BasicCertificateChainCleaner

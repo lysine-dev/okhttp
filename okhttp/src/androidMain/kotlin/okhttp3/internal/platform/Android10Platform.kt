@@ -30,7 +30,7 @@ import javax.net.ssl.SSLSocketFactory
 import javax.net.ssl.X509TrustManager
 import okhttp3.Protocol
 import okhttp3.internal.SuppressSignatureCheck
-import okhttp3.internal.dns.EchRetryPlan
+import okhttp3.internal.ech.EchRetryPlan
 import okhttp3.internal.platform.AndroidPlatform.Companion.Tag
 import okhttp3.internal.platform.android.Android10SocketAdapter
 import okhttp3.internal.platform.android.Android17SocketAdapter
