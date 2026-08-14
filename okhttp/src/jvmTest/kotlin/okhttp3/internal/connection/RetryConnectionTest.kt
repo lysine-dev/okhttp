@@ -17,6 +17,7 @@ package okhttp3.internal.connection
 
 import assertk.assertThat
 import assertk.assertions.containsExactlyInAnyOrder
+import assertk.assertions.hasMessage
 import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
@@ -29,6 +30,7 @@ import java.security.cert.CertificateException
 import javax.net.ssl.SSLException
 import javax.net.ssl.SSLHandshakeException
 import javax.net.ssl.SSLSocket
+import kotlin.test.assertFailsWith
 import okhttp3.ConnectionSpec
 import okhttp3.FakeDns
 import okhttp3.OkHttpClientTestRule
@@ -37,6 +39,7 @@ import okhttp3.TestValueFactory
 import okhttp3.TlsVersion
 import okhttp3.internal.dns.ResourceRecord
 import okhttp3.internal.ech.EchRetryPlan
+import okhttp3.internal.ech.EchUntrustedException
 import okhttp3.internal.platform.Platform
 import okhttp3.testing.PlatformRule
 import okhttp3.tls.internal.TlsUtil.localhost
@@ -186,9 +189,12 @@ class RetryConnectionTest {
         .planWithCurrentOrInitialConnectionSpec(connectionSpecs, socket)
 
     // not retried because validation failed
-    val attempt1 = attempt0.nextConnectionSpec(connectionSpecs, socket, echRetryException)
+    val e =
+      assertFailsWith<EchUntrustedException> {
+        attempt0.nextConnectionSpec(connectionSpecs, socket, echRetryException)
+      }
+    assertThat(e).hasMessage("public_name 'public.tls-ech.dev' not verified")
 
-    assertThat(attempt1).isNull()
     assertThat(verifiedHostnames).isEqualTo(listOf(echRetryPlan.publicName))
     socket.close()
   }
