@@ -303,14 +303,24 @@ class EchOnFakeNetworkTest {
       .isEqualTo("handshake hostname=private.ech.example.com echConfigList=null")
   }
 
+  /**
+   * This runs with [OkHttpClient.retryOnConnectionFailure] enabled and disabled. (We always want
+   * ECH retries, regardless of what this setting is.)
+   */
   @Test
-  fun `server updates ech config for retry`() {
+  fun `server updates ech config for retry`(retryOnConnectionFailure: Boolean) {
     val updatedEchConfigList = "new key to encrypt 'private.ech.example.com'".encodeUtf8()
     platform.handshaker =
       handshakerWithUpdatedEchConfigList(
         updatedEchConfigList = updatedEchConfigList,
         attemptLimit = 2,
       )
+
+    client =
+      client
+        .newBuilder()
+        .retryOnConnectionFailure(retryOnConnectionFailure)
+        .build()
 
     executeHttpExchange()
 

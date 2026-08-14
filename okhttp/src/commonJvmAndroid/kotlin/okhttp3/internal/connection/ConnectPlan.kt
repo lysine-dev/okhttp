@@ -503,8 +503,6 @@ class ConnectPlan internal constructor(
     sslSocket: SSLSocket,
     sslException: SSLException,
   ): ConnectPlan? {
-    if (!retryOnConnectionFailure) return null
-
     // If this was an ECH retry, don't retry again.
     if (echRetryPlan != null) return null
 
@@ -532,6 +530,9 @@ class ConnectPlan internal constructor(
         echRetryPlan = nextEchRetryPlan,
       )
     }
+
+    // If recovery is configured off, don't retry.
+    if (!retryOnConnectionFailure) return null
 
     // If the exception is not recoverable, don't retry.
     if (!attemptAnotherConnectionSpec(sslException)) return null
