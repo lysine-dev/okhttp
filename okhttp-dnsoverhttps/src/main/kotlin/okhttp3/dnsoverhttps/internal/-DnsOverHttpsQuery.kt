@@ -166,17 +166,12 @@ internal fun DnsMessage.asQueryParameter(): String {
 }
 
 internal class QueryRequestBody(
-  query: DnsMessage,
+  private val query: DnsMessage,
 ) : RequestBody() {
-  private val content = Buffer().also { DnsMessageWriter(it).write(query) }.readByteString()
-
   override fun contentType() = DNS_MESSAGE
 
-  // Cloudflare doesn't support chunked encoding
-  override fun contentLength() = content.size.toLong()
-
   override fun writeTo(sink: BufferedSink) {
-    sink.write(content)
+    DnsMessageWriter(sink.buffer).write(query)
     sink.emitCompleteSegments()
   }
 }
