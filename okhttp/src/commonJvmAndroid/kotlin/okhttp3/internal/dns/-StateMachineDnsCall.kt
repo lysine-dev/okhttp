@@ -182,45 +182,43 @@ class StateMachineDnsCall(
     val dnsRecords: List<Dns.Record> =
       when (question.type) {
         TYPE_HTTPS -> {
-          resourceRecords.mapNotNull { resourceRecord ->
-            // Discard resource records that don't fit the query.
-            if (resourceRecord !is ResourceRecord.Https) return@mapNotNull null
+          resourceRecords.filterIsInstance<ResourceRecord.Https>()
+            .shuffled()
+            .sortedBy { it.priority }
+            .map { resourceRecord ->
+              // OkHttp doesn't yet implement AliasMode resource records. If any AliasMode record is
+              // returned, we must ignore ALL returned resource records.
+              if (resourceRecord.priority == 0) {
+                return updateStateAndCallCallbacks(
+                  completedQuery = completedQuery,
+                )
+              }
 
-            // OkHttp doesn't yet implement AliasMode resource records. If any AliasMode record is
-            // returned, we must ignore ALL returned resource records.
-            if (resourceRecord.priority == 0) {
-              return updateStateAndCallCallbacks(
-                completedQuery = completedQuery,
+              Dns.Record.ServiceMetadata(
+                hostname = resourceRecord.targetName.takeIf { it != "" } ?: request.hostname,
+                alpnIds =
+                  resourceRecord.alpnIds?.mapNotNull { alpnId ->
+                    try {
+                      Protocol.get(alpnId)
+                    } catch (_: IOException) {
+                      null // Skip unrecognized ALPN ID.
+                    }
+                  },
+                port = resourceRecord.port,
+                ipAddressHints = resourceRecord.ipAddressHints,
+                echConfigList = resourceRecord.echConfigList,
               )
             }
-
-            Dns.Record.ServiceMetadata(
-              hostname = resourceRecord.targetName.takeIf { it != "" } ?: request.hostname,
-              alpnIds =
-                resourceRecord.alpnIds?.mapNotNull { alpnId ->
-                  try {
-                    Protocol.get(alpnId)
-                  } catch (_: IOException) {
-                    null // Skip unrecognized ALPN ID.
-                  }
-                },
-              port = resourceRecord.port,
-              ipAddressHints = resourceRecord.ipAddressHints,
-              echConfigList = resourceRecord.echConfigList,
-            )
-          }
         }
 
         TYPE_A, TYPE_AAAA -> {
-          resourceRecords.mapNotNull { resourceRecord ->
-            // Discard resource records that don't fit the query.
-            if (resourceRecord !is ResourceRecord.IpAddress) return@mapNotNull null
-
-            Dns.Record.IpAddress(
-              hostname = request.hostname,
-              address = resourceRecord.address,
-            )
-          }
+          resourceRecords.filterIsInstance<ResourceRecord.IpAddress>()
+            .map { resourceRecord ->
+              Dns.Record.IpAddress(
+                hostname = request.hostname,
+                address = resourceRecord.address,
+              )
+            }
         }
 
         else -> {

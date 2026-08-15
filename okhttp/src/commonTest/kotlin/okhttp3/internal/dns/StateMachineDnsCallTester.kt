@@ -123,6 +123,17 @@ class StateMachineDnsCallTester internal constructor() {
       return event
     }
 
+    /** Combines [takeQuery] and [QueryEnqueued.respond]. */
+    fun respondToQuery(
+      hostname: String,
+      type: Int,
+      vararg resourceRecords: ResourceRecord,
+    ): QueryEnqueued {
+      val event = takeQuery(hostname, type)
+      event.respond(*resourceRecords)
+      return event
+    }
+
     /** Asserts that the next-posted event is a query cancel. */
     fun takeCancel(
       hostname: String,
