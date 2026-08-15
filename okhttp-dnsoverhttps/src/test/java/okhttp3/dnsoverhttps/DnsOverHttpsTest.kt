@@ -21,7 +21,9 @@ import assertk.assertions.containsExactly
 import assertk.assertions.hasMessage
 import assertk.assertions.hasSize
 import assertk.assertions.isEqualTo
+import assertk.assertions.isGreaterThan
 import assertk.assertions.isInstanceOf
+import assertk.assertions.isNotNull
 import assertk.assertions.isNull
 import assertk.assertions.isTrue
 import java.io.EOFException
@@ -382,6 +384,11 @@ class DnsOverHttpsTest(
     assertThat(httpsRequest1!!.method).isEqualTo("POST")
     assertThat(httpsRequest1.url.encodedQuery)
       .isEqualTo("ct")
+    // Cloudflare fails on chunked encoding
+    assertThat(httpsRequest1.headers["Content-Length"]?.toLong())
+      .isNotNull()
+      .isGreaterThan(12L) // A DNS message has a 12-byte header followed by its questions.
+    assertThat(httpsRequest1.chunkSizes).isNull()
 
     assertThat(cacheEvents()).containsExactly(CacheMiss::class)
 
