@@ -1134,31 +1134,33 @@ class StateMachineDnsCallTest {
   @Test
   fun `service mode records are sorted by priority`(caching: Boolean = true) =
     testStateMachineDnsCall {
-      val processedRecords = serveAndProcessResourceRecords(
-        caching = caching,
-        attempt = 0,
-        ResourceRecord.Https(
-          name = "lysine.dev",
-          timeToLive = 300.seconds.inWholeSeconds.toInt(),
-          priority = 3,
-          echConfigList = "priority three ECH config list".encodeUtf8(),
-        ),
-        ResourceRecord.Https(
-          name = "lysine.dev",
-          timeToLive = 300.seconds.inWholeSeconds.toInt(),
-          priority = 1,
-          echConfigList = "priority one ECH config list".encodeUtf8(),
-        ),
-        ResourceRecord.Https(
-          name = "lysine.dev",
-          timeToLive = 300.seconds.inWholeSeconds.toInt(),
-          priority = 2,
-          echConfigList = "priority two ECH config list".encodeUtf8(),
-        ),
-      )
+      val processedRecords =
+        serveAndProcessResourceRecords(
+          caching = caching,
+          attempt = 0,
+          ResourceRecord.Https(
+            name = "lysine.dev",
+            timeToLive = 300.seconds.inWholeSeconds.toInt(),
+            priority = 3,
+            echConfigList = "priority three ECH config list".encodeUtf8(),
+          ),
+          ResourceRecord.Https(
+            name = "lysine.dev",
+            timeToLive = 300.seconds.inWholeSeconds.toInt(),
+            priority = 1,
+            echConfigList = "priority one ECH config list".encodeUtf8(),
+          ),
+          ResourceRecord.Https(
+            name = "lysine.dev",
+            timeToLive = 300.seconds.inWholeSeconds.toInt(),
+            priority = 2,
+            echConfigList = "priority two ECH config list".encodeUtf8(),
+          ),
+        )
 
-      val sortedEchConfigLists = processedRecords
-        .map { it.echConfigList }
+      val sortedEchConfigLists =
+        processedRecords
+          .map { it.echConfigList }
       assertThat(sortedEchConfigLists).containsExactly(
         "priority one ECH config list".encodeUtf8(),
         "priority two ECH config list".encodeUtf8(),
@@ -1176,25 +1178,26 @@ class StateMachineDnsCallTest {
       val attemptCount = 8
       val distinctOrderings = mutableSetOf<List<Dns.Record.ServiceMetadata>>()
       for (i in 0 until attemptCount) {
-        val processedRecords = serveAndProcessResourceRecords(
-          caching,
-          attempt = i,
-          ResourceRecord.Https(
-            name = "lysine.dev",
-            timeToLive = 300.seconds.inWholeSeconds.toInt(),
-            echConfigList = "element A ECH config list".encodeUtf8(),
-          ),
-          ResourceRecord.Https(
-            name = "lysine.dev",
-            timeToLive = 300.seconds.inWholeSeconds.toInt(),
-            echConfigList = "element B ECH config list".encodeUtf8(),
-          ),
-          ResourceRecord.Https(
-            name = "lysine.dev",
-            timeToLive = 300.seconds.inWholeSeconds.toInt(),
-            echConfigList = "element C ECH config list".encodeUtf8(),
-          ),
-        )
+        val processedRecords =
+          serveAndProcessResourceRecords(
+            caching,
+            attempt = i,
+            ResourceRecord.Https(
+              name = "lysine.dev",
+              timeToLive = 300.seconds.inWholeSeconds.toInt(),
+              echConfigList = "element A ECH config list".encodeUtf8(),
+            ),
+            ResourceRecord.Https(
+              name = "lysine.dev",
+              timeToLive = 300.seconds.inWholeSeconds.toInt(),
+              echConfigList = "element B ECH config list".encodeUtf8(),
+            ),
+            ResourceRecord.Https(
+              name = "lysine.dev",
+              timeToLive = 300.seconds.inWholeSeconds.toInt(),
+              echConfigList = "element C ECH config list".encodeUtf8(),
+            ),
+          )
 
         distinctOrderings += processedRecords
       }
@@ -1232,7 +1235,8 @@ class StateMachineDnsCallTest {
       )
     }
 
-    return call.takeAllRecords()
+    return call
+      .takeAllRecords()
       .filterIsInstance<Dns.Record.ServiceMetadata>()
   }
 }

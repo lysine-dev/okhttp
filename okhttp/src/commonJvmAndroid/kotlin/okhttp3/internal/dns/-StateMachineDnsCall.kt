@@ -182,7 +182,8 @@ class StateMachineDnsCall(
     val dnsRecords: List<Dns.Record> =
       when (question.type) {
         TYPE_HTTPS -> {
-          resourceRecords.filterIsInstance<ResourceRecord.Https>()
+          resourceRecords
+            .filterIsInstance<ResourceRecord.Https>()
             .shuffled()
             .sortedBy { it.priority }
             .map { resourceRecord ->
@@ -212,7 +213,8 @@ class StateMachineDnsCall(
         }
 
         TYPE_A, TYPE_AAAA -> {
-          resourceRecords.filterIsInstance<ResourceRecord.IpAddress>()
+          resourceRecords
+            .filterIsInstance<ResourceRecord.IpAddress>()
             .map { resourceRecord ->
               Dns.Record.IpAddress(
                 hostname = request.hostname,
