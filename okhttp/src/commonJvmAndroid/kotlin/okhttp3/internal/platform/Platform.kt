@@ -38,6 +38,7 @@ import okhttp3.Dns
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.internal.OkHttpInternalApi
+import okhttp3.internal.dns.InetAddressDns
 import okhttp3.internal.ech.EchRetryPlan
 import okhttp3.internal.publicsuffix.PublicSuffixDatabase
 import okhttp3.internal.readFieldOrNull
@@ -83,6 +84,10 @@ open class Platform {
 
   open val serverSocketFactory: ServerSocketFactory
     get() = ServerSocketFactory.getDefault()
+
+  /** The default [Dns] for the system, by default [InetAddressDns]. */
+  open val systemDns: Dns
+    get() = InetAddressDns
 
   /** Prefix used on custom headers. */
   val prefix: String
@@ -158,11 +163,6 @@ open class Platform {
       listOf()
     }
   }
-
-  /**
-   * Provides the default [Dns] for the system, by default [Dns.SYSTEM].
-   */
-  open fun platformDns(): Dns = Dns.SYSTEM
 
   @Throws(IOException::class)
   open fun connectSocket(

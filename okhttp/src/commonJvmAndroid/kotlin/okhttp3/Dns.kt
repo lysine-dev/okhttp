@@ -13,13 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@file:OptIn(OkHttpInternalApi::class)
+
 package okhttp3
 
 import java.io.IOException
 import java.net.InetAddress
 import java.net.UnknownHostException
+import okhttp3.internal.OkHttpInternalApi
 import okhttp3.internal.concurrent.TaskRunner
 import okhttp3.internal.dns.LookupDnsCall
+import okhttp3.internal.platform.Platform
 import okhttp3.internal.toCanonicalHost
 import okio.ByteString
 
@@ -279,22 +283,18 @@ fun interface Dns {
 
   companion object {
     /**
-     * A DNS that uses [InetAddress.getAllByName] to ask the underlying operating system to
-     * lookup IP addresses. Most custom [Dns] implementations should delegate to this instance.
+     * The current process's host DNS service.
+     *
+     * Most custom [Dns] implementations should delegate to this instance.
      */
     @JvmField
-    val SYSTEM: Dns = DnsSystem()
+    val SYSTEM: Dns =
+      object : Dns {
+        override fun lookup(hostname: String) = Platform.get().systemDns.lookup(hostname)
 
-    private class DnsSystem : Dns {
-      override fun lookup(hostname: String): List<InetAddress> {
-        try {
-          return InetAddress.getAllByName(hostname).toList()
-        } catch (e: NullPointerException) {
-          throw UnknownHostException("Broken system behaviour for dns lookup of $hostname").apply {
-            initCause(e)
-          }
-        }
+        override fun newCall(request: Request) = Platform.get().systemDns.newCall(request)
+
+        override fun toString() = "Dns.SYSTEM"
       }
-    }
   }
 }
