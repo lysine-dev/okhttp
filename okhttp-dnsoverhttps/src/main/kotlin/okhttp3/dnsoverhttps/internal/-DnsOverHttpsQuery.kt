@@ -27,6 +27,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okhttp3.dnsoverhttps.DnsOverHttps.Companion.DNS_MESSAGE
 import okhttp3.dnsoverhttps.DnsOverHttps.Companion.MAX_RESPONSE_SIZE
@@ -40,7 +41,6 @@ import okhttp3.internal.dns.DnsQuery
 import okhttp3.internal.dns.Question
 import okhttp3.internal.platform.Platform
 import okio.Buffer
-import okio.BufferedSink
 
 @OkHttpInternalApi
 internal class DnsOverHttpsQuery(
@@ -109,7 +109,7 @@ internal class DnsOverHttpsQuery(
                         .addQueryParameter("type", question.type.toString())
                         .build(),
                     )
-                    post(QueryRequestBody(dnsMessage))
+                    post(dnsMessage.toRequestBody())
                   } else {
                     val requestUrl =
                       dnsUrl
@@ -165,21 +165,9 @@ internal fun DnsMessage.asQueryParameter(): String {
   return buffer.readByteString().base64Url(includePadding = false)
 }
 
-internal class QueryRequestBody(
-  query: DnsMessage,
-) : RequestBody() {
-  private val content = Buffer().also { DnsMessageWriter(it).write(query) }.readByteString()
-
-  override fun contentType() = DNS_MESSAGE
-
-  // Cloudflare doesn't support chunked encoding
-  override fun contentLength() = content.size.toLong()
-
-  override fun writeTo(sink: BufferedSink) {
-    sink.write(content)
-    sink.emitCompleteSegments()
-  }
-}
+// Cloudflare doesn't support chunked encoding.
+internal fun DnsMessage.toRequestBody(): RequestBody =
+  Buffer().also { DnsMessageWriter(it).write(this) }.readByteString().toRequestBody(DNS_MESSAGE)
 
 @Throws(IOException::class)
 internal fun decodeResponse(response: Response): DnsMessage {
