@@ -556,17 +556,19 @@ class Cookie private constructor(
       val urlHost = url.host
       if (domain == null) {
         domain = urlHost
-      } else if (!domainMatch(urlHost, domain)) {
-        return null // No domain match? This is either incompetence or malice!
-      }
-
-      // A public suffix can't be used as a cookie domain. If it's the request host itself the
-      // cookie is downgraded to host-only; if it's a proper suffix of the host it's refused.
-      if (PublicSuffixDatabase.get().getEffectiveTldPlusOne(domain) == null) {
-        if (urlHost.length != domain.length) {
-          return null
+      } else {
+        if (!domainMatch(urlHost, domain)) {
+          return null // No domain match? This is either incompetence or malice!
         }
-        hostOnly = true
+
+        // A public suffix can't be used as a cookie domain. If it's the request host itself the
+        // cookie is downgraded to host-only; if it's a proper suffix of the host it's refused.
+        if (PublicSuffixDatabase.get().getEffectiveTldPlusOne(domain) == null) {
+          if (urlHost.length != domain.length) {
+            return null
+          }
+          hostOnly = true
+        }
       }
 
       // If the path is absent or didn't start with '/', use the default path. It's a string like
