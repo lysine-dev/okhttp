@@ -181,7 +181,7 @@ internal fun decodeResponse(response: Response): DnsMessage {
 
   response.use {
     if (!response.isSuccessful) {
-      throw IOException("response: ${response.code} ${response.message}")
+      throw UnknownHostException("response: ${response.code} ${response.message}")
     }
 
     val body = response.body
