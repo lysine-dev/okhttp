@@ -228,7 +228,7 @@ open class Platform {
   override fun toString(): String = javaClass.simpleName
 
   companion object {
-    @Volatile private var platform = findPlatform()
+    @Volatile private var platform: Platform? = null
 
     const val INFO = 4
     const val WARN = 5
@@ -236,7 +236,7 @@ open class Platform {
     private val logger = Logger.getLogger(OkHttpClient::class.java.name)
 
     @JvmStatic
-    fun get(): Platform = platform
+    fun get(): Platform = platform ?: findPlatform().also { platform = it }
 
     fun resetForTests(platform: Platform = findPlatform()) {
       this.platform = platform
