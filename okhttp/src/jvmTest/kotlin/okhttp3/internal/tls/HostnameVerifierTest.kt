@@ -845,6 +845,21 @@ class HostnameVerifierTest {
     assertThat(localVerifier.verify("\uD83D\uDCA9.com", session)).isFalse()
   }
 
+  @Test fun verifyMalformedSurrogateHostname() {
+    // A hostname with an unpaired UTF-16 surrogate is not ASCII and must be rejected, not
+    // matched against the wildcard. https://github.com/square/okhttp/issues/6357
+    val heldCertificate =
+      HeldCertificate
+        .Builder()
+        .commonName("Foo Corp")
+        .addSubjectAlternativeName("*.com")
+        .build()
+    val session = session(heldCertificate.certificatePem())
+    assertThat(verifier.verify("example.com", session)).isTrue()
+    assertThat(verifier.verify("\uD800.com", session)).isFalse()
+    assertThat(verifier.verify("\uDC00.com", session)).isFalse()
+  }
+
   @Test fun verifyAsIpAddress() {
     // IPv4
     assertThat("127.0.0.1".canParseAsIpAddress()).isTrue()
