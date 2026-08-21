@@ -1,5 +1,5 @@
 [versions]
-agp = "9.1.1"
+agp = "9.3.1"
 amazon-corretto = "2.5.0"
 android-junit5 = "2.0.1"
 androidx-activity = "1.11.0"
