@@ -388,7 +388,7 @@ jobs:
         run: ./gradlew :android-test:assembleDebugAndroidTest
 
       - name: AVD System Image Cache
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: avd-cache
         with:
           # Keyed on the cmdline-tools version: AVDs created by an older avdmanager
