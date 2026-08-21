@@ -27,7 +27,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Configure JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: 'temurin'
           java-version: 21
@@ -63,7 +63,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Configure JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: 'temurin'
           java-version: |
@@ -101,7 +101,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Configure JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: 'temurin'
           java-version: |
@@ -137,13 +137,13 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Install Old JDK 8
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: 'zulu'
           java-version: 8.0.242
 
       - name: Configure JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: 'temurin'
           java-version: 21
@@ -174,7 +174,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Configure JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: 'temurin'
           java-version: |
@@ -195,7 +195,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Configure JDKs
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: 'temurin'
           java-version: |
@@ -222,7 +222,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Configure JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: 'temurin'
           java-version: |
@@ -248,7 +248,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Configure JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: 'temurin'
           java-version: 21
@@ -267,7 +267,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Configure JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: 'temurin'
           java-version: 21
@@ -342,7 +342,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Configure JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: 'temurin'
           java-version: 21
@@ -456,7 +456,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Configure JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: 'temurin'
           java-version: 21
@@ -479,7 +479,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Configure JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: 'temurin'
           java-version: 24
