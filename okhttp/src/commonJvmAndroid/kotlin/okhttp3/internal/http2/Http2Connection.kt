@@ -144,6 +144,9 @@ class Http2Connection internal constructor(
   // Guarded by this.
   private val currentPushRequests = mutableSetOf<Int>()
 
+  // Streams we've reset so we can ignore late-arriving frames.
+  private val resetStreamIds = linkedSetOf<Int>()
+
   init {
     if (builder.pingIntervalMillis != 0) {
       val pingIntervalNanos = TimeUnit.MILLISECONDS.toNanos(builder.pingIntervalMillis.toLong())
@@ -185,6 +188,19 @@ class Http2Connection internal constructor(
       return stream
     }
   }
+
+  internal fun recordRstStream(streamId: Int) {
+    withLock {
+      if (!resetStreamIds.add(streamId)) return
+      if (resetStreamIds.size > MAX_TRACKED_RESET_STREAM_IDS) {
+        val eldest = resetStreamIds.iterator()
+        eldest.next()
+        eldest.remove()
+      }
+    }
+  }
+
+  internal fun wasReset(streamId: Int): Boolean = withLock { streamId in resetStreamIds }
 
   internal fun updateConnectionFlowControl(read: Long) {
     withLock {
@@ -339,6 +355,7 @@ class Http2Connection internal constructor(
     streamId: Int,
     errorCode: ErrorCode,
   ) {
+    recordRstStream(streamId)
     writerQueue.execute("$connectionName[$streamId] writeSynReset") {
       try {
         writeSynReset(streamId, errorCode)
@@ -353,6 +370,7 @@ class Http2Connection internal constructor(
     streamId: Int,
     statusCode: ErrorCode,
   ) {
+    recordRstStream(streamId)
     writer.rstStream(streamId, statusCode)
   }
 
@@ -647,17 +665,31 @@ class Http2Connection internal constructor(
       source: BufferedSource,
       length: Int,
     ) {
+      val dataStream: Http2Stream?
+      val rstSent: Boolean
+      withLock {
+        dataStream = streams[streamId]
+        rstSent = streamId in resetStreamIds
+      }
+
+      if (rstSent) {
+        updateConnectionFlowControl(length.toLong())
+        source.skip(length.toLong())
+        return
+      }
+
       if (pushedStream(streamId)) {
         pushDataLater(streamId, source, length, inFinished)
         return
       }
-      val dataStream = getStream(streamId)
+
       if (dataStream == null) {
         writeSynResetLater(streamId, ErrorCode.PROTOCOL_ERROR)
         updateConnectionFlowControl(length.toLong())
         source.skip(length.toLong())
         return
       }
+
       dataStream.receiveData(source, length)
       if (inFinished) {
         dataStream.receiveHeaders(Headers.EMPTY, true)
@@ -670,6 +702,8 @@ class Http2Connection internal constructor(
       associatedStreamId: Int,
       headerBlock: List<Header>,
     ) {
+      if (wasReset(streamId)) return
+
       if (pushedStream(streamId)) {
         pushHeadersLater(streamId, headerBlock, inFinished)
         return
@@ -872,10 +906,8 @@ class Http2Connection internal constructor(
         }
       } else {
         val stream = getStream(streamId)
-        if (stream != null) {
-          stream.withLock {
-            stream.addBytesToWriteWindow(windowSizeIncrement)
-          }
+        stream?.withLock {
+          stream.addBytesToWriteWindow(windowSizeIncrement)
         }
       }
     }
@@ -917,7 +949,7 @@ class Http2Connection internal constructor(
     requestHeaders: List<Header>,
   ) {
     withLock {
-      if (streamId in currentPushRequests) {
+      if (streamId in currentPushRequests || streamId in resetStreamIds) {
         writeSynResetLater(streamId, ErrorCode.PROTOCOL_ERROR)
         return
       }
@@ -927,7 +959,7 @@ class Http2Connection internal constructor(
       val cancel = pushObserver.onRequest(streamId, requestHeaders)
       ignoreIoExceptions {
         if (cancel) {
-          writer.rstStream(streamId, ErrorCode.CANCEL)
+          writeSynReset(streamId, ErrorCode.CANCEL)
           withLock {
             currentPushRequests.remove(streamId)
           }
@@ -942,9 +974,10 @@ class Http2Connection internal constructor(
     inFinished: Boolean,
   ) {
     pushQueue.execute("$connectionName[$streamId] onHeaders") {
+      if (wasReset(streamId)) return@execute
       val cancel = pushObserver.onHeaders(streamId, requestHeaders, inFinished)
       ignoreIoExceptions {
-        if (cancel) writer.rstStream(streamId, ErrorCode.CANCEL)
+        if (cancel) writeSynReset(streamId, ErrorCode.CANCEL)
         if (cancel || inFinished) {
           withLock {
             currentPushRequests.remove(streamId)
@@ -969,9 +1002,11 @@ class Http2Connection internal constructor(
     source.require(byteCount.toLong()) // Eagerly read the frame before firing client thread.
     source.read(buffer, byteCount.toLong())
     pushQueue.execute("$connectionName[$streamId] onData") {
+      updateConnectionFlowControl(byteCount.toLong())
+      if (wasReset(streamId)) return@execute
       ignoreIoExceptions {
         val cancel = pushObserver.onData(streamId, buffer, byteCount, inFinished)
-        if (cancel) writer.rstStream(streamId, ErrorCode.CANCEL)
+        if (cancel) writeSynReset(streamId, ErrorCode.CANCEL)
         if (cancel || inFinished) {
           withLock {
             currentPushRequests.remove(streamId)
@@ -1042,5 +1077,7 @@ class Http2Connection internal constructor(
     const val DEGRADED_PING = 2
     const val AWAIT_PING = 3
     const val DEGRADED_PONG_TIMEOUT_NS = 1_000_000_000 // 1 second.
+
+    const val MAX_TRACKED_RESET_STREAM_IDS = 256
   }
 }
