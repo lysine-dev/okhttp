@@ -89,4 +89,34 @@ interface Connection {
    * [Protocol.HTTP_1_0].
    */
   fun protocol(): Protocol
+
+  /**
+   * Returns the wall-clock time (epoch millis) when this connection was created. This is the time
+   * the TCP and TLS handshakes completed.
+   */
+  fun connectAtMillis(): Long
+
+  /**
+   * Returns the wall-clock time (epoch millis) when this connection became idle, or null if it is
+   * currently active (carrying one or more calls).
+   */
+  fun idleAtMillis(): Long?
+
+  /**
+   * Returns the number of exchanges successfully completed on this connection. Each completed
+   * request/response pair increments this count.
+   */
+  fun successCount(): Int
+
+  /**
+   * Returns the number of calls currently carried by this connection. This is 0 when the
+   * connection is idle, and may be greater than 1 for HTTP/2 connections.
+   */
+  fun callCount(): Int
+
+  /**
+   * Returns true if this connection will not accept new exchanges. This may be because the
+   * connection has been marked for closure, or because an error has occurred on this connection.
+   */
+  fun noNewExchanges(): Boolean
 }
