@@ -119,6 +119,12 @@ class Cookie private constructor(
    */
   @get:JvmName("sameSite")
   val sameSite: String?,
+  /**
+   * Returns true if this cookie has the `Partitioned` attribute set. In web browsers this restricts
+   * the cookie to a separate storage jar per top-level site (CHIPS). Browsers require [secure] to
+   * also be true before honoring this attribute.
+   */
+  @get:JvmName("partitioned") val partitioned: Boolean,
 ) {
   /**
    * Returns true if this cookie should be included on a request to [url]. In addition to this
@@ -149,7 +155,8 @@ class Cookie private constructor(
       other.httpOnly == httpOnly &&
       other.persistent == persistent &&
       other.hostOnly == hostOnly &&
-      other.sameSite == sameSite
+      other.sameSite == sameSite &&
+      other.partitioned == partitioned
 
   @IgnoreJRERequirement // As of AGP 3.4.1, D8 desugars API 24 hashCode methods.
   override fun hashCode(): Int {
@@ -164,6 +171,7 @@ class Cookie private constructor(
     result = 31 * result + persistent.hashCode()
     result = 31 * result + hostOnly.hashCode()
     result = 31 * result + sameSite.hashCode()
+    result = 31 * result + partitioned.hashCode()
     return result
   }
 
@@ -282,6 +290,10 @@ class Cookie private constructor(
         append("; samesite=").append(sameSite)
       }
 
+      if (partitioned) {
+        append("; partitioned")
+      }
+
       return toString()
     }
   }
@@ -303,6 +315,7 @@ class Cookie private constructor(
     private var persistent = false
     private var hostOnly = false
     private var sameSite: String? = null
+    private var partitioned = false
 
     internal constructor(cookie: Cookie) : this() {
       this.name = cookie.name
@@ -315,6 +328,7 @@ class Cookie private constructor(
       this.persistent = cookie.persistent
       this.hostOnly = cookie.hostOnly
       this.sameSite = cookie.sameSite
+      this.partitioned = cookie.partitioned
     }
 
     fun name(name: String) =
@@ -383,6 +397,11 @@ class Cookie private constructor(
         this.sameSite = sameSite
       }
 
+    fun partitioned() =
+      apply {
+        this.partitioned = true
+      }
+
     fun build(): Cookie =
       Cookie(
         name ?: throw NullPointerException("builder.name == null"),
@@ -395,6 +414,7 @@ class Cookie private constructor(
         persistent,
         hostOnly,
         sameSite,
+        partitioned,
       )
   }
 
@@ -472,6 +492,7 @@ class Cookie private constructor(
       var hostOnly = true
       var persistent = false
       var sameSite: String? = null
+      var partitioned = false
 
       var pos = cookiePairEnd + 1
       val limit = setCookie.length
@@ -530,6 +551,10 @@ class Cookie private constructor(
           attributeName.equals("samesite", ignoreCase = true) -> {
             sameSite = attributeValue
           }
+
+          attributeName.equals("partitioned", ignoreCase = true) -> {
+            partitioned = true
+          }
         }
 
         pos = attributePairEnd + 1
@@ -586,6 +611,7 @@ class Cookie private constructor(
         persistent,
         hostOnly,
         sameSite,
+        partitioned,
       )
     }
 
