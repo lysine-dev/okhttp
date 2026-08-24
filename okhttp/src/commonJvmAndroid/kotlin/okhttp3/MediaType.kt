@@ -91,7 +91,7 @@ class MediaType internal constructor(
 
   companion object {
     private const val TOKEN = "([a-zA-Z0-9-!#$%&'*+.^_`{|}~]+)"
-    private const val QUOTED = "\"([^\"]*)\""
+    private const val QUOTED = "\"([^\"\\r\\n]*)\""
     private val TYPE_SUBTYPE = Regex("$TOKEN/$TOKEN")
     private val PARAMETER = Regex(";\\s*(?:$TOKEN=(?:$TOKEN|$QUOTED))?")
 
