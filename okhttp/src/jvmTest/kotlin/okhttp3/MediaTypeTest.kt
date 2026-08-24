@@ -124,6 +124,22 @@ open class MediaTypeTest {
       "text/plain ; a=1",
       "Parameter is not formatted correctly: \" ; a=1\" for: \"text/plain ; a=1\"",
     )
+    assertInvalid(
+      "text/plain; charset=\"a\rb\"",
+      "CR in quoted parameter is rejected",
+    )
+    assertInvalid(
+      "text/plain; charset=\"a\nb\"",
+      "LF in quoted parameter is rejected",
+    )
+    assertInvalid(
+      "text/plain; charset=\"a\r\nb\"",
+      "CRLF in quoted parameter is rejected",
+    )
+    assertInvalid(
+      "text/plain; boundary=\"a\r\nb\"",
+      "CRLF in quoted boundary is rejected",
+    )
   }
 
   @Test fun testDoubleQuotesAreSpecial() {
