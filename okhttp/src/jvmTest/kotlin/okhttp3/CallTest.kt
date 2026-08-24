@@ -1317,6 +1317,37 @@ open class CallTest {
   }
 
   @Test
+  fun doesNotRetryConnectionFailuresUnboundedly() {
+    // Provide more usable routes (25) than the cap (20 retries + the original attempt = 21
+    // total), mirroring DoubleInetAddressDns's technique of resolving the same real address
+    // repeatedly to guarantee fallback routes. Without the cap, recover() would keep finding a
+    // usable route and the call would consume closer to all 25 queued failures before route
+    // exhaustion finally stopped it. Asserting the exact request count, not just that some
+    // IOException was eventually thrown, is what actually proves the cap fired at 21 rather than
+    // route exhaustion coincidentally doing the same job.
+    val dispatcher = QueueDispatcher()
+    repeat(25) {
+      dispatcher.enqueue(MockResponse.Builder().onResponseStart(CloseSocket()).build())
+    }
+    server.dispatcher = dispatcher
+    client =
+      client
+        .newBuilder()
+        .dns(
+          object : Dns {
+            override fun lookup(hostname: String): List<InetAddress> {
+              val address = Dns.SYSTEM.lookup(hostname)[0]
+              return List(25) { address }
+            }
+          },
+        ).build()
+    assertFailsWith<IOException> {
+      client.newCall(Request.Builder().url(server.url("/")).build()).execute()
+    }
+    assertThat(server.requestCount).isEqualTo(21)
+  }
+
+  @Test
   fun noRecoverWhenRetryOnConnectionFailureIsFalse() {
     server.enqueue(MockResponse(body = "seed connection pool"))
     server.enqueue(MockResponse.Builder().onResponseStart(CloseSocket()).build())
