@@ -76,8 +76,8 @@ class RetryAndFollowUpInterceptor : Interceptor {
           val isRecoverable = recover(e, call, chain, request)
           call.eventListener.retryDecision(call, e, isRecoverable)
           if (!isRecoverable) throw e.withSuppressed(recoveredFailures)
-          recoveredFailures += e
           if (recoveredFailures.size > MAX_RECOVERED_FAILURES) throw e.withSuppressed(recoveredFailures)
+          recoveredFailures += e
           newRoutePlanner = false
           continue
         }

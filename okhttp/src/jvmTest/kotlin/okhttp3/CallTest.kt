@@ -1318,13 +1318,15 @@ open class CallTest {
 
   @Test
   fun doesNotRetryConnectionFailuresUnboundedly() {
-    // Provide more usable routes (25) than the cap (20 retries + the original attempt = 21
-    // total), mirroring DoubleInetAddressDns's technique of resolving the same real address
-    // repeatedly to guarantee fallback routes. Without the cap, recover() would keep finding a
-    // usable route and the call would consume closer to all 25 queued failures before route
-    // exhaustion finally stopped it. Asserting the exact request count, not just that some
-    // IOException was eventually thrown, is what actually proves the cap fired at 21 rather than
-    // route exhaustion coincidentally doing the same job.
+    // Provide more usable routes (25) than the cap allows. The cap check runs before the current
+    // failure is appended to recoveredFailures (so the thrown exception is never suppressed by
+    // itself), which means the throw fires one request later than MAX_RECOVERED_FAILURES retries
+    // plus the original attempt would suggest: 22, not 21. Mirrors DoubleInetAddressDns's
+    // technique of resolving the same real address repeatedly to guarantee fallback routes.
+    // Without the cap, recover() would keep finding a usable route and the call would consume
+    // closer to all 25 queued failures before route exhaustion finally stopped it. Asserting the
+    // exact request count, not just that some IOException was eventually thrown, is what actually
+    // proves the cap fired rather than route exhaustion coincidentally doing the same job.
     val dispatcher = QueueDispatcher()
     repeat(25) {
       dispatcher.enqueue(MockResponse.Builder().onResponseStart(CloseSocket()).build())
@@ -1344,7 +1346,7 @@ open class CallTest {
     assertFailsWith<IOException> {
       client.newCall(Request.Builder().url(server.url("/")).build()).execute()
     }
-    assertThat(server.requestCount).isEqualTo(21)
+    assertThat(server.requestCount).isEqualTo(22)
   }
 
   @Test
