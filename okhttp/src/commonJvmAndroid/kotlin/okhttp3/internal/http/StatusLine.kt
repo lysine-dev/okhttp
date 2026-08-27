@@ -73,15 +73,15 @@ class StatusLine(
         throw ProtocolException("Unexpected status line: $statusLine")
       }
 
-      // Parse response code like "200". Always 3 digits.
+      // Parse response code like "200". Always 3 ASCII digits.
       if (statusLine.length < codeStart + 3) {
         throw ProtocolException("Unexpected status line: $statusLine")
       }
-      val code =
-        statusLine.substring(codeStart, codeStart + 3).toIntOrNull()
-          ?: throw ProtocolException(
-            "Unexpected status line: $statusLine",
-          )
+      val codeString = statusLine.substring(codeStart, codeStart + 3)
+      if (!codeString.all { it in '0'..'9' }) {
+        throw ProtocolException("Unexpected status line: $statusLine")
+      }
+      val code = codeString.toInt()
 
       // Parse an optional response message like "OK" or "Not Modified". If it
       // exists, it is separated from the response code by a space.
