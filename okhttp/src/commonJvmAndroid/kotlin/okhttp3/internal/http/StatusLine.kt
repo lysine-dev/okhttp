@@ -77,11 +77,14 @@ class StatusLine(
       if (statusLine.length < codeStart + 3) {
         throw ProtocolException("Unexpected status line: $statusLine")
       }
-      val codeString = statusLine.substring(codeStart, codeStart + 3)
-      if (!codeString.all { it in '0'..'9' }) {
-        throw ProtocolException("Unexpected status line: $statusLine")
+      var code = 0
+      for (i in codeStart until codeStart + 3) {
+        val digit = statusLine[i]
+        if (digit !in '0'..'9') {
+          throw ProtocolException("Unexpected status line: $statusLine")
+        }
+        code = code * 10 + (digit - '0')
       }
-      val code = codeString.toInt()
 
       // Parse an optional response message like "OK" or "Not Modified". If it
       // exists, it is separated from the response code by a space.
