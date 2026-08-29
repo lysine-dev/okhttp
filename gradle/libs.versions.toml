@@ -40,7 +40,6 @@ ksp = "2.3.11"
 lint-gradle = "1.0.0"
 maven-publish = "0.37.0"
 maven-sympathy = "0.3.0"
-mockserver-client = "7.6.0"
 mrjar = "0.1.1"
 openjsse = "1.1.14"
 org-conscrypt = "2.6.3"
@@ -58,7 +57,6 @@ square-moshi = "1.15.2"
 square-okio = "3.18.1"
 square-retrofit = "3.0.0"
 startup-runtime = "1.2.0"
-testcontainers = "1.21.4"
 zstd-kmp-okio = "0.4.0"
 
 # Set to lower version than KGP version to maximize compatibility
@@ -121,8 +119,6 @@ kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-c
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "serialization" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
-mockserver = { module = "org.testcontainers:mockserver", version.ref = "testcontainers" }
-mockserver-client = { module = "org.mock-server:mockserver-client-java-no-dependencies", version.ref = "mockserver-client" }
 native-image-svm = { module = "org.graalvm.nativeimage:svm", version.ref = "graalvm" }
 openjsse = { module = "org.openjsse:openjsse", version.ref = "openjsse" }
 playservices-safetynet = { module = "com.google.android.gms:play-services-safetynet", version.ref = "playservices-safetynet" }
@@ -137,8 +133,6 @@ square-moshi-kotlin = { module = "com.squareup.moshi:moshi-kotlin", version.ref 
 square-kotlin-poet = { module = "com.squareup:kotlinpoet", version.ref = "square-kotlin-poet" }
 square-okio = { module = "com.squareup.okio:okio", version.ref = "square-okio" }
 square-okio-fakefilesystem = { module = "com.squareup.okio:okio-fakefilesystem", version.ref = "square-okio" }
-testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
-testcontainers-junit5 = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
 square-zstd-kmp-okio = { module = "com.squareup.zstd:zstd-kmp-okio", version.ref = "zstd-kmp-okio" }
 
 # Build Logic Dependencies

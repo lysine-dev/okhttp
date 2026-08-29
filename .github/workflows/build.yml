@@ -446,7 +446,7 @@ jobs:
 #        uses: gradle/actions/setup-gradle@v6
 #
 #      - name: Run Tests
-#        run: ./gradlew test allTests -Pokhttp.platform=loom -Ptest.java.version=24 -PcontainerTests=true
+#        run: ./gradlew test allTests -Pokhttp.platform=loom -Ptest.java.version=24
 
   maven:
     runs-on: ubuntu-latest
