@@ -36,6 +36,24 @@ class HpackTest {
   private val bytesOut = Buffer()
   private var hpackWriter: Hpack.Writer? = null
 
+  /**
+   * Each header list entry must account for the RFC 9113 section 6.5.2 per-entry overhead,
+   * including headers whose name and value are both empty. Otherwise a peer could flood
+   * zero-length literal header fields and grow the header list without ever exceeding
+   * [HEADER_LIMIT].
+   */
+  @Test
+  fun manyEmptyHeadersExceedByteLimit() {
+    repeat(8193) {
+      bytesIn.writeByte(0x00) // Literal Header Field without Indexing, new name.
+      bytesIn.writeByte(0x00) // Name length 0.
+      bytesIn.writeByte(0x00) // Value length 0.
+    }
+    assertFailsWith<IOException> {
+      hpackReader!!.readHeaders()
+    }
+  }
+
   @BeforeEach
   fun reset() {
     hpackReader = newReader(bytesIn)
