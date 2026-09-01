@@ -19,7 +19,6 @@ import java.io.Closeable
 import java.io.EOFException
 import java.io.Flushable
 import java.io.IOException
-import okhttp3.internal.cache.DiskLruCache.Editor
 import okhttp3.internal.closeQuietly
 import okhttp3.internal.concurrent.Lockable
 import okhttp3.internal.concurrent.Task
@@ -35,7 +34,6 @@ import okio.BufferedSink
 import okio.FileNotFoundException
 import okio.FileSystem
 import okio.ForwardingFileSystem
-import okio.ForwardingSource
 import okio.Path
 import okio.Sink
 import okio.Source
@@ -1072,21 +1070,29 @@ class DiskLruCache(
     }
 
     private fun newSource(index: Int): Source {
-      val fileSource = fileSystem.source(cleanFiles[index])
-      if (civilizedFileSystem) return fileSource
+      val file = cleanFiles[index]
+      if (civilizedFileSystem) return fileSystem.source(file)
 
-      lockingSourceCount++
-      return object : ForwardingSource(fileSource) {
+      // Whether the source has been actually acquired
+      var inited = false
+
+      return object : DeferredForwardingSource({
+        inited = true
+        lockingSourceCount++
+        fileSystem.source(file)
+      }) {
         private var closed = false
 
         override fun close() {
           super.close()
           if (!closed) {
             closed = true
-            synchronized(this@DiskLruCache) {
-              lockingSourceCount--
-              if (lockingSourceCount == 0 && zombie) {
-                removeEntry(this@Entry)
+            if (inited) {
+              synchronized(this@DiskLruCache) {
+                lockingSourceCount--
+                if (lockingSourceCount == 0 && zombie) {
+                  removeEntry(this@Entry)
+                }
               }
             }
           }

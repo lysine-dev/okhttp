@@ -15,6 +15,7 @@
  */
 package okhttp3
 
+import app.cash.burst.Burst
 import assertk.assertThat
 import assertk.assertions.containsExactly
 import assertk.assertions.isCloseTo
@@ -70,7 +71,10 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.RegisterExtension
 
 @Tag("Slow")
-class CacheTest {
+@Burst
+class CacheTest(
+  val emulatedFileSystem: EmulatedFileSystem = EmulatedFileSystem.Unix,
+) {
   val fileSystem = FakeFileSystem()
 
   @RegisterExtension
@@ -94,7 +98,11 @@ class CacheTest {
   fun setUp() {
     platform.assumeNotOpenJSSE()
     server.protocolNegotiationEnabled = false
-    fileSystem.emulateUnix()
+    if (emulatedFileSystem == EmulatedFileSystem.Windows) {
+      fileSystem.emulateWindows()
+    } else {
+      fileSystem.emulateUnix()
+    }
     cache = Cache(fileSystem, "/cache/".toPath(), Long.MAX_VALUE)
     client =
       clientTestRule
@@ -410,10 +418,13 @@ class CacheTest {
     assertThat(cache.requestCount()).isEqualTo(2)
     assertThat(cache.networkCount()).isEqualTo(2)
     assertThat(cache.hitCount()).isEqualTo(0)
+
+    response1.close()
+    response2.close()
   }
 
   private fun corruptCertificate(cacheEntry: Path) {
-    var content = fileSystem.source(cacheEntry).buffer().readUtf8()
+    var content = fileSystem.source(cacheEntry).buffer().use { it.readUtf8() }
     content = content.replace("MII", "!!!")
     fileSystem
       .sink(cacheEntry)
@@ -3916,6 +3927,8 @@ CLEAN $urlKey ${entryMetadata.length} ${entryBody.length}
 
     assertThat(response.request.url).isEqualTo(request.url)
     assertThat(response.cacheResponse!!.request.url).isEqualTo(request.url)
+
+    response.close()
   }
 
   @Test
@@ -3935,6 +3948,8 @@ CLEAN $urlKey ${entryMetadata.length} ${entryBody.length}
 
     assertThat(response.request.url).isEqualTo(request.url)
     assertThat(response.cacheResponse!!.request.url).isEqualTo(cacheUrlOverride)
+
+    response.close()
   }
 
   private fun testBasicCachingRules(request: Request): Response {
@@ -4153,22 +4168,41 @@ CLEAN $urlKey ${entryMetadata.length} ${entryBody.length}
     val c = Cache(loggingFileSystem, path, 100000L)
     assertThat(c.directoryPath).isEqualTo(path)
     c.size()
-    assertThat(events).containsExactly(
-      "metadataOrNull:/cache/journal.bkp",
-      "metadataOrNull:/cache",
-      "sink:/cache/journal.bkp",
-      "delete:/cache/journal.bkp",
-      "metadataOrNull:/cache/journal",
-      "metadataOrNull:/cache",
-      "sink:/cache/journal.tmp",
-      "metadataOrNull:/cache/journal",
-      "atomicMove:/cache/journal.tmp",
-      "atomicMove:/cache/journal",
-      "appendingSink:/cache/journal",
-    )
+    if (emulatedFileSystem == EmulatedFileSystem.Unix) {
+      assertThat(events).containsExactly(
+        "metadataOrNull:/cache/journal.bkp",
+        "metadataOrNull:/cache",
+        "sink:/cache/journal.bkp",
+        "delete:/cache/journal.bkp",
+        "metadataOrNull:/cache/journal",
+        "metadataOrNull:/cache",
+        "sink:/cache/journal.tmp",
+        "metadataOrNull:/cache/journal",
+        "atomicMove:/cache/journal.tmp",
+        "atomicMove:/cache/journal",
+        "appendingSink:/cache/journal",
+      )
+    } else {
+      assertThat(events).containsExactly(
+        "metadataOrNull:/cache/journal.bkp",
+        "metadataOrNull:/cache",
+        "sink:/cache/journal.bkp",
+        "delete:/cache/journal.bkp",
+        "delete:/cache/journal.bkp", // investigate
+        "metadataOrNull:/cache/journal",
+        "metadataOrNull:/cache",
+        "sink:/cache/journal.tmp",
+        "metadataOrNull:/cache/journal",
+        "atomicMove:/cache/journal.tmp",
+        "atomicMove:/cache/journal",
+        "appendingSink:/cache/journal",
+      )
+    }
     events.clear()
     c.size()
     assertThat(events).isEmpty()
+
+    c.close()
   }
 
   private fun assertFullyCached(response: MockResponse) {
@@ -4252,6 +4286,11 @@ CLEAN $urlKey ${entryMetadata.length} ${entryBody.length}
     sink.writeUtf8(data)
     sink.close()
     return result
+  }
+
+  enum class EmulatedFileSystem {
+    Unix,
+    Windows,
   }
 
   companion object {
