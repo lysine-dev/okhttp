@@ -323,6 +323,7 @@ class RealCall(
     check(this.connection == null)
     this.connection = connection
     connection.calls.add(CallReference(this, callStackTrace))
+    connection.idleAtEpochMillis = null
   }
 
   /**
@@ -454,6 +455,7 @@ class RealCall(
 
     if (calls.isEmpty()) {
       connection.idleAtNs = System.nanoTime()
+      connection.idleAtEpochMillis = System.currentTimeMillis()
       if (connectionPool.connectionBecameIdle(connection)) {
         return connection.socket()
       }

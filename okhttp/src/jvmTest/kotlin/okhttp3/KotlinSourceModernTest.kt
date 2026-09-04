@@ -292,6 +292,16 @@ class KotlinSourceModernTest {
         override fun handshake(): Handshake? = TODO()
 
         override fun protocol(): Protocol = TODO()
+
+        override fun connectAtMillis(): Long = TODO()
+
+        override fun idleAtMillis(): Long? = TODO()
+
+        override fun successCount(): Int = TODO()
+
+        override fun callCount(): Int = TODO()
+
+        override fun noNewExchanges(): Boolean = TODO()
       }
   }
 
