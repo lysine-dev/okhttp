@@ -44,6 +44,7 @@ import okhttp3.tls.internal.der.CertificateAdapters.generalNameIpAddress
 import okhttp3.tls.internal.der.Extension
 import okhttp3.tls.internal.der.ObjectIdentifiers
 import okhttp3.tls.internal.der.ObjectIdentifiers.BASIC_CONSTRAINTS
+import okhttp3.tls.internal.der.ObjectIdentifiers.ED25519
 import okhttp3.tls.internal.der.ObjectIdentifiers.ORGANIZATIONAL_UNIT_NAME
 import okhttp3.tls.internal.der.ObjectIdentifiers.SHA256_WITH_ECDSA
 import okhttp3.tls.internal.der.ObjectIdentifiers.SHA256_WITH_RSA_ENCRYPTION
@@ -341,6 +342,16 @@ class HeldCertificate(
         keySize = 2048
       }
 
+    /**
+     * Configure the certificate to generate an Ed25519 key. Ed25519 provides about 128 bits of
+     * security and fast signing/verification. Requires Java 15 or newer at runtime.
+     */
+    fun ed25519() =
+      apply {
+        keyAlgorithm = "Ed25519"
+        keySize = 0
+      }
+
     fun build(): HeldCertificate {
       // Subject keys & identity.
       val subjectKeyPair = keyPair ?: generateKeyPair()
@@ -480,10 +491,17 @@ class HeldCertificate(
     }
 
     private fun signatureAlgorithm(signedByKeyPair: KeyPair): AlgorithmIdentifier =
-      when (signedByKeyPair.private) {
-        is RSAPrivateKey -> {
+      when {
+        signedByKeyPair.private is RSAPrivateKey -> {
           AlgorithmIdentifier(
             algorithm = SHA256_WITH_RSA_ENCRYPTION,
+            parameters = null,
+          )
+        }
+
+        signedByKeyPair.private.algorithm == "Ed25519" || signedByKeyPair.private.algorithm == "EdDSA" -> {
+          AlgorithmIdentifier(
+            algorithm = ED25519,
             parameters = null,
           )
         }
@@ -498,7 +516,7 @@ class HeldCertificate(
 
     private fun generateKeyPair(): KeyPair =
       KeyPairGenerator.getInstance(keyAlgorithm).run {
-        initialize(keySize, SecureRandom())
+        if (keySize > 0) initialize(keySize, SecureRandom())
         generateKeyPair()
       }
 
@@ -581,9 +599,10 @@ class HeldCertificate(
 
       // The private key doesn't tell us its type but it's okay because the certificate knows!
       val keyType =
-        when (certificate.publicKey) {
-          is ECPublicKey -> "EC"
-          is RSAPublicKey -> "RSA"
+        when {
+          certificate.publicKey is ECPublicKey -> "EC"
+          certificate.publicKey is RSAPublicKey -> "RSA"
+          certificate.publicKey.algorithm == "Ed25519" || certificate.publicKey.algorithm == "EdDSA" -> certificate.publicKey.algorithm
           else -> throw IllegalArgumentException("unexpected key type: ${certificate.publicKey}")
         }
 

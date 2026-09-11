@@ -19,6 +19,7 @@ import assertk.assertThat
 import assertk.assertions.containsExactly
 import assertk.assertions.isCloseTo
 import assertk.assertions.isEqualTo
+import assertk.assertions.isIn
 import assertk.assertions.isNull
 import assertk.assertions.matches
 import java.math.BigInteger
@@ -260,6 +261,56 @@ class HeldCertificateTest {
         .build()
     assertThat(root.certificate.sigAlgName).isEqualTo("SHA256WITHECDSA", ignoreCase = true)
     assertThat(leaf.certificate.sigAlgName).isEqualTo("SHA256WITHECDSA", ignoreCase = true)
+  }
+
+  @Test
+  fun ed25519() {
+    platform.assumeNotAndroid()
+    val heldCertificate =
+      HeldCertificate
+        .Builder()
+        .commonName("cash.app")
+        .ed25519()
+        .build()
+    assertThat(heldCertificate.certificate.sigAlgName.lowercase()).isIn("ed25519", "eddsa")
+    assertThat(heldCertificate.keyPair.private.algorithm.lowercase()).isIn("ed25519", "eddsa")
+    assertThat(heldCertificate.keyPair.public.algorithm.lowercase()).isIn("ed25519", "eddsa")
+  }
+
+  @Test
+  fun ed25519RoundTrip() {
+    platform.assumeNotAndroid()
+    val original =
+      HeldCertificate
+        .Builder()
+        .commonName("cash.app")
+        .ed25519()
+        .build()
+    val pem = original.certificatePem() + original.privateKeyPkcs8Pem()
+    val decoded = decode(pem)
+    assertThat(decoded.certificate.encoded).isEqualTo(original.certificate.encoded)
+    assertThat(decoded.keyPair.private.encoded).isEqualTo(original.keyPair.private.encoded)
+    assertThat(decoded.keyPair.public.encoded).isEqualTo(original.keyPair.public.encoded)
+  }
+
+  @Test
+  fun ed25519SignedByEcdsa() {
+    platform.assumeNotAndroid()
+    val root =
+      HeldCertificate
+        .Builder()
+        .certificateAuthority(0)
+        .ecdsa256()
+        .build()
+    val leaf =
+      HeldCertificate
+        .Builder()
+        .ed25519()
+        .signedBy(root)
+        .build()
+    assertThat(root.certificate.sigAlgName).isEqualTo("SHA256WITHECDSA", ignoreCase = true)
+    assertThat(leaf.certificate.sigAlgName).isEqualTo("SHA256WITHECDSA", ignoreCase = true)
+    assertThat(leaf.keyPair.private.algorithm.lowercase()).isIn("ed25519", "eddsa")
   }
 
   @Test
