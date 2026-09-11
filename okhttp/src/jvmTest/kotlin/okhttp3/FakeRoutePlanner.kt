@@ -73,7 +73,8 @@ class FakeRoutePlanner(
   override fun hasNext(failedConnection: RealConnection?): Boolean =
     deferredPlans.isNotEmpty() || nextPlanIndex < plans.size || autoGeneratePlans
 
-  override fun sameHostAndPort(url: HttpUrl): Boolean = url.host == address.url.host && url.port == address.url.port
+  override fun sameHostAndPort(url: HttpUrl): Boolean =
+    url.host == address.url.host && url.port == address.url.port && url.scheme == address.url.scheme
 
   override fun close() {
     factory.close()
