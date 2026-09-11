@@ -348,6 +348,22 @@ class Http2Test {
     )
   }
 
+  @Test fun readSettingsFrameNegativeHeaderTableSize() {
+    writeMedium(frame, 6) // 2 for the code and 4 for the value
+    frame.writeByte(Http2.TYPE_SETTINGS)
+    frame.writeByte(FLAG_NONE)
+    frame.writeInt(0) // Settings are always on the connection stream 0.
+    frame.writeShort(1) // SETTINGS_HEADER_TABLE_SIZE
+    frame.writeInt(Int.MIN_VALUE)
+    assertFailsWith<IOException> {
+      reader.nextFrame(requireSettings = false, BaseTestHandler())
+    }.also { expected ->
+      assertThat(expected.message).isEqualTo(
+        "PROTOCOL_ERROR SETTINGS_HEADER_TABLE_SIZE > 2^31 - 1",
+      )
+    }
+  }
+
   @Test fun readSettingsFrameNegativeWindowSize() {
     writeMedium(frame, 6) // 2 for the code and 4 for the value
     frame.writeByte(Http2.TYPE_SETTINGS)
