@@ -53,17 +53,21 @@ class JavaNetAuthenticator(
       val dns = route?.address?.dns ?: defaultDns
       val auth =
         if (proxyAuthorization) {
-          val proxyAddress = proxy.address() as InetSocketAddress
-          Authenticator.requestPasswordAuthentication(
-            proxyAddress.hostName,
-            proxy.connectToInetAddress(url, dns),
-            proxyAddress.port,
-            url.scheme,
-            challenge.realm,
-            challenge.scheme,
-            url.toUrl(),
-            Authenticator.RequestorType.PROXY,
-          )
+          if (proxy.type() == Proxy.Type.HTTP) {
+            val proxyAddress = proxy.address() as InetSocketAddress
+            Authenticator.requestPasswordAuthentication(
+              proxyAddress.hostName,
+              proxy.connectToInetAddress(url, dns),
+              proxyAddress.port,
+              url.scheme,
+              challenge.realm,
+              challenge.scheme,
+              url.toUrl(),
+              Authenticator.RequestorType.PROXY,
+            )
+          } else {
+            null
+          }
         } else {
           Authenticator.requestPasswordAuthentication(
             url.host,
@@ -102,6 +106,13 @@ class JavaNetAuthenticator(
   ): InetAddress =
     when (type()) {
       Proxy.Type.DIRECT -> dns.lookup(url.host).first()
-      else -> (address() as InetSocketAddress).address
+      else -> {
+        val socketAddress = address() as InetSocketAddress
+        if (socketAddress.isUnresolved) {
+          dns.lookup(socketAddress.hostString).first()
+        } else {
+          socketAddress.address
+        }
+      }
     }
 }
