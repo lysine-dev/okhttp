@@ -76,6 +76,7 @@ class RetryAndFollowUpInterceptor : Interceptor {
           val isRecoverable = recover(e, call, chain, request)
           call.eventListener.retryDecision(call, e, isRecoverable)
           if (!isRecoverable) throw e.withSuppressed(recoveredFailures)
+          if (recoveredFailures.size > MAX_RECOVERED_FAILURES) throw e.withSuppressed(recoveredFailures)
           recoveredFailures += e
           newRoutePlanner = false
           continue
@@ -353,5 +354,13 @@ class RetryAndFollowUpInterceptor : Interceptor {
      * curl, and wget follow 20; Safari follows 16; and HTTP/1.0 recommends 5.
      */
     private const val MAX_FOLLOW_UPS = 20
+
+    /**
+     * How many connection failures should we retry before giving up? Without a cap, a route
+     * selector that keeps yielding usable routes (or keeps cycling through an exhausted set)
+     * lets this loop retry indefinitely, growing [recoveredFailures] without bound and repeatedly
+     * contending for locks a stuck attempt is still holding.
+     */
+    private const val MAX_RECOVERED_FAILURES = 20
   }
 }
