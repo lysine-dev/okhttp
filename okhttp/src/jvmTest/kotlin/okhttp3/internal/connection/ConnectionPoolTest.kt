@@ -178,6 +178,29 @@ class ConnectionPoolTest {
     assertThat(c1.noNewExchanges).isTrue()
   }
 
+  @Test fun prunedLeakedConnectionIsRetiredEvenWhenNotEvicted() {
+    val pool = factory.newConnectionPool()
+    val poolApi = ConnectionPool(pool)
+
+    // Two pooled connections to the same address, each with an allocation the caller leaks.
+    val c1 = factory.newConnection(pool, routeA1, 0L)
+    val c2 = factory.newConnection(pool, routeA1, 0L)
+    allocateAndLeakAllocation(poolApi, c1)
+    allocateAndLeakAllocation(poolApi, c2)
+
+    awaitGarbageCollection()
+
+    // A single cleanup pass prunes the leaked allocation on both connections but evicts at most one.
+    pool.closeConnections(100L)
+
+    // Any connection still in the pool must be retired. A leaked connection may hold the abandoned
+    // response's unread bytes, and reusing it would corrupt an unrelated exchange.
+    for (connection in listOf(c1, c2)) {
+      if (connection.socket().isClosed) continue // Evicted, so it can't be reused.
+      assertThat(connection.noNewExchanges).isTrue()
+    }
+  }
+
   @Test fun interruptStopsThread() {
     val taskRunnerThreads = mutableListOf<Thread>()
     val taskRunner =
