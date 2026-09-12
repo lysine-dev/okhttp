@@ -423,14 +423,13 @@ class CacheTest {
   }
 
   /**
-   * A network interceptor strips the handshake from a real HTTPS response before the
-   * CacheInterceptor writes it to disk. This creates the bug condition: url.isHttps=true
-   * but handshake=null. Before the fix, `handshake!!` in writeTo() threw NPE.
+   * An HTTPS response with a null handshake is rejected by Cache.put() rather than writing a
+   * malformed cache entry. The response still succeeds but nothing is written to disk.
    *
    * https://github.com/lysine-dev/okhttp/issues/8962
    */
   @Test
-  fun httpsResponseWithNullHandshakeDoesNotCrashWriteTo() {
+  fun httpsResponseWithNullHandshakeIsNotCached() {
     server.useHttps(handshakeCertificates.sslSocketFactory())
     server.enqueue(
       MockResponse
@@ -458,11 +457,11 @@ class CacheTest {
     val response = client.newCall(Request(server.url("/"))).execute()
     assertThat(response.code).isEqualTo(200)
     assertThat(response.body.string()).isEqualTo("secure content")
+    assertThat(cache.writeSuccessCount()).isEqualTo(0)
   }
 
   /**
-   * Verifies the null-handshake fix holds across multiple sequential cache writes, confirming
-   * it is not a one-time race condition.
+   * Multiple HTTPS requests with null handshake all succeed without writing to cache.
    *
    * https://github.com/lysine-dev/okhttp/issues/8962
    */
@@ -499,12 +498,12 @@ class CacheTest {
       assertThat(response.code).isEqualTo(200)
       assertThat(response.body.string()).isEqualTo("response $i")
     }
+    assertThat(cache.writeSuccessCount()).isEqualTo(0)
   }
 
   /**
-   * When handshake is null for an HTTPS URL, the TLS block is skipped making the entry
-   * unreadable on re-read. The response should still succeed but won't be served from cache
-   * on subsequent requests.
+   * When handshake is null for an HTTPS URL, Cache.put() rejects the entry so nothing is written
+   * to disk. Subsequent requests hit the network.
    *
    * https://github.com/lysine-dev/okhttp/issues/8962
    */
@@ -544,10 +543,11 @@ class CacheTest {
     val response1 = client.newCall(Request(server.url("/"))).execute()
     assertThat(response1.body.string()).isEqualTo("first")
 
-    // Second request hits the network again because the first entry was not cacheable
+    // Second request hits the network because the first was not written to cache
     val response2 = client.newCall(Request(server.url("/"))).execute()
     assertThat(response2.body.string()).isEqualTo("second")
     assertThat(response2.cacheResponse).isNull()
+    assertThat(cache.writeSuccessCount()).isEqualTo(0)
   }
 
   @Test
