@@ -10,11 +10,11 @@ androidx-test-runner = "1.7.0"
 animalsniffer = "2.0.1"
 animalsniffer-annotations = "1.27"
 assertk = "0.28.1"
-binary-compatibility-validator = "0.18.1"
-bnd = "7.3.0"
+binary-compatibility-validator = "0.18.2"
+bnd = "7.4.0"
 brotli-dec = "0.1.2"
 burst = "2.10.2"
-checkstyle = "13.11.0"
+checkstyle = "14.0.0"
 clikt = "5.1.0"
 extra-java-module-info = "1.14.2"
 codehaus-signature-java18 = "1.0"
@@ -23,15 +23,15 @@ de-mannodermaus-junit5 = "2.0.1"
 dokka = "2.2.0"
 eclipse-osgi = "3.24.200"
 graalvm = "25.0.4"
-graalvm-plugin = "1.1.6"
-guava = "33.6.0-jre"
+graalvm-plugin = "1.1.10"
+guava = "33.7.1-jre"
 hamcrest-library = "3.0"
-http-client5 = "5.6.1"
+http-client5 = "5.6.4"
 jetty-client = "9.4.58.v20250814"
 jlink = "0.9"
 jetbrains-annotations = "26.1.0"
-jnr-unixsocket = "0.39.2"
-jsoup = "1.23.1"
+jnr-unixsocket = "0.39.3"
+jsoup = "1.23.2"
 junit-pioneer = "1.9.1"
 junit-platform = "1.14.4"
 junit4 = "4.13.2"
@@ -40,25 +40,23 @@ ksp = "2.3.11"
 lint-gradle = "1.0.0"
 maven-publish = "0.37.0"
 maven-sympathy = "0.3.0"
-mockserver-client = "7.5.0"
 mrjar = "0.1.1"
 openjsse = "1.1.14"
-org-conscrypt = "2.6.2"
+org-conscrypt = "2.6.3"
 org-junit-jupiter = "5.13.4"
 playservices-safetynet = "18.1.0"
-robolectric = "4.17-beta-2"
+robolectric = "4.17-beta-4"
 robolectric-android = "17-robolectric-15733970"
 serialization = "1.11.0"
 shadow-plugin = "9.6.1"
 signature-android-apilevel21 = "5.0.1_r2"
 signature-android-apilevel24 = "7.0_r2"
-spotless-plugin = "8.9.0"
+spotless-plugin = "8.10.2"
 square-kotlin-poet = "2.3.0"
 square-moshi = "1.15.2"
-square-okio = "3.18.1"
+square-okio = "3.18.2"
 square-retrofit = "3.0.0"
 startup-runtime = "1.2.0"
-testcontainers = "1.21.4"
 zstd-kmp-okio = "0.4.0"
 
 # Set to lower version than KGP version to maximize compatibility
@@ -121,8 +119,6 @@ kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-c
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "serialization" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
-mockserver = { module = "org.testcontainers:mockserver", version.ref = "testcontainers" }
-mockserver-client = { module = "org.mock-server:mockserver-client-java-no-dependencies", version.ref = "mockserver-client" }
 native-image-svm = { module = "org.graalvm.nativeimage:svm", version.ref = "graalvm" }
 openjsse = { module = "org.openjsse:openjsse", version.ref = "openjsse" }
 playservices-safetynet = { module = "com.google.android.gms:play-services-safetynet", version.ref = "playservices-safetynet" }
@@ -137,8 +133,6 @@ square-moshi-kotlin = { module = "com.squareup.moshi:moshi-kotlin", version.ref 
 square-kotlin-poet = { module = "com.squareup:kotlinpoet", version.ref = "square-kotlin-poet" }
 square-okio = { module = "com.squareup.okio:okio", version.ref = "square-okio" }
 square-okio-fakefilesystem = { module = "com.squareup.okio:okio-fakefilesystem", version.ref = "square-okio" }
-testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
-testcontainers-junit5 = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
 square-zstd-kmp-okio = { module = "com.squareup.zstd:zstd-kmp-okio", version.ref = "zstd-kmp-okio" }
 
 # Build Logic Dependencies

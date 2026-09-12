@@ -1,7 +1,7 @@
 plugins {
   `kotlin-dsl`
   alias(libs.plugins.android.lint)
-  id("com.diffplug.spotless") version "8.10.0"
+  alias(libs.plugins.spotless)
 }
 
 configure<com.diffplug.gradle.spotless.SpotlessExtension> {
