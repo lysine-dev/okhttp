@@ -1536,6 +1536,35 @@ open class HttpUrlTest {
   }
 
   @Test
+  fun addPathSegmentEncodesSquareBrackets() {
+    val url =
+      parse("http://host/")
+        .newBuilder()
+        .addPathSegment("a[0]")
+        .build()
+    assertThat(url.encodedPath).isEqualTo("/a%5B0%5D")
+    assertThat(url.pathSegments).containsExactly("a[0]")
+  }
+
+  @Test
+  fun addEncodedPathSegmentRetainsSquareBrackets() {
+    val url =
+      parse("http://host/")
+        .newBuilder()
+        .addEncodedPathSegment("a[0]")
+        .build()
+    assertThat(url.encodedPath).isEqualTo("/a[0]")
+    assertThat(url.pathSegments).containsExactly("a[0]")
+  }
+
+  @Test
+  fun parseRetainsSquareBracketsInPath() {
+    val url = parse("http://host/a[0]")
+    assertThat(url.encodedPath).isEqualTo("/a[0]")
+    assertThat(url.pathSegments).containsExactly("a[0]")
+  }
+
+  @Test
   fun addPathSegmentDotDotPopsDirectory() {
     val base = parse("http://host/a/b/c")
     assertThat(
@@ -1633,6 +1662,17 @@ open class HttpUrlTest {
         .build()
         .encodedPath,
     ).isEqualTo("/%252e/b/c")
+  }
+
+  @Test
+  fun setPathSegmentEncodesSquareBrackets() {
+    val url =
+      parse("http://host/a/b/c")
+        .newBuilder()
+        .setPathSegment(0, "x[0]")
+        .build()
+    assertThat(url.encodedPath).isEqualTo("/x%5B0%5D/b/c")
+    assertThat(url.pathSegments).containsExactly("x[0]", "b", "c")
   }
 
   @Test

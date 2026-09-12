@@ -26,6 +26,7 @@ internal val HEX_DIGITS =
 internal const val USERNAME_ENCODE_SET = " \"':;<=>@[]^`{}|/\\?#"
 internal const val PASSWORD_ENCODE_SET = " \"':;<=>@[]^`{}|/\\?#"
 internal const val PATH_SEGMENT_ENCODE_SET = " \"<>^`{}|/\\?#"
+internal const val PATH_SEGMENT_ENCODE_SET_RAW = " \"<>^`{}|/\\?#[]"
 internal const val PATH_SEGMENT_ENCODE_SET_URI = "[]"
 internal const val QUERY_ENCODE_SET = " \"'<>#"
 internal const val QUERY_COMPONENT_REENCODE_SET = " \"'<>#&="
