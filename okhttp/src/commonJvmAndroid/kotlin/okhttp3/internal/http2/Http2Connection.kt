@@ -212,7 +212,7 @@ class Http2Connection internal constructor(
     out: Boolean,
   ): Http2Stream {
     check(!client) { "Client cannot push requests." }
-    return newStream(associatedStreamId, requestHeaders, out)
+    return newStream(associatedStreamId, requestHeaders, out, writeTimeoutMillis = 0L)
   }
 
   /**
@@ -225,13 +225,28 @@ class Http2Connection internal constructor(
   fun newStream(
     requestHeaders: List<Header>,
     out: Boolean,
-  ): Http2Stream = newStream(0, requestHeaders, out)
+  ): Http2Stream = newStream(0, requestHeaders, out, writeTimeoutMillis = 0L)
+
+  /**
+   * Like [newStream], but bounds the blocking write of the initial HEADERS frame by
+   * [writeTimeoutMillis]. Without this, that write -- which happens before the returned
+   * [Http2Stream]'s own write timeout is configured by the caller -- can block on the underlying
+   * socket for as long as the OS takes to give up on an unresponsive peer (see
+   * square/okhttp#9237), ignoring [okhttp3.OkHttpClient.writeTimeoutMillis] entirely.
+   */
+  @Throws(IOException::class)
+  internal fun newStream(
+    requestHeaders: List<Header>,
+    out: Boolean,
+    writeTimeoutMillis: Long,
+  ): Http2Stream = newStream(0, requestHeaders, out, writeTimeoutMillis)
 
   @Throws(IOException::class)
   private fun newStream(
     associatedStreamId: Int,
     requestHeaders: List<Header>,
     out: Boolean,
+    writeTimeoutMillis: Long,
   ): Http2Stream {
     val outFinished = !out
     val inFinished = false
@@ -250,6 +265,9 @@ class Http2Connection internal constructor(
         streamId = nextStreamId
         nextStreamId += 2
         stream = Http2Stream(streamId, this, outFinished, inFinished, null)
+        if (writeTimeoutMillis > 0L) {
+          stream.writeTimeout.timeout(writeTimeoutMillis, TimeUnit.MILLISECONDS)
+        }
         flushHeaders = !out ||
           writeBytesTotal >= writeBytesMaximum ||
           stream.writeBytesTotal >= stream.writeBytesMaximum
@@ -257,17 +275,21 @@ class Http2Connection internal constructor(
           streams[streamId] = stream
         }
       }
-      if (associatedStreamId == 0) {
-        writer.headers(outFinished, streamId, requestHeaders)
-      } else {
-        require(!client) { "client streams shouldn't have associated stream IDs" }
-        // HTTP/2 has a PUSH_PROMISE frame.
-        writer.pushPromise(associatedStreamId, streamId, requestHeaders)
+      stream.guardConnectionWrite {
+        if (associatedStreamId == 0) {
+          writer.headers(outFinished, streamId, requestHeaders)
+        } else {
+          require(!client) { "client streams shouldn't have associated stream IDs" }
+          // HTTP/2 has a PUSH_PROMISE frame.
+          writer.pushPromise(associatedStreamId, streamId, requestHeaders)
+        }
+        // The write above only fills Http2Writer's internal buffer. flush() is what actually
+        // performs the (potentially blocking) socket write, so it must stay inside this timeout
+        // guard too -- see the class doc on this overload.
+        if (flushHeaders) {
+          writer.flush()
+        }
       }
-    }
-
-    if (flushHeaders) {
-      writer.flush()
     }
 
     return stream

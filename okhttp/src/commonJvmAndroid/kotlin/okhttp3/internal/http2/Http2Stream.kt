@@ -79,6 +79,16 @@ class Http2Stream internal constructor(
   internal val writeTimeout = StreamTimeout()
 
   /**
+   * True while a thread is parked inside a blocking write to [connection]'s underlying socket
+   * (writing a HEADERS or DATA frame for this stream). Unlike a flow-control wait -- which parks
+   * in [Object.wait] and can always be woken by [closeLater]'s `notifyAll()` -- a thread blocked
+   * inside the actual socket write can only be freed by interrupting the socket itself. See
+   * [StreamTimeout.timedOut].
+   */
+  @Volatile
+  internal var blockedInConnectionWrite = false
+
+  /**
    * The reason why this stream was closed, or null if it closed normally or has not yet been
    * closed.
    *
@@ -615,12 +625,7 @@ class Http2Stream internal constructor(
         outFinished = outFinishedOnLastFrame && toWrite == sendBuffer.size
       }
 
-      writeTimeout.enter()
-      try {
-        connection.writeData(id, outFinished, sendBuffer, toWrite)
-      } finally {
-        writeTimeout.exitAndThrowIfTimedOut()
-      }
+      guardConnectionWrite { connection.writeData(id, outFinished, sendBuffer, toWrite) }
     }
 
     @Throws(IOException::class)
@@ -633,7 +638,7 @@ class Http2Stream internal constructor(
       // TODO(jwilson): flush the connection?!
       while (sendBuffer.size > 0L) {
         emitFrame(false)
-        connection.flush()
+        guardConnectionWrite { connection.flush() }
       }
     }
 
@@ -659,7 +664,7 @@ class Http2Stream internal constructor(
             while (sendBuffer.size > 0L) {
               emitFrame(false)
             }
-            connection.writeHeaders(id, outFinished, trailers!!.toHeaderList())
+            guardConnectionWrite { connection.writeHeaders(id, outFinished, trailers!!.toHeaderList()) }
           }
 
           hasData -> {
@@ -669,7 +674,7 @@ class Http2Stream internal constructor(
           }
 
           outFinished -> {
-            connection.writeData(id, true, null, 0L)
+            guardConnectionWrite { connection.writeData(id, true, null, 0L) }
           }
         }
       }
@@ -677,7 +682,7 @@ class Http2Stream internal constructor(
         closed = true
         notifyAll() // Because doReadTimeout() may have changed.
       }
-      connection.flush()
+      guardConnectionWrite { connection.flush() }
       cancelStreamIfNecessary()
     }
   }
@@ -718,6 +723,23 @@ class Http2Stream internal constructor(
   }
 
   /**
+   * Runs [block], which must perform a blocking write (or flush) directly against [connection]'s
+   * shared socket, bounded by [writeTimeout]. Unlike a flow-control wait, a thread inside [block]
+   * can only be freed by [StreamTimeout.timedOut] cancelling the socket -- see its doc for why.
+   */
+  @Throws(IOException::class)
+  internal fun <T> guardConnectionWrite(block: () -> T): T {
+    writeTimeout.enter()
+    try {
+      blockedInConnectionWrite = true
+      return block()
+    } finally {
+      blockedInConnectionWrite = false
+      writeTimeout.exitAndThrowIfTimedOut()
+    }
+  }
+
+  /**
    * The Okio timeout watchdog will call [timedOut] if the timeout is reached. In that case we close
    * the stream (asynchronously) which will notify the waiting thread.
    */
@@ -725,6 +747,17 @@ class Http2Stream internal constructor(
     override fun timedOut() {
       closeLater(ErrorCode.CANCEL)
       connection.sendDegradedPingLater()
+
+      // closeLater()'s notifyAll() only wakes threads parked in Object.wait() (for example a
+      // stream blocked on flow control). It can't interrupt a thread that's parked inside a
+      // blocking write to the connection's shared socket -- such as a HEADERS or DATA frame
+      // write stalled by a TCP-level network blackhole (see square/okhttp#9237). Cancelling the
+      // socket is the only way to unblock that thread. This necessarily also terminates any
+      // other streams multiplexed on the connection, but a connection that can't complete a
+      // socket write within the caller's write timeout is unresponsive for all of them anyway.
+      if (this === writeTimeout && blockedInConnectionWrite) {
+        connection.socket.cancel()
+      }
     }
 
     override fun newTimeoutException(cause: IOException?): IOException =
