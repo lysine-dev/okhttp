@@ -180,6 +180,23 @@ class CertificatePinnerKotlinTest {
     assertFalse(pin.matchesHostname("www.example.com"))
   }
 
+  @Test fun testMatchesHostnameWithTrailingDot() {
+    // https://github.com/lysine-dev/okhttp/issues/9724
+    val exactPin = Pin("example.com", certA1Sha256Pin)
+    assertTrue(exactPin.matchesHostname("example.com"))
+    assertTrue(exactPin.matchesHostname("example.com."))
+
+    val wildcardPin = Pin("*.example.com", certA1Sha256Pin)
+    assertTrue(wildcardPin.matchesHostname("a.example.com"))
+    assertTrue(wildcardPin.matchesHostname("a.example.com."))
+
+    val certificatePinner =
+      CertificatePinner.Builder()
+        .add("example.com", certA1Sha256Pin)
+        .build()
+    assertThat(certificatePinner.findMatchingPins("example.com.")).containsExactly(exactPin)
+  }
+
   @Test fun testMatchesSha256() {
     val pin = Pin("example.com", certA1Sha256Pin)
     assertTrue(pin.matchesCertificate(certA1.certificate))
