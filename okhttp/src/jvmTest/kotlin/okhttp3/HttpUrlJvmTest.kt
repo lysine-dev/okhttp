@@ -263,7 +263,7 @@ open class HttpUrlJvmTest {
         .addPathSegment("=[]:;\"~|?#@^/$%*")
         .build()
     assertThat(url.toString())
-      .isEqualTo("http://host/=[]:;%22~%7C%3F%23@%5E%2F$%25*")
+      .isEqualTo("http://host/=%5B%5D:;%22~%7C%3F%23@%5E%2F$%25*")
     assertThat(url.toUri().toString())
       .isEqualTo("http://host/=%5B%5D:;%22~%7C%3F%23@%5E%2F$%25*")
   }
