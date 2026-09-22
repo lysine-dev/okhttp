@@ -142,7 +142,7 @@ class CertificatePinnerKotlinTest {
     assertThat(certificatePinner.findMatchingPins("xn--khttp-fde.com")).isEqualTo(expectedPin)
   }
 
-  /** https://github.com/square/okhttp/issues/3324  */
+  /** https://github.com/lysine-dev/okhttp/issues/3324  */
   @Test
   fun checkSubstringMatch() {
     val certificatePinner =

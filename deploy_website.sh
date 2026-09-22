@@ -6,7 +6,7 @@
 
 set -ex
 
-REPO="git@github.com:square/okhttp.git"
+REPO="git@github.com:lysine-dev/okhttp.git"
 DIR=temp-clone
 
 # Delete any existing temporary website clone
@@ -22,9 +22,8 @@ git clone $REPO $DIR
 cd $DIR
 
 # Generate the API docs
-./gradlew dokkaHtmlMultiModule
-
-mv ./build/dokka/htmlMultiModule docs/5.x
+./gradlew dokkaGeneratePublicationHtml -PokhttpDokka=true
+mv ./build/dokka/html docs/5.x
 
 # Copy in special files that GitHub wants in the project root.
 cat README.md | grep -v 'project website' > docs/index.md
@@ -37,10 +36,11 @@ source venv/bin/activate
 pip install mkdocs-material mkdocs-redirects
 mkdocs gh-deploy
 
-# Restore Javadocs from 1.x, 2.x, and 3.x.
+# Restore Javadocs from 1.x, 2.x, 3.x, and 4.x.
 git checkout gh-pages
 git cherry-pick bb229b9dcc9a21a73edbf8d936bea88f52e0a3ff
 git cherry-pick c695732f1d4aea103b826876c077fbfea630e244
+git cherry-pick 26c6d4f2f611690a29939044e897fb1f5221c2fb
 git push --set-upstream origin gh-pages
 
 # Delete our temp folder

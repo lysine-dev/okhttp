@@ -274,6 +274,6 @@ android {
  [java_sams]: https://kotlinlang.org/docs/reference/java-interop.html#sam-conversions
  [kotlin_sams]: https://youtrack.jetbrains.com/issue/KT-11129
  [mockito]: https://site.mockito.org/
- [proguard_problems]: https://github.com/square/okhttp/issues/5167
+ [proguard_problems]: https://github.com/lysine-dev/okhttp/issues/5167
  [require_android_5]: https://code.cash.app/okhttp-3-13-requires-android-5
  [r8]: https://developer.android.com/studio/releases#r8-default

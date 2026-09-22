@@ -23,6 +23,9 @@ import okio.Buffer
 import okio.BufferedSink
 import okio.ByteString
 import okio.ByteString.Companion.encodeUtf8
+import okio.ForwardingSink
+import okio.Sink
+import okio.buffer
 
 /**
  * An [RFC 2387][rfc_2387]-compliant request body.
@@ -160,7 +163,7 @@ class MultipartBody internal constructor(
       if (countBytes) {
         byteCount += contentLength
       } else {
-        body.writeTo(sink)
+        NoCloseSink(sink).buffer().use(body::writeTo)
       }
 
       sink.write(CRLF)
@@ -376,5 +379,11 @@ class MultipartBody internal constructor(
       }
       append('"')
     }
+  }
+
+  private class NoCloseSink(
+    sink: Sink,
+  ) : ForwardingSink(sink) {
+    override fun close() {}
   }
 }

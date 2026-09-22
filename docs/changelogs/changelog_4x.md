@@ -572,14 +572,14 @@ _2019-06-03_
 
 ## Version 3.x
 
-[Change log](https://square.github.io/okhttp/changelog_3x/)
+[Change log](https://lysine.dev/okhttp/changelog_3x/)
 
 
  [bom]: https://docs.gradle.org/6.2/userguide/platforms.html#sub:bom_import
  [bouncy_castle_releases]: https://www.bouncycastle.org/releasenotes.html
  [CVE-2021-0341]: https://nvd.nist.gov/vuln/detail/CVE-2021-0341
  [CVE-2022-24329]: https://nvd.nist.gov/vuln/detail/CVE-2022-24329
- [dev_server]: https://github.com/square/okhttp/blob/482f88300f78c3419b04379fc26c3683c10d6a9d/samples/guide/src/main/java/okhttp3/recipes/kt/DevServer.kt
+ [dev_server]: https://github.com/lysine-dev/okhttp/blob/482f88300f78c3419b04379fc26c3683c10d6a9d/samples/guide/src/main/java/okhttp3/recipes/kt/DevServer.kt
  [fun_interface]: https://kotlinlang.org/docs/reference/fun-interfaces.html
  [iana_websocket]: https://www.iana.org/assignments/websocket/websocket.txt
  [jetty_8_252]: https://webtide.com/jetty-alpn-java-8u252/
@@ -589,15 +589,15 @@ _2019-06-03_
  [kotlin_1_8_21]: https://github.com/JetBrains/kotlin/releases/tag/v1.8.21
  [legacy_interceptor]: https://gist.github.com/swankjesse/80135f4e03629527e723ab3bcf64be0b
  [okhttp4_blog_post]: https://cashapp.github.io/2019-06-26/okhttp-4-goes-kotlin
- [okio.FileSystem]: https://square.github.io/okio/file_system/
- [okio_2_6_0]: https://square.github.io/okio/changelog/#version-260
- [okio_2_7_0]: https://square.github.io/okio/changelog/#version-270
- [okio_3_0_0]: https://square.github.io/okio/changelog/#version-300
- [okio_3_2_0]: https://square.github.io/okio/changelog/#version-320
- [okio_3_6_0]: https://square.github.io/okio/changelog/#version-360
+ [okio.FileSystem]: https://lysine.dev/okio/file_system/
+ [okio_2_6_0]: https://lysine.dev/okio/changelog/#version-260
+ [okio_2_7_0]: https://lysine.dev/okio/changelog/#version-270
+ [okio_3_0_0]: https://lysine.dev/okio/changelog/#version-300
+ [okio_3_2_0]: https://lysine.dev/okio/changelog/#version-320
+ [okio_3_6_0]: https://lysine.dev/okio/changelog/#version-360
  [public_suffix]: https://publicsuffix.org/
  [rfc_2045]: https://tools.ietf.org/html/rfc2045
  [rfc_7231_647]: https://tools.ietf.org/html/rfc7231#section-6.4.7
  [rfc_7692]: https://tools.ietf.org/html/rfc7692
  [semver]: https://semver.org/
- [upgrading_to_okhttp_4]: https://square.github.io/okhttp/upgrading_to_okhttp_4/
+ [upgrading_to_okhttp_4]: https://lysine.dev/okhttp/upgrading_to_okhttp_4/

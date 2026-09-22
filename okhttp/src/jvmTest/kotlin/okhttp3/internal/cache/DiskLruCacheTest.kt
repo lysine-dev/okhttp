@@ -1390,7 +1390,7 @@ class DiskLruCacheTest(
 
   /**
    * We had a bug where the cache was left in an inconsistent state after a journal write failed.
-   * https://github.com/square/okhttp/issues/1211
+   * https://github.com/lysine-dev/okhttp/issues/1211
    */
   @Test
   fun journalWriteFailsDuringEditorCommit() {

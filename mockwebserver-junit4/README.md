@@ -6,7 +6,7 @@ This module integrates mockwebserver3.MockWebServer with JUnit 4.
 To use, first add this library as a test dependency:
 
 ```
-testImplementation("com.squareup.okhttp3:mockwebserver3-junit4:5.3.0")
+testImplementation("com.squareup.okhttp3:mockwebserver3-junit4:5.5.0")
 ```
 
 Then in tests annotated `@org.junit.Test`, you may declare a field with the `@Rule` annotation:

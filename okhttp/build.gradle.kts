@@ -4,7 +4,6 @@ import okhttp3.buildsupport.alpnBootVersion
 import okhttp3.buildsupport.platform
 import okhttp3.buildsupport.testJavaVersion
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 import ru.vyarus.gradle.plugin.animalsniffer.AnimalSniffer
 import ru.vyarus.gradle.plugin.animalsniffer.AnimalSnifferExtension
 
@@ -35,7 +34,7 @@ val copyKotlinTemplates =
   }
 
 // Build & use okhttp3/internal/idn/IdnaMappingTableInstance.kt
-val generateIdnaMappingTableConfiguration: Configuration by configurations.creating
+val generateIdnaMappingTableConfiguration = configurations.create("generateIdnaMappingTableConfiguration")
 dependencies {
   generateIdnaMappingTableConfiguration(projects.okhttpIdnaMappingTable)
 }
@@ -58,7 +57,7 @@ kotlin {
   android {
     namespace = "okhttp.okhttp3"
     compileSdk {
-      version = release(36)
+      version = release(37)
     }
     minSdk = 21
 
@@ -118,7 +117,9 @@ kotlin {
     androidMain {
       dependsOn(commonJvmAndroid)
       dependencies {
+        compileOnly(project.dependencies.platform(libs.bouncycastle.bom))
         compileOnly(libs.bouncycastle.bcprov)
+        compileOnly(libs.bouncycastle.bcutil)
         compileOnly(libs.bouncycastle.bctls)
         compileOnly(libs.conscrypt.openjdk)
         implementation(libs.androidx.annotation)
@@ -132,7 +133,9 @@ kotlin {
       dependencies {
         // These compileOnly dependencies must also be listed in applyOsgiMultiplatform() below.
         compileOnly(libs.conscrypt.openjdk)
+        compileOnly(project.dependencies.platform(libs.bouncycastle.bom))
         compileOnly(libs.bouncycastle.bcprov)
+        compileOnly(libs.bouncycastle.bcutil)
         compileOnly(libs.bouncycastle.bctls)
 
         // graal build support
@@ -141,7 +144,7 @@ kotlin {
       }
     }
 
-    val jvmTest by getting {
+    jvmTest {
       dependencies {
         implementation(libs.assertk)
         implementation(libs.conscrypt.openjdk)
@@ -184,7 +187,7 @@ kotlin {
     }
 
     if (testJavaVersion >= 17) {
-      val androidHostTest by getting {
+      named("androidHostTest") {
         dependencies {
           implementation(libs.androidx.junit)
           implementation(libs.assertk)
@@ -214,81 +217,10 @@ if (platform == "jdk8alpn") {
   }
 }
 
-// From https://github.com/Kotlin/kotlinx-atomicfu/blob/master/atomicfu/build.gradle.kts
-val compileJavaModuleInfo by tasks.registering(JavaCompile::class) {
-  val moduleName = "okhttp3"
-  val compilation = kotlin.targets["jvm"].compilations["main"]
-  val compileKotlinTask = compilation.compileTaskProvider.get() as KotlinJvmCompile
-  val targetDir = compileKotlinTask.destinationDirectory.dir("../java9")
-  val sourceDir = file("src/jvmMain/java9/")
-
-  // Use a Java 11 compiler for the module info.
-  javaCompiler.set(project.javaToolchains.compilerFor { languageVersion.set(JavaLanguageVersion.of(11)) })
-
-  // Always compile kotlin classes before the module descriptor.
-  dependsOn(compileKotlinTask)
-
-  // Add the module-info source file.
-  source(sourceDir)
-
-  // Also add the module-info.java source file to the Kotlin compile task.
-  // The Kotlin compiler will parse and check module dependencies,
-  // but it currently won't compile to a module-info.class file.
-  // Note that module checking only works on JDK 9+,
-  // because the JDK built-in base modules are not available in earlier versions.
-  val javaVersion = compileKotlinTask.kotlinJavaToolchain.javaVersion.getOrNull()
-  when {
-    javaVersion?.isJava9Compatible == true -> {
-      logger.info("Module-info checking is enabled; $compileKotlinTask is compiled using Java $javaVersion")
-      // Disabled as this module can't see the others in this build for some reason
-//      compileKotlinTask.source(sourceDir)
-    }
-
-    else -> {
-      logger.info("Module-info checking is disabled")
-    }
-  }
-  // Set the task outputs and destination dir
-  outputs.dir(targetDir)
-  destinationDirectory.set(targetDir)
-
-  // Configure JVM compatibility
-  sourceCompatibility = JavaVersion.VERSION_1_9.toString()
-  targetCompatibility = JavaVersion.VERSION_1_9.toString()
-
-  // Set the Java release version.
-  options.release.set(9)
-
-  // Ignore warnings about using 'requires transitive' on automatic modules.
-  // not needed when compiling with recent JDKs, e.g. 17
-  options.compilerArgs.add("-Xlint:-requires-transitive-automatic")
-
-  // Patch the compileKotlinJvm output classes into the compilation so exporting packages works correctly.
-  options.compilerArgs.addAll(
-    listOf(
-      "--patch-module",
-      "$moduleName=${compileKotlinTask.destinationDirectory.get().asFile}",
-    ),
-  )
-
-  // Use the classpath of the compileKotlinJvm task.
-  // Also, ensure that the module path is used instead of the classpath.
-  classpath = compileKotlinTask.libraries
-  modularity.inferModulePath.set(true)
-}
-
-// Call the convention when the task has finished, to modify the jar to contain OSGi metadata.
-tasks.named<Jar>("jvmJar").configure {
-  manifest {
-    attributes(
-      "Multi-Release" to true,
-    )
-  }
-
-  from(compileJavaModuleInfo.map { it.destinationDirectory }) {
-    into("META-INF/versions/9/")
-  }
-}
+project.applyJavaModules(
+  moduleName = "okhttp3",
+  enableValidation = false,
+)
 
 project.applyOsgiMultiplatform(
   "Export-Package: okhttp3,okhttp3.internal.*;okhttpinternal=true;mandatory:=okhttpinternal",
@@ -306,9 +238,9 @@ project.applyOsgiMultiplatform(
   "Bundle-SymbolicName: com.squareup.okhttp3",
 )
 
-val androidSignature by configurations.getting
-val jvmSignature by configurations.getting
-val checkstyleConfig by configurations.getting
+val androidSignature = configurations.getByName("androidSignature")
+val jvmSignature = configurations.getByName("jvmSignature")
+val checkstyleConfig = configurations.getByName("checkstyleConfig")
 
 // Animal Sniffer confirms we generally don't use APIs not on Java 8.
 configure<AnimalSnifferExtension> {
@@ -334,13 +266,17 @@ afterEvaluate {
       // Work around robolectric requirements and limitations
       // https://cs.android.com/android-studio/platform/tools/base/+/mirror-goog-studio-main:build-system/gradle-core/src/main/java/com/android/build/gradle/tasks/factory/AndroidUnitTest.java;l=339
       allJvmArgs = allJvmArgs.filter { !it.startsWith("--add-opens") }
+    } else {
+      // Robolectric's FileDescriptor interceptor reaches into jdk.internal.access, which isn't
+      // exported to the unnamed module. Android 17 (API 37) images hit it on startup.
+      jvmArgs("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
     }
   }
 }
 
 // Work around issue 8826, where the Sentry SDK assumes that OkHttp's internal-visibility symbols
 // will be suffixed '$okhttp' in deployable artifacts. This isn't intended to be a published API,
-// but it's easy enough for us to keep it working. https://github.com/square/okhttp/issues/8826
+// but it's easy enough for us to keep it working. https://github.com/lysine-dev/okhttp/issues/8826
 tasks.withType<KotlinCompile> {
   compilerOptions {
     freeCompilerArgs.addAll("-module-name=okhttp", "-Xexpect-actual-classes")

@@ -26,7 +26,7 @@ import okhttp3.Response;
 import okhttp3.ResponseBody;
 
 public class OkHttpContributors {
-  private static final String ENDPOINT = "https://api.github.com/repos/square/okhttp/contributors";
+  private static final String ENDPOINT = "https://api.github.com/repos/lysine-dev/okhttp/contributors";
   private static final Moshi MOSHI = new Moshi.Builder().build();
   private static final JsonAdapter<List<Contributor>> CONTRIBUTORS_JSON_ADAPTER = MOSHI.adapter(
       Types.newParameterizedType(List.class, Contributor.class));

@@ -27,12 +27,12 @@ Here’s some libraries that work nicely with OkHttp.
  * [okhttp-staleiferror-interceptor](https://github.com/PeelTechnologies/okhttp-staleiferror-interceptor/): serve stale responses when the server isn’t reachable.
  * [okhttp-stats](https://github.com/flipkart-incubator/okhttp-stats): Get stats like average network speed.
  * [okhttp-system-keystore](https://github.com/charleskorn/okhttp-system-keystore): Use trusted certificates from the operating system keystore (Keychain on macOS, Certificate Store on Windows).
- * ⬜️ [Okio](https://github.com/square/okio/): A modern I/O API for Java.
+ * ⬜️ [Okio](https://github.com/lysine-dev/okio/): A modern I/O API for Java.
  * [OkLog](https://github.com/simonpercic/OkLog): Response logging interceptor for OkHttp. Logs a URL link with URL-encoded response for every OkHttp call.
  * [Okurl](https://github.com/yschimke/okurl/wiki) A curl-like client for social networks and other APIs.
  * [PersistentCookieJar](https://github.com/franmontiel/PersistentCookieJar): A persistent `CookieJar`.
  * ⬜️ [Picasso](https://github.com/square/picasso): A powerful image downloading and caching library for Android.
- * ⬜️ [Retrofit](https://github.com/square/retrofit): Type-safe HTTP client for Android and Java by Square.
+ * ⬜️ [Retrofit](https://github.com/lysine-dev/retrofit): Type-safe HTTP client for Android and Java by Square.
  * [ScribeJava](https://github.com/scribejava/scribejava): Simple OAuth library for Java
  * [Stetho](https://github.com/facebook/stetho): Stetho is a debug bridge for Android applications.
  * ⬜️ [Wire](https://github.com/square/wire): Clean, lightweight protocol buffers for Android and Java.

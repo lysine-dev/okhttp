@@ -24,8 +24,11 @@ import okhttp3.Headers.Companion.headersOf
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.internal.http.GzipRequestBody
 import okio.Buffer
 import okio.BufferedSink
+import okio.ForwardingSink
+import okio.buffer
 import okio.utf8Size
 import org.junit.jupiter.api.Test
 
@@ -252,6 +255,71 @@ class MultipartBodyTest {
     val buffer = Buffer()
     body.writeTo(buffer)
     assertThat(buffer.readUtf8()).isEqualTo(expected)
+  }
+
+  @Test
+  fun partThatClosesTheSink() {
+    class ClosingBody(
+      private val body: String,
+    ) : RequestBody() {
+      override fun contentType(): MediaType? = null
+
+      @Throws(IOException::class)
+      override fun writeTo(sink: BufferedSink) {
+        sink.writeUtf8(body)
+        sink.close()
+      }
+    }
+
+    val expected =
+      """
+      |--123
+      |
+      |hello
+      |--123
+      |
+      |world
+      |--123--
+      |
+      """.trimMargin().replace("\n", "\r\n")
+    val body =
+      MultipartBody
+        .Builder("123")
+        .addPart(ClosingBody("hello"))
+        .addPart("world".toRequestBody(null))
+        .build()
+    val buffer = Buffer()
+    // Don't write to Buffer directly: Buffer.close() is a no-op. Wrap it so close()
+    // actually closes the sink, like a real HTTP write.
+    val sink = object : ForwardingSink(buffer) {}.buffer()
+    body.writeTo(sink)
+    sink.close()
+    assertThat(buffer.readUtf8()).isEqualTo(expected)
+  }
+
+  @Test
+  fun gzippedParts() {
+    val body =
+      MultipartBody
+        .Builder("123")
+        .addPart(GzipRequestBody("part1".toRequestBody(null)))
+        .addPart(GzipRequestBody("part2".toRequestBody(null)))
+        .build()
+
+    val expected = Buffer()
+    expected.writeUtf8("--123\r\n\r\n")
+    GzipRequestBody("part1".toRequestBody(null)).writeTo(expected)
+    expected.writeUtf8("\r\n--123\r\n\r\n")
+    GzipRequestBody("part2".toRequestBody(null)).writeTo(expected)
+    expected.writeUtf8("\r\n--123--\r\n")
+
+    val buffer = Buffer()
+    // Don't write to Buffer directly: Buffer.close() is a no-op. Wrap it so close()
+    // actually closes the sink, like a real HTTP write.
+    val sink = object : ForwardingSink(buffer) {}.buffer()
+    body.writeTo(sink)
+    sink.close()
+    assertThat(buffer.readUtf8()).isEqualTo(expected.readUtf8())
   }
 
   @Test

@@ -129,10 +129,10 @@ class WebSocketWriterTest {
 
   @Test fun serverBinaryMessage() {
     val payload =
-      (
-        "60b420bb3851d9d47acb933dbe70399bf6c92da33af01d4fb770e98c0325f41d3ebaf8986da71" +
-          "2c82bcd4d554bf0b54023c2"
-      ).decodeHex()
+      """
+      60b420bb3851d9d47acb933dbe70399bf6c92da33af01d4fb770e98c0325f41d3ebaf8986da712c82bcd4d554bf0b5
+      4023c2
+      """.decodeHex(ignoreWhitespace = true)
     serverWriter.writeMessageFrame(OPCODE_BINARY, payload)
     assertData("8232")
     assertData(payload)
@@ -168,10 +168,10 @@ class WebSocketWriterTest {
 
   @Test fun clientBinary() {
     val payload =
-      (
-        "60b420bb3851d9d47acb933dbe70399bf6c92da33af01d4fb770e98c0325f41d3ebaf8986da71" +
-          "2c82bcd4d554bf0b54023c2"
-      ).decodeHex()
+      """
+      60b420bb3851d9d47acb933dbe70399bf6c92da33af01d4fb770e98c0325f41d3ebaf8986da712c82bcd4d554bf0b5
+      4023c2
+      """.decodeHex(ignoreWhitespace = true)
     clientWriter.writeMessageFrame(OPCODE_BINARY, payload)
     assertData("82b2")
     assertData("60b420bb")

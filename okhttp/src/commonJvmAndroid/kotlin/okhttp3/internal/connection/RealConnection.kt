@@ -32,6 +32,7 @@ import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Route
+import okhttp3.internal.OkHttpInternalApi
 import okhttp3.internal.closeQuietly
 import okhttp3.internal.concurrent.Lockable
 import okhttp3.internal.concurrent.TaskRunner
@@ -59,6 +60,7 @@ import okio.Buffer
  * Connections are shared in a connection pool. Accesses to the connection's state must be guarded
  * by holding a lock on the connection.
  */
+@OkHttpInternalApi
 class RealConnection internal constructor(
   val taskRunner: TaskRunner,
   val connectionPool: RealConnectionPool,

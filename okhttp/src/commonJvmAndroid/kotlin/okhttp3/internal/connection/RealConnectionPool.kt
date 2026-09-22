@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit
 import okhttp3.Address
 import okhttp3.ConnectionPool
 import okhttp3.Route
+import okhttp3.internal.OkHttpInternalApi
 import okhttp3.internal.closeQuietly
 import okhttp3.internal.concurrent.Task
 import okhttp3.internal.concurrent.TaskQueue
@@ -32,6 +33,7 @@ import okhttp3.internal.connection.RealCall.CallReference
 import okhttp3.internal.okHttpName
 import okhttp3.internal.platform.Platform
 
+@OkHttpInternalApi
 class RealConnectionPool internal constructor(
   taskRunner: TaskRunner,
   /** The maximum number of idle connections across all addresses. */

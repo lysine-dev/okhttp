@@ -85,8 +85,10 @@ import okhttp3.internal.addHeaderLenient
 import okhttp3.internal.authenticator.JavaNetAuthenticator
 import okhttp3.internal.http.HTTP_PERM_REDIRECT
 import okhttp3.internal.http.HTTP_TEMP_REDIRECT
-import okhttp3.internal.platform.Platform.Companion.get
+import okhttp3.internal.platform.Platform
 import okhttp3.java.net.cookiejar.JavaNetCookieJar
+import okhttp3.sockets.DelegatingServerSocketFactory
+import okhttp3.sockets.DelegatingSocketFactory
 import okhttp3.testing.Flaky
 import okhttp3.testing.PlatformRule
 import okio.Buffer
@@ -622,7 +624,7 @@ class URLConnectionTest {
         .build()
     val response1 = getResponse(newRequest("/"))
     assertContent("this response comes via HTTPS", response1)
-    val sslContext2 = get().newSSLContext()
+    val sslContext2 = Platform.get().newSSLContext()
     sslContext2.init(null, null, null)
     val sslSocketFactory2 = sslContext2.socketFactory
     val trustManagerFactory =
@@ -706,7 +708,7 @@ class URLConnectionTest {
    * When a pooled connection fails, don't blame the route. Otherwise pooled connection failures can
    * cause unnecessary SSL fallbacks.
    *
-   * https://github.com/square/okhttp/issues/515
+   * https://github.com/lysine-dev/okhttp/issues/515
    */
   @Test
   fun sslFallbackNotUsedWhenRecycledConnectionFails() {
@@ -752,7 +754,7 @@ class URLConnectionTest {
   @Flaky
   @Test
   fun connectViaHttpsToUntrustedServer() {
-    // Flaky https://github.com/square/okhttp/issues/5222
+    // Flaky https://github.com/lysine-dev/okhttp/issues/5222
     server.useHttps(handshakeCertificates.sslSocketFactory())
     server.enqueue(MockResponse()) // unused
     assertFailsWith<IOException> {
@@ -886,7 +888,7 @@ class URLConnectionTest {
     client =
       client
         .newBuilder()
-        .socketFactory(SocketFactory.getDefault())
+        .socketFactory(Platform.get().socketFactory)
         .build()
     val response = getResponse(newRequest("/"))
     assertThat(response.code).isEqualTo(200)
@@ -1793,7 +1795,7 @@ class URLConnectionTest {
     postBodyRetransmittedAfterAuthorizationFail("abc")
   }
 
-  /** Don't explode when resending an empty post. https://github.com/square/okhttp/issues/1131  */
+  /** Don't explode when resending an empty post. https://github.com/lysine-dev/okhttp/issues/1131  */
   @Test
   fun postEmptyBodyRetransmittedAfterAuthorizationFail() {
     postBodyRetransmittedAfterAuthorizationFail("")
@@ -2302,7 +2304,7 @@ class URLConnectionTest {
     }
   }
 
-  /** https://github.com/square/okhttp/issues/342  */
+  /** https://github.com/lysine-dev/okhttp/issues/342  */
   @Test
   fun authenticateRealmUppercase() {
     server.enqueue(
@@ -2946,7 +2948,7 @@ class URLConnectionTest {
   fun httpsWithCustomTrustManager() {
     val hostnameVerifier = RecordingHostnameVerifier()
     val trustManager = RecordingTrustManager(handshakeCertificates.trustManager)
-    val sslContext = get().newSSLContext()
+    val sslContext = Platform.get().newSSLContext()
     sslContext.init(null, arrayOf<TrustManager>(trustManager), null)
     client =
       client
@@ -3539,7 +3541,7 @@ class URLConnectionTest {
           )
         assertContent("B", response)
         break
-      } catch (socketException: IOException) {
+      } catch (_: IOException) {
         // If there's a socket exception, this must have a streamed request body.
         assertThat(j).isEqualTo(0)
         assertThat(transferKind).isIn(TransferKind.CHUNKED, TransferKind.FIXED_LENGTH)
@@ -4111,7 +4113,7 @@ class URLConnectionTest {
   /**
    * We had a bug where we attempted to gunzip responses that didn't have a body. This only came up
    * with 304s since that response code can include headers (like "Content-Encoding") without any
-   * content to go along with it. https://github.com/square/okhttp/issues/358
+   * content to go along with it. https://github.com/lysine-dev/okhttp/issues/358
    */
   @Test
   fun noTransparentGzipFor304NotModified() {
@@ -4140,7 +4142,7 @@ class URLConnectionTest {
 
   /**
    * We had a bug where we weren't closing Gzip streams on redirects.
-   * https://github.com/square/okhttp/issues/441
+   * https://github.com/lysine-dev/okhttp/issues/441
    */
   @Test
   fun gzipWithRedirectAndConnectionReuse() {
@@ -4255,7 +4257,7 @@ class URLConnectionTest {
     client =
       client
         .newBuilder()
-        .dns { hostname: String? -> throw RuntimeException("boom!") }
+        .dns { throw RuntimeException("boom!") }
         .build()
     server.enqueue(MockResponse())
     assertFailsWith<RuntimeException> {

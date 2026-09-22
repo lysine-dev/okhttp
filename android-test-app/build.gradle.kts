@@ -9,7 +9,9 @@ plugins {
 }
 
 android {
-  compileSdk = 36
+  compileSdk {
+    version = release(37)
+  }
 
   namespace = "okhttp.android.testapp"
 
@@ -18,7 +20,7 @@ android {
 
   defaultConfig {
     minSdk = 21
-    targetSdk = 36
+    targetSdk = 37
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 

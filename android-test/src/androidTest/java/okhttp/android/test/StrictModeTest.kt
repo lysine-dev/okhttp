@@ -53,7 +53,7 @@ class StrictModeTest {
     applyStrictMode()
 
     // Not currently safe
-    // See https://github.com/square/okhttp/pull/8248
+    // See https://github.com/lysine-dev/okhttp/pull/8248
     OkHttpClient()
 
     assertThat(violations).hasSize(1)

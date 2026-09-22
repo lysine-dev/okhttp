@@ -34,7 +34,7 @@ class PlatformTest {
   /** Guard against the default value changing by accident.  */
   @Test
   fun defaultPrefix() {
-    assertThat(Platform().getPrefix()).isEqualTo("OkHttp")
+    assertThat(Platform().prefix).isEqualTo("OkHttp")
   }
 
   @Test

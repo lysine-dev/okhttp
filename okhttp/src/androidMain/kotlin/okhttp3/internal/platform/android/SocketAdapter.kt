@@ -19,6 +19,7 @@ import javax.net.ssl.SSLSocket
 import javax.net.ssl.SSLSocketFactory
 import javax.net.ssl.X509TrustManager
 import okhttp3.Protocol
+import okio.ByteString
 
 interface SocketAdapter {
   fun isSupported(): Boolean
@@ -33,6 +34,7 @@ interface SocketAdapter {
     sslSocket: SSLSocket,
     hostname: String?,
     protocols: List<Protocol>,
+    echConfigList: ByteString?,
   )
 
   fun getSelectedProtocol(sslSocket: SSLSocket): String?

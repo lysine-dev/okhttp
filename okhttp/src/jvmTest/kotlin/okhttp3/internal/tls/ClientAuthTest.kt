@@ -226,7 +226,7 @@ class ClientAuthTest {
   @Flaky
   @RetryingTest(5)
   fun missingClientAuthFailsForNeeds() {
-    // Fails with 11.0.1 https://github.com/square/okhttp/issues/4598
+    // Fails with 11.0.1 https://github.com/lysine-dev/okhttp/issues/4598
     // StreamReset stream was reset: PROT...
     val client = buildClient(null, clientIntermediateCa.certificate)
     val socketFactory = buildServerSslSocketFactory()
@@ -278,7 +278,7 @@ class ClientAuthTest {
 
   @Test
   fun invalidClientAuthFails() {
-    // Fails with https://github.com/square/okhttp/issues/4598
+    // Fails with https://github.com/lysine-dev/okhttp/issues/4598
     // StreamReset stream was reset: PROT...
     val clientCert2 =
       HeldCertificate

@@ -244,7 +244,7 @@ class ServerTruncatesRequestTest {
     }
   }
 
-  @Disabled("Follow up with fix in https://github.com/square/okhttp/issues/6853")
+  @Disabled("Follow up with fix in https://github.com/lysine-dev/okhttp/issues/6853")
   @Test
   fun serverDisconnectsBeforeSecondRequestHttp1() {
     enableProtocol(Protocol.HTTP_1_1)

@@ -39,7 +39,7 @@ internal class MessageDeflaterInflaterTest {
 
   /**
    * We had a bug where self-finishing inflater streams would infinite loop!
-   * https://github.com/square/okhttp/issues/8078
+   * https://github.com/lysine-dev/okhttp/issues/8078
    */
   @Test fun `inflate returns finished before bytesRead reaches input length`() {
     val inflater = MessageInflater(false)
@@ -130,7 +130,7 @@ internal class MessageDeflaterInflaterTest {
 
   /**
    * Test for an [EOFException] caused by mishandling of fragmented buffers in web socket
-   * compression. https://github.com/square/okhttp/issues/5965
+   * compression. https://github.com/lysine-dev/okhttp/issues/5965
    */
   @Test fun `inflate golden value in buffer that has been fragmented`() {
     val inflater = MessageInflater(false)
@@ -147,7 +147,7 @@ internal class MessageDeflaterInflaterTest {
    * In practice this could happen if the encoder doesn't strip the [0x00, 0x00, 0xff, 0xff] suffix
    * and that ends up repeated.
    *
-   * https://github.com/square/okhttp/issues/8551
+   * https://github.com/lysine-dev/okhttp/issues/8551
    */
   @Test
   fun `deflated data has too many bytes`() {

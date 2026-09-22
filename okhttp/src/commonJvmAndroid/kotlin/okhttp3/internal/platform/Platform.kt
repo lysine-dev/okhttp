@@ -23,16 +23,23 @@ import java.security.GeneralSecurityException
 import java.security.KeyStore
 import java.util.logging.Level
 import java.util.logging.Logger
+import javax.net.ServerSocketFactory
+import javax.net.SocketFactory
 import javax.net.ssl.ExtendedSSLSession
 import javax.net.ssl.SNIHostName
 import javax.net.ssl.SSLContext
+import javax.net.ssl.SSLException
 import javax.net.ssl.SSLSocket
 import javax.net.ssl.SSLSocketFactory
 import javax.net.ssl.TrustManager
 import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509TrustManager
+import okhttp3.Dns
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
+import okhttp3.internal.OkHttpInternalApi
+import okhttp3.internal.dns.InetAddressDns
+import okhttp3.internal.ech.EchRetryPlan
 import okhttp3.internal.publicsuffix.PublicSuffixDatabase
 import okhttp3.internal.readFieldOrNull
 import okhttp3.internal.tls.BasicCertificateChainCleaner
@@ -40,6 +47,7 @@ import okhttp3.internal.tls.BasicTrustRootIndex
 import okhttp3.internal.tls.CertificateChainCleaner
 import okhttp3.internal.tls.TrustRootIndex
 import okio.Buffer
+import okio.ByteString
 import org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement
 
 /**
@@ -69,9 +77,21 @@ import org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement
  *
  * Supported on Android 6.0+ via `NetworkSecurityPolicy`.
  */
+@OkHttpInternalApi
 open class Platform {
+  open val socketFactory: SocketFactory
+    get() = SocketFactory.getDefault()
+
+  open val serverSocketFactory: ServerSocketFactory
+    get() = ServerSocketFactory.getDefault()
+
+  /** The default [Dns] for the system, by default [InetAddressDns]. */
+  open val systemDns: Dns
+    get() = InetAddressDns
+
   /** Prefix used on custom headers. */
-  fun getPrefix() = "OkHttp"
+  val prefix: String
+    get() = "OkHttp"
 
   open fun newSSLContext(): SSLContext = SSLContext.getInstance("TLS")
 
@@ -116,8 +136,12 @@ open class Platform {
     sslSocket: SSLSocket,
     hostname: String?,
     protocols: List<@JvmSuppressWildcards Protocol>,
+    echConfigList: ByteString?,
   ) {
   }
+
+  /** Returns a plan to recover when a handshake that failed due to Encrypted Client Hello. */
+  open fun echRetryPlan(exception: SSLException): EchRetryPlan? = null
 
   /** Called after the TLS handshake to release resources allocated by [configureTlsExtensions]. */
   open fun afterHandshake(sslSocket: SSLSocket) {

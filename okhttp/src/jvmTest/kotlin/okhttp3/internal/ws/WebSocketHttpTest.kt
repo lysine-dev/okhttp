@@ -78,8 +78,8 @@ import org.junit.jupiter.api.extension.RegisterExtension
 @Flaky
 @Tag("Slow")
 class WebSocketHttpTest {
-  // Flaky https://github.com/square/okhttp/issues/4515
-  // Flaky https://github.com/square/okhttp/issues/4953
+  // Flaky https://github.com/lysine-dev/okhttp/issues/4515
+  // Flaky https://github.com/lysine-dev/okhttp/issues/4953
   @RegisterExtension
   var clientTestRule = configureClientTestRule()
 
@@ -907,7 +907,7 @@ class WebSocketHttpTest {
       .isCloseTo(1000.0, 250.0)
   }
 
-  /** https://github.com/square/okhttp/issues/2788  */
+  /** https://github.com/lysine-dev/okhttp/issues/2788  */
   @Test
   fun clientCancelsIfCloseIsNotAcknowledged() {
     webServer.enqueue(
@@ -1010,7 +1010,7 @@ class WebSocketHttpTest {
   /**
    * We had a bug where web socket connections were leaked if the HTTP connection upgrade was not
    * successful. This test confirms that connections are released back to the connection pool!
-   * https://github.com/square/okhttp/issues/4258
+   * https://github.com/lysine-dev/okhttp/issues/4258
    */
   @Test
   @Throws(Exception::class)
@@ -1042,7 +1042,7 @@ class WebSocketHttpTest {
     assertThat(webServer.takeRequest().exchangeIndex).isEqualTo(1)
   }
 
-  /** https://github.com/square/okhttp/issues/5705  */
+  /** https://github.com/lysine-dev/okhttp/issues/5705  */
   @Test
   fun closeWithoutSuccessfulConnect() {
     val request =
@@ -1055,7 +1055,7 @@ class WebSocketHttpTest {
     webSocket.close(1000, null)
   }
 
-  /** https://github.com/square/okhttp/issues/7768  */
+  /** https://github.com/lysine-dev/okhttp/issues/7768  */
   @Test
   @Throws(InterruptedException::class)
   fun reconnectingToNonWebSocket() {

@@ -116,8 +116,8 @@ class HttpOverHttp2Test(
   @RegisterExtension
   val testLogHandler: TestLogHandler = TestLogHandler(Http2::class.java)
 
-  // Flaky https://github.com/square/okhttp/issues/4632
-  // Flaky https://github.com/square/okhttp/issues/4633
+  // Flaky https://github.com/lysine-dev/okhttp/issues/4632
+  // Flaky https://github.com/lysine-dev/okhttp/issues/4633
   private val handshakeCertificates: HandshakeCertificates =
     platform.localhostHandshakeCertificates()
 
@@ -163,7 +163,7 @@ class HttpOverHttp2Test(
   }
 
   @AfterEach fun tearDown() {
-//    TODO reenable after https://github.com/square/okhttp/issues/8206
+//    TODO reenable after https://github.com/lysine-dev/okhttp/issues/8206
 //    fileSystem.checkNoOpenFiles()
     cache.close()
 
@@ -451,7 +451,7 @@ class HttpOverHttp2Test(
     assertThat(response2.body.string()).isEqualTo("abc")
   }
 
-  /** https://github.com/square/okhttp/issues/373  */
+  /** https://github.com/lysine-dev/okhttp/issues/373  */
   @Test
   @Disabled
   fun synchronousRequest() {
@@ -983,7 +983,7 @@ class HttpOverHttp2Test(
   /**
    * We had a bug where we'd perform infinite retries of route that fail with connection shutdown
    * errors. The problem was that the logic that decided whether to reuse a route didn't track
-   * certain HTTP/2 errors. https://github.com/square/okhttp/issues/5547
+   * certain HTTP/2 errors. https://github.com/lysine-dev/okhttp/issues/5547
    */
   @Test
   fun noRecoveryFromTwoRefusedStreams() {
@@ -1491,7 +1491,7 @@ class HttpOverHttp2Test(
   @Test
   fun missingPongsFailsConnection() {
     if (protocol === Protocol.HTTP_2) {
-      // https://github.com/square/okhttp/issues/5221
+      // https://github.com/lysine-dev/okhttp/issues/5221
       platform.expectFailureOnJdkVersion(12)
     }
 
@@ -1848,7 +1848,7 @@ class HttpOverHttp2Test(
       assertThat(bodies.remove()).isEqualTo("ABC")
       assertThat(server.requestCount).isEqualTo(2)
     } else {
-      // https://github.com/square/okhttp/issues/4836
+      // https://github.com/lysine-dev/okhttp/issues/4836
       // As documented in SocketEffect, this is known to be flaky.
       val error = errors[0]
       if (error !is StreamResetException) {
@@ -1942,7 +1942,7 @@ class HttpOverHttp2Test(
     assertThat(client.connectionPool.connectionCount()).isEqualTo(1)
   }
 
-  /** https://github.com/square/okhttp/issues/3103  */
+  /** https://github.com/lysine-dev/okhttp/issues/3103  */
   @Test
   fun domainFronting() {
     client =
@@ -1997,7 +1997,7 @@ class HttpOverHttp2Test(
     }
   }
 
-  /** https://github.com/square/okhttp/issues/4875  */
+  /** https://github.com/lysine-dev/okhttp/issues/4875  */
   @Test
   fun shutdownAfterLateCoalescing() {
     val latch = CountDownLatch(2)

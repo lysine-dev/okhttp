@@ -1,7 +1,5 @@
 val okhttpDokka: String? by project
-val dokkaBuild = okhttpDokka?.toBoolean() == true
-
-if (dokkaBuild) {
+if (okhttpDokka?.toBoolean() == true) {
   apply(plugin = "org.jetbrains.dokka")
 
   dependencies {

@@ -117,19 +117,6 @@ internal data class BasicDerAdapter<T>(
    */
   fun asTypeHint(): BasicDerAdapter<T> = copy(typeHint = true)
 
-  // Avoid Long.hashCode(long) which isn't available on Android 5.
-  override fun hashCode(): Int {
-    var result = 0
-    result = 31 * result + name.hashCode()
-    result = 31 * result + tagClass
-    result = 31 * result + tag.toInt()
-    result = 31 * result + codec.hashCode()
-    result = 31 * result + (if (isOptional) 1 else 0)
-    result = 31 * result + defaultValue.hashCode()
-    result = 31 * result + (if (typeHint) 1 else 0)
-    return result
-  }
-
   override fun toString(): String = "$name [$tagClass/$tag]"
 
   /** Reads and writes values without knowledge of the enclosing tag, length, or defaults. */

@@ -364,7 +364,7 @@ class WholeOperationTimeoutTest {
   @Flaky
   @Test
   fun noTimeout() {
-    // Flaky https://github.com/square/okhttp/issues/5304
+    // Flaky https://github.com/lysine-dev/okhttp/issues/5304
     server.enqueue(
       MockResponse
         .Builder()

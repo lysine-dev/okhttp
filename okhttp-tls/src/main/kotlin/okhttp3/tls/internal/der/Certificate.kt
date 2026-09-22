@@ -148,15 +148,7 @@ internal data class AttributeTypeAndValue(
 internal data class Validity(
   val notBefore: Long,
   val notAfter: Long,
-) {
-  // Avoid Long.hashCode(long) which isn't available on Android 5.
-  override fun hashCode(): Int {
-    var result = 0
-    result = 31 * result + notBefore.toInt()
-    result = 31 * result + notAfter.toInt()
-    return result
-  }
-}
+)
 
 internal data class SubjectPublicKeyInfo(
   val algorithm: AlgorithmIdentifier,
@@ -184,13 +176,4 @@ internal data class PrivateKeyInfo(
   val version: Long,
   val algorithmIdentifier: AlgorithmIdentifier,
   val privateKey: ByteString,
-) {
-  // Avoid Long.hashCode(long) which isn't available on Android 5.
-  override fun hashCode(): Int {
-    var result = 0
-    result = 31 * result + version.toInt()
-    result = 31 * result + algorithmIdentifier.hashCode()
-    result = 31 * result + privateKey.hashCode()
-    return result
-  }
-}
+)

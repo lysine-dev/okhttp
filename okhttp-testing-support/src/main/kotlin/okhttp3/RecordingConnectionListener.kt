@@ -26,8 +26,7 @@ import assertk.assertions.isCloseTo
 import assertk.assertions.isFalse
 import assertk.assertions.isInstanceOf
 import assertk.assertions.matchesPredicate
-import java.util.Deque
-import java.util.concurrent.ConcurrentLinkedDeque
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import okhttp3.ConnectionEvent.NoNewExchanges
 import okhttp3.internal.connection.ConnectionListener
@@ -42,7 +41,7 @@ internal open class RecordingConnectionListener(
    */
   private val enforceOrder: Boolean = true,
 ) : ConnectionListener() {
-  val eventSequence: Deque<ConnectionEvent> = ConcurrentLinkedDeque()
+  val eventSequence = LinkedBlockingQueue<ConnectionEvent>()
 
   private val forbiddenLocks = mutableSetOf<Any>()
 
@@ -84,7 +83,7 @@ internal open class RecordingConnectionListener(
     eventClass: Class<out ConnectionEvent>? = null,
     elapsedMs: Long = -1L,
   ): ConnectionEvent {
-    val result = eventSequence.remove()
+    val result = eventSequence.take()
     val actualElapsedNs = result.timestampNs - (lastTimestampNs ?: result.timestampNs)
     lastTimestampNs = result.timestampNs
 

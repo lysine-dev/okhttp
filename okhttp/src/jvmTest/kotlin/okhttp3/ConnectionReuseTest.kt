@@ -298,7 +298,7 @@ class ConnectionReuseTest {
    *
    * This test leaks a response body by not closing it.
    *
-   * https://github.com/square/okhttp/issues/2409
+   * https://github.com/lysine-dev/okhttp/issues/2409
    */
   @Test
   fun connectionsAreNotReusedIfNetworkInterceptorInterferes() {

@@ -84,12 +84,12 @@ class ConnectionCoalescingTest {
         .addSubjectAlternativeName("*.wildcard.com")
         .addSubjectAlternativeName("differentdns.com")
         .build()
-    serverIps = Dns.SYSTEM.lookup(server.hostName)
+    serverIps = listOf(server.socketAddress.address)
     dns[server.hostName] = serverIps
     dns["san.com"] = serverIps
     dns["nonsan.com"] = serverIps
     dns["www.wildcard.com"] = serverIps
-    dns["differentdns.com"] = listOf()
+    dns["differentdns.com"] = listOf<InetAddress>()
     val handshakeCertificates =
       HandshakeCertificates
         .Builder()

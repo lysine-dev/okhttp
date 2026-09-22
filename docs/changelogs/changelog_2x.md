@@ -542,7 +542,7 @@ in addition to synchronous blocking calls.
     `Headers` class offers full access to the HTTP headers.
 
  *  **Okio dependency added.** OkHttp now depends on
-    [Okio](https://github.com/square/okio), an I/O library that makes it easier
+    [Okio](https://github.com/lysine-dev/okio), an I/O library that makes it easier
     to access, store and process data. Using this library internally makes OkHttp
     faster while consuming less memory. You can write a `RequestBody` as an Okio
     `BufferedSink` and a `ResponseBody` as an Okio `BufferedSource`. Standard
@@ -626,5 +626,5 @@ in addition to synchronous blocking calls.
 
 
  [brick]: https://noncombatant.org/2015/05/01/about-http-public-key-pinning/
- [interceptors]: https://square.github.io/okhttp/interceptors/
+ [interceptors]: https://lysine.dev/okhttp/interceptors/
  [webdav]: https://tools.ietf.org/html/rfc4918

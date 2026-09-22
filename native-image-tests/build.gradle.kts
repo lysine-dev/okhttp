@@ -21,7 +21,7 @@ tasks.withType<JavaCompile> {
 }
 
 // TODO reenable other tests
-// https://github.com/square/okhttp/issues/8901
+// https://github.com/lysine-dev/okhttp/issues/8901
 // sourceSets {
 //  test {
 //    java.srcDirs(

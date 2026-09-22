@@ -41,7 +41,7 @@ abstract class RequestBody {
   @Throws(IOException::class)
   open fun contentLength(): Long = -1L
 
-  /** Writes the content of this request to [sink]. */
+  /** Writes the content of this request to [sink]. This should not close [sink]. */
   @Throws(IOException::class)
   abstract fun writeTo(sink: BufferedSink)
 

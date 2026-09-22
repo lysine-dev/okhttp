@@ -25,5 +25,5 @@ All providers support HTTP/1.1 and TLSv1.2.
 [OpenJDK]: https://openjdk.java.net/groups/security/
 [OpenJSSE]: https://github.com/openjsse/openjsse
 [OpenSSL]: https://www.openssl.org/
-[bug5592]: https://github.com/square/okhttp/issues/5592
-[bug5698]: https://github.com/square/okhttp/issues/5698
+[bug5592]: https://github.com/lysine-dev/okhttp/issues/5592
+[bug5698]: https://github.com/lysine-dev/okhttp/issues/5698

@@ -480,9 +480,76 @@ public abstract interface class okhttp3/Dns {
 	public static final field Companion Lokhttp3/Dns$Companion;
 	public static final field SYSTEM Lokhttp3/Dns;
 	public abstract fun lookup (Ljava/lang/String;)Ljava/util/List;
+	public fun newCall (Lokhttp3/Dns$Request;)Lokhttp3/Dns$Call;
+}
+
+public abstract interface class okhttp3/Dns$Call {
+	public abstract fun cancel ()V
+	public abstract fun enqueue (Lokhttp3/Dns$Callback;)V
+	public abstract fun getRequest ()Lokhttp3/Dns$Request;
+	public abstract fun isCanceled ()Z
+}
+
+public abstract interface class okhttp3/Dns$Callback {
+	public abstract fun onFailure (Lokhttp3/Dns$Call;Ljava/io/IOException;)V
+	public abstract fun onRecords (Lokhttp3/Dns$Call;ZLjava/util/List;)V
 }
 
 public final class okhttp3/Dns$Companion {
+}
+
+public abstract class okhttp3/Dns$Record {
+	public abstract fun getHostname ()Ljava/lang/String;
+}
+
+public final class okhttp3/Dns$Record$IpAddress : okhttp3/Dns$Record {
+	public fun <init> (Ljava/lang/String;Ljava/net/InetAddress;)V
+	public final fun address ()Ljava/net/InetAddress;
+	public fun equals (Ljava/lang/Object;)Z
+	public synthetic fun getHostname ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun hostname ()Ljava/lang/String;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class okhttp3/Dns$Record$ServiceMetadata : okhttp3/Dns$Record {
+	public fun <init> (Ljava/lang/String;Ljava/util/List;ILjava/util/List;Lokio/ByteString;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;ILjava/util/List;Lokio/ByteString;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun alpnIds ()Ljava/util/List;
+	public final fun echConfigList ()Lokio/ByteString;
+	public fun equals (Ljava/lang/Object;)Z
+	public synthetic fun getHostname ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun hostname ()Ljava/lang/String;
+	public final fun ipAddressHints ()Ljava/util/List;
+	public final fun port ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class okhttp3/Dns$Request {
+	public fun <init> (Ljava/lang/String;)V
+	public fun <init> (Ljava/lang/String;I)V
+	public synthetic fun <init> (Ljava/lang/String;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public final fun hostname ()Ljava/lang/String;
+	public final fun port ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class okhttp3/DnsCache {
+	public synthetic fun <init> (JJJJIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (JJJJILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun evictAll ()V
+	public final fun failureTimeToLive ()J
+	public final fun hitCount ()I
+	public final fun maxSize ()I
+	public final fun maximumTimeToLive ()J
+	public final fun minimumTimeToLive ()J
+	public final fun networkCount ()I
+	public final fun requestCount ()I
+	public final fun revalidateBeforeExpire ()J
+	public final fun size ()I
 }
 
 public abstract class okhttp3/EventListener {
@@ -1250,7 +1317,9 @@ public final class okhttp3/Route {
 	public final fun -deprecated_proxy ()Ljava/net/Proxy;
 	public final fun -deprecated_socketAddress ()Ljava/net/InetSocketAddress;
 	public fun <init> (Lokhttp3/Address;Ljava/net/Proxy;Ljava/net/InetSocketAddress;)V
+	public fun <init> (Lokhttp3/Address;Ljava/net/Proxy;Ljava/net/InetSocketAddress;Lokio/ByteString;)V
 	public final fun address ()Lokhttp3/Address;
+	public final fun echConfigList ()Lokio/ByteString;
 	public fun equals (Ljava/lang/Object;)Z
 	public fun hashCode ()I
 	public final fun proxy ()Ljava/net/Proxy;

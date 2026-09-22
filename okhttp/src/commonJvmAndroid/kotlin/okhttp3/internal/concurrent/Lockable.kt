@@ -20,6 +20,7 @@ package okhttp3.internal.concurrent
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
+import okhttp3.internal.OkHttpInternalApi
 import okhttp3.internal.assertionsEnabled
 
 /**
@@ -31,13 +32,17 @@ import okhttp3.internal.assertionsEnabled
  */
 interface Lockable
 
-internal inline fun Lockable.wait() = (this as Object).wait()
+@OkHttpInternalApi
+inline fun Lockable.wait() = (this as Object).wait()
 
-internal inline fun Lockable.notify() = (this as Object).notify()
+@OkHttpInternalApi
+inline fun Lockable.notify() = (this as Object).notify()
 
-internal inline fun Lockable.notifyAll() = (this as Object).notifyAll()
+@OkHttpInternalApi
+inline fun Lockable.notifyAll() = (this as Object).notifyAll()
 
-internal inline fun Lockable.awaitNanos(nanos: Long) {
+@OkHttpInternalApi
+inline fun Lockable.awaitNanos(nanos: Long) {
   val ms = nanos / 1_000_000L
   val ns = nanos - (ms * 1_000_000L)
   if (ms > 0L || nanos > 0) {

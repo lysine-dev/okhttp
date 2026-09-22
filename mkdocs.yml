@@ -1,7 +1,7 @@
 site_name: OkHttp
-site_url: https://square.github.io/okhttp/
+site_url: https://lysine.dev/okhttp/
 repo_name: OkHttp
-repo_url: https://github.com/square/okhttp
+repo_url: https://github.com/lysine-dev/okhttp
 site_description: "Square’s meticulous HTTP client for the JVM, Android, and GraalVM"
 site_author: Square, Inc.
 remote_branch: gh-pages

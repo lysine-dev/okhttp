@@ -20,8 +20,8 @@ import assertk.assertions.isCloseTo
 import assertk.assertions.isFalse
 import assertk.assertions.isInstanceOf
 import assertk.assertions.matchesPredicate
-import java.util.Deque
 import java.util.concurrent.ConcurrentLinkedDeque
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import okhttp3.CallEvent.CallStart
 import okhttp3.CallEvent.Canceled
@@ -44,7 +44,7 @@ open class EventRecorder(
     get() = eventListenerAdapter
 
   /** Events that haven't yet been removed. */
-  val eventSequence: Deque<CallEvent> = ConcurrentLinkedDeque()
+  val eventSequence = LinkedBlockingQueue<CallEvent>()
 
   /** The full set of events, used to match starts with ends. */
   private val eventsForMatching = ConcurrentLinkedDeque<CallEvent>()
@@ -93,7 +93,7 @@ open class EventRecorder(
     eventClass: Class<out CallEvent>? = null,
     elapsedMs: Long = -1L,
   ): CallEvent {
-    val result = eventSequence.remove()
+    val result = eventSequence.take()
     val actualElapsedNs = result.timestampNs - (lastTimestampNs ?: result.timestampNs)
     lastTimestampNs = result.timestampNs
 

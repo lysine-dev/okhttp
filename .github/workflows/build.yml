@@ -3,7 +3,7 @@ name: build
 on:
   push:
     branches:
-      - master
+      - main
   pull_request:
     types: [opened, labeled, unlabeled, synchronize]
 
@@ -20,20 +20,20 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    if: github.repository == 'square/okhttp' && github.ref == 'refs/heads/master'
+    if: github.repository == 'lysine-dev/okhttp' && github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Configure JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: 'temurin'
           java-version: 21
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
       - name: Upload Artifacts
         run: ./gradlew clean publish --stacktrace
@@ -41,18 +41,17 @@ jobs:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_CENTRAL_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_CENTRAL_PASSWORD }}
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_SECRET_KEY }}
-          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_SECRET_PASSPHRASE }}
 
   validation:
     name: "Validation"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: gradle/actions/wrapper-validation@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: gradle/actions/wrapper-validation@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
       - name: Validate Renovate
-        uses: rinchsan/renovate-config-validator@v0.2.0
+        uses: rinchsan/renovate-config-validator@8cf44ae5646f111f838a03ac7ebd4e1c1f9be983 # v0.2.1
         with:
-          pattern: '.github/renovate.json'
+          pattern: '.github/renovate.json5'
 
   checks:
     permissions:
@@ -61,17 +60,17 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Configure JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: 'temurin'
           java-version: |
             11
             21
 
-      - uses: graalvm/setup-graalvm@v1
+      - uses: graalvm/setup-graalvm@5298d94fb55a4f185c602eeac5de1b553882abe2 # v1.6.4
         with:
           distribution: 'graalvm'
           java-version: 25
@@ -79,7 +78,7 @@ jobs:
           native-image-job-reports: true
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
       - name: Run Checks
         run: ./gradlew check -PgraalBuild=true -x jvmTest -x test -x allTests -x java9Test
@@ -99,10 +98,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Configure JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: 'temurin'
           java-version: |
@@ -110,54 +109,54 @@ jobs:
             21
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
       - name: Run Tests
         run: ./gradlew test allTests -Ptest.java.version=${{ matrix.java-version }}
 
       - name: Publish Test Report
-        if: github.repository == 'square/okhttp' && github.ref == 'refs/heads/master' && matrix.java-version == '11'
-        uses: mikepenz/action-junit-report@v6
+        if: github.repository == 'lysine-dev/okhttp' && github.ref == 'refs/heads/main' && matrix.java-version == '11'
+        uses: mikepenz/action-junit-report@a9170d5795813c01ab4901ffb045b52bab4ab09d # v6.5.0
         with:
           report_paths: '**/build/test-results/*/TEST-*.xml'
           check_name: OpenJDK 11 Test Report
 
       - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        if: github.repository == 'square/okhttp' && github.ref == 'refs/heads/master' && matrix.java-version == '11'
+        uses: EnricoMi/publish-unit-test-result-action@d0a4676d0e0b938bc201470d88276b7c74c712b3 # v2.24.0
+        if: github.repository == 'lysine-dev/okhttp' && github.ref == 'refs/heads/main' && matrix.java-version == '11'
         with:
           files: |
             **/build/test-results/*/TEST-*.xml
 
   openjdk8alpn:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master' || contains(github.event.pull_request.labels.*.name, 'jdkversions')
+    if: github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'jdkversions')
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install Old JDK 8
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: 'zulu'
           java-version: 8.0.242
 
       - name: Configure JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: 'temurin'
           java-version: 21
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
       - name: Run Tests
         run: ./gradlew test allTests -Ptest.java.version=8 -Pokhttp.platform=jdk8alpn -Palpn.boot.version=8.1.13.v20181017 -Dorg.gradle.java.installations.paths=/opt/hostedtoolcache/Java_Adopt_jdk/8.0.242-8.1/x64
 
   providers:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master' || contains(github.event.pull_request.labels.*.name, 'providers')
+    if: github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'providers')
     strategy:
       matrix:
         include:
@@ -172,10 +171,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Configure JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: 'temurin'
           java-version: |
@@ -183,7 +182,7 @@ jobs:
             21
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
       - name: Run Tests
         run: ./gradlew test allTests -Pokhttp.platform=${{ matrix.provider }} -Ptest.java.version=${{ matrix.java-version }}
@@ -193,10 +192,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Configure JDKs
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: 'temurin'
           java-version: |
@@ -209,7 +208,7 @@ jobs:
           echo 'kotlin.jvm.target.validation.mode=ignore' >> ./gradle.properties
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
       - name: Run Tests
         run: ./gradlew test allTests -Ptest.java.version=24
@@ -220,10 +219,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Configure JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: 'temurin'
           java-version: |
@@ -236,7 +235,7 @@ jobs:
           echo 'kotlin.jvm.target.validation.mode=ignore' >> ./gradle.properties
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
       - name: Run Tests
         run: ./gradlew test allTests -Ptest.java.version=25
@@ -246,16 +245,16 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Configure JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: 'temurin'
           java-version: 21
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
       - name: Run Tests
         run: ./gradlew test allTests
@@ -265,15 +264,15 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Configure JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: 'temurin'
           java-version: 21
 
-      - uses: graalvm/setup-graalvm@v1
+      - uses: graalvm/setup-graalvm@5298d94fb55a4f185c602eeac5de1b553882abe2 # v1.6.4
         with:
           distribution: 'graalvm'
           java-version: 25
@@ -281,13 +280,13 @@ jobs:
           native-image-job-reports: true
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
       - name: Build okcurl
         run: ./gradlew okcurl:nativeBuild
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
       - name: Run native-image tests
         run: ./gradlew -PgraalBuild=true native-image-tests:nativeTest
@@ -295,22 +294,55 @@ jobs:
   android:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # The pre-release API 37 emulator image is still maturing, so let the entry marked
+    # experimental fail without blocking the build until the image is stable on CI.
+    continue-on-error: ${{ matrix.experimental || false }}
+
+    # No window, no audio, and dynamic GPU/memory for headless environments. Shared by both
+    # emulator steps below: the emulator only restores a cached snapshot when the boot options
+    # are identical, and the action's default includes -no-snapshot (a slow cold boot).
+    env:
+      EMULATOR_OPTIONS: >-
+        -no-window
+        -gpu ${{ matrix.gpu || 'swiftshader_indirect' }}
+        -noaudio
+        -no-boot-anim
+        -camera-back none
+        -memory ${{ matrix.memory || '2048' }}
 
     strategy:
       fail-fast: false
       matrix:
-        api-level:
-          - 21
-          - 23
-          - 29
-          - 34
+        include:
+          - api-level: 21
+            arch: x86
+            target: default
+          - api-level: 23
+            arch: x86
+            target: default
+          - api-level: 29
+            arch: x86
+            target: default
+          - api-level: 34
+            arch: x86_64
+            target: default
+          # API 37 only ships 16 KB page-size images; playstore_ps16k resolves to
+          # google_apis_playstore_ps16k. Quoted so YAML keeps the ".0".
+          - api-level: "37.0"
+            arch: x86_64
+            target: playstore_ps16k
+            # API 37 needs more headroom than the other levels.
+            memory: 4096
+            gpu: auto
+            # Pre-release emulator image; allowed to fail (see continue-on-error above).
+            experimental: true
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Configure JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: 'temurin'
           java-version: 21
@@ -328,46 +360,66 @@ jobs:
           kvm-ok || echo "KVM is not accelerated"
           kvm-ok || exit 1
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+      # The runner image ships an outdated avdmanager that writes target=android-0
+      # into the AVD root ini for minor-versioned packages (android-37.x); the
+      # emulator clamps that to API 3 and skips the Vulkan/GLDirectMem auto-enable,
+      # which previously had to be worked around with -feature GLDirectMem.
+      - name: Update SDK cmdline-tools
+        id: cmdline-tools
+        run: |
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --install "cmdline-tools;latest" > /dev/null
+          # sdkmanager won't overwrite the preinstalled dir; it installs to latest-2.
+          if [ -d "$SDK/cmdline-tools/latest-2" ]; then
+            rm -rf "$SDK/cmdline-tools/latest"
+            mv "$SDK/cmdline-tools/latest-2" "$SDK/cmdline-tools/latest"
+          fi
+          "$SDK/cmdline-tools/latest/bin/avdmanager" list device > /dev/null
+          # --version prints a trailing blank line; grab the numeric line.
+          echo "version=$("$SDK/cmdline-tools/latest/bin/sdkmanager" --version 2>/dev/null | grep -Eo '^[0-9][0-9.]*' | head -1)" >> "$GITHUB_OUTPUT"
 
-      - name: Gradle cache
-        run: ./gradlew :android-test:test
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Warm the Gradle cache
+        # Build the instrumentation APK to warm the cache, but don't run the Robolectric unit
+        # tests (`:android-test:test`) here: they fetch the android-all artifact and can take
+        # ~30 min.
+        run: ./gradlew :android-test:assembleDebugAndroidTest
 
       - name: AVD System Image Cache
-        uses: actions/cache@v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: avd-cache
         with:
-          key: avd-${{ runner.os }}-${{ matrix.api-level }}-${{ matrix.api-level >= 30 && 'x86_64' || 'x86' }}
+          # Keyed on the cmdline-tools version: AVDs created by an older avdmanager
+          # (broken target=android-0 root ini) are invalidated automatically.
+          key: avd-${{ runner.os }}-${{ matrix.api-level }}-${{ matrix.target }}-${{ matrix.arch }}-tools${{ steps.cmdline-tools.outputs.version }}
           path: |
             ~/.android/avd/*
             ~/.android/adb*
-            # Added the actual system image path
             ${{ env.ANDROID_HOME }}/system-images/android-${{ matrix.api-level }}
 
       - name: Create AVD and generate snapshot for caching
         if: steps.avd-cache.outputs.cache-hit != 'true'
-        uses: reactivecircus/android-emulator-runner@v2
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           api-level: ${{ matrix.api-level }}
           force-avd-creation: false
-          arch: ${{ matrix.api-level >= 30 && 'x86_64' || 'x86' }}
-          # No window, no audio, and use swiftshader for headless environments
-          emulator-options: >
-            -no-window
-            -gpu swiftshader_indirect
-            -noaudio
-            -no-boot-anim
-            -camera-back none
-            -memory 2048
+          target: ${{ matrix.target }}
+          arch: ${{ matrix.arch }}
+          emulator-boot-timeout: 120
+          emulator-options: ${{ env.EMULATOR_OPTIONS }}
           disable-animations: true
           script: echo "Generated AVD snapshot for caching."
 
       - name: Run Tests
-        uses: reactivecircus/android-emulator-runner@v2
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           api-level: ${{ matrix.api-level }}
-          arch: ${{ matrix.api-level == '34' && 'x86_64' || 'x86' }}
+          target: ${{ matrix.target }}
+          arch: ${{ matrix.arch }}
+          emulator-boot-timeout: 120
+          emulator-options: ${{ env.EMULATOR_OPTIONS }}
           script: ./gradlew -PandroidBuild=true connectedCheck
         env:
           API_LEVEL: ${{ matrix.api-level }}
@@ -375,42 +427,42 @@ jobs:
       - name: Build Release App
         run: ./gradlew android-test-app:lint android-test-app:assembleRelease
 
-  loom:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Configure JDK
-        uses: actions/setup-java@v5
-        with:
-          distribution: 'temurin'
-          java-version: |
-            21
-            24
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
-
-      - name: Run Tests
-        run: ./gradlew test allTests -Pokhttp.platform=loom -Ptest.java.version=24 -PcontainerTests=true
+#  loom:
+#    runs-on: ubuntu-latest
+#
+#    steps:
+#      - name: Checkout
+#        uses: actions/checkout@v7
+#
+#      - name: Configure JDK
+#        uses: actions/setup-java@v5
+#        with:
+#          distribution: 'temurin'
+#          java-version: |
+#            21
+#            24
+#
+#      - name: Setup Gradle
+#        uses: gradle/actions/setup-gradle@v6
+#
+#      - name: Run Tests
+#        run: ./gradlew test allTests -Pokhttp.platform=loom -Ptest.java.version=24
 
   maven:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Configure JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: 'temurin'
           java-version: 21
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
       - name: Publish local snapshot
         run: ./gradlew publishToMavenLocal
@@ -424,20 +476,19 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Configure JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: 'temurin'
           java-version: 24
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
 
       - name: Test module-tests
         run: ./gradlew module-tests:test -PokhttpModuleTests=true
 
       - name: Run with Jlink
         run: ./gradlew module-tests:imageRun -PokhttpModuleTests=true
-

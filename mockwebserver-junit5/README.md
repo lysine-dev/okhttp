@@ -6,7 +6,7 @@ This module integrates mockwebserver3.MockWebServer with JUnit 5.
 To use, first add this library as a test dependency:
 
 ```
-testImplementation("com.squareup.okhttp3:mockwebserver3-junit5:5.3.0")
+testImplementation("com.squareup.okhttp3:mockwebserver3-junit5:5.5.0")
 ```
 
 Annotate fields in test classes with `@StartStop`. The server will be started and shut down

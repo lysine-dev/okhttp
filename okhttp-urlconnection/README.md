@@ -8,5 +8,5 @@ This module is obsolete; prefer `okhttp-java-net-cookiejar`.
 ### Download
 
 ```kotlin
-testImplementation("com.squareup.okhttp3:okhttp-urlconnection:5.3.0")
+testImplementation("com.squareup.okhttp3:okhttp-urlconnection:5.5.0")
 ```

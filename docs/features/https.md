@@ -6,9 +6,9 @@ OkHttp attempts to balance two competing concerns:
  * **Connectivity** to as many hosts as possible. That includes advanced hosts that run the latest versions of [boringssl](https://boringssl.googlesource.com/boringssl/) and less out of date hosts running older versions of [OpenSSL](https://www.openssl.org/).
  * **Security** of the connection. This includes verification of the remote webserver with certificates and the privacy of data exchanged with strong ciphers.
 
-When negotiating a connection to an HTTPS server, OkHttp needs to know which [TLS versions](https://square.github.io/okhttp/5.x/okhttp/okhttp3/-tls-version/) and [cipher suites](https://square.github.io/okhttp/5.x/okhttp/okhttp3/-cipher-suite/) to offer. A client that wants to maximize connectivity would include obsolete TLS versions and weak-by-design cipher suites. A strict client that wants to maximize security would be limited to only the latest TLS version and strongest cipher suites.
+When negotiating a connection to an HTTPS server, OkHttp needs to know which [TLS versions](https://lysine.dev/okhttp/5.x/okhttp/okhttp3/-tls-version/) and [cipher suites](https://lysine.dev/okhttp/5.x/okhttp/okhttp3/-cipher-suite/) to offer. A client that wants to maximize connectivity would include obsolete TLS versions and weak-by-design cipher suites. A strict client that wants to maximize security would be limited to only the latest TLS version and strongest cipher suites.
 
-Specific security vs. connectivity decisions are implemented by [ConnectionSpec](https://square.github.io/okhttp/5.x/okhttp/okhttp3/-connection-spec/). OkHttp includes four built-in connection specs:
+Specific security vs. connectivity decisions are implemented by [ConnectionSpec](https://lysine.dev/okhttp/5.x/okhttp/okhttp3/-connection-spec/). OkHttp includes four built-in connection specs:
 
  * `RESTRICTED_TLS` is a secure configuration, intended to meet stricter compliance requirements.
  * `MODERN_TLS` is a secure configuration that connects to modern HTTPS servers.
@@ -68,7 +68,7 @@ and increase connectivity with web servers.
 
 By default, OkHttp trusts the certificate authorities of the host platform. This strategy maximizes connectivity, but it is subject to certificate authority attacks such as the [2011 DigiNotar attack](https://www.computerworld.com/article/2510951/cybercrime-hacking/hackers-spied-on-300-000-iranians-using-fake-google-certificate.html). It also assumes your HTTPS servers’ certificates are signed by a certificate authority.
 
-Use [CertificatePinner](https://square.github.io/okhttp/5.x/okhttp/okhttp3/-certificate-pinner/) to restrict which certificates and certificate authorities are trusted. Certificate pinning increases security, but limits your server team’s abilities to update their TLS certificates. **Do not use certificate pinning without the blessing of your server’s TLS administrator!**
+Use [CertificatePinner](https://lysine.dev/okhttp/5.x/okhttp/okhttp3/-certificate-pinner/) to restrict which certificates and certificate authorities are trusted. Certificate pinning increases security, but limits your server team’s abilities to update their TLS certificates. **Do not use certificate pinning without the blessing of your server’s TLS administrator!**
 
 === ":material-language-kotlin: Kotlin"
     ```kotlin
@@ -204,9 +204,9 @@ The full code sample shows how to replace the host platform’s certificate auth
       }
     ```
 
- [CustomTrustJava]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/CustomTrust.java
- [CustomTrustKotlin]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/CustomTrust.kt
- [CertificatePinningJava]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/CertificatePinning.java
- [CertificatePinningKotlin]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/CertificatePinning.kt
+ [CustomTrustJava]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/CustomTrust.java
+ [CustomTrustKotlin]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/CustomTrust.kt
+ [CertificatePinningJava]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/CertificatePinning.java
+ [CertificatePinningKotlin]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/CertificatePinning.kt
  [provider_installer]: https://developer.android.com/training/articles/security-gms-provider
  [qualys]: https://www.ssllabs.com/ssltest/

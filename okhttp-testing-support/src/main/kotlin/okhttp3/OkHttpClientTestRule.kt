@@ -29,6 +29,7 @@ import java.util.logging.Level
 import java.util.logging.LogManager
 import java.util.logging.LogRecord
 import java.util.logging.Logger
+import okhttp3.OkHttpClientTestRule.Companion.plus
 import okhttp3.internal.buildConnectionPool
 import okhttp3.internal.concurrent.TaskRunner
 import okhttp3.internal.concurrent.withLock

@@ -67,7 +67,6 @@ include(":samples:slack")
 include(":samples:static-server")
 include(":samples:tlssurvey")
 include(":samples:unixdomainsockets")
-include(":container-tests")
 val okhttpModuleTests: String by settings
 if (okhttpModuleTests.toBoolean()) {
   include(":module-tests")
@@ -86,6 +85,7 @@ val sdkDir = localProperties.getProperty("sdk.dir")
 if (androidHome != null || sdkDir != null) {
   include(":android-test")
   include(":android-test-app")
+  include(":samples:android")
 }
 
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")

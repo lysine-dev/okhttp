@@ -18,6 +18,7 @@ package okhttp3
 import java.net.InetSocketAddress
 import java.net.Proxy
 import okhttp3.internal.toCanonicalHost
+import okio.ByteString
 
 /**
  * The concrete route used by a connection to reach an abstract origin server. When creating a
@@ -40,7 +41,14 @@ class Route(
    */
   @get:JvmName("proxy") val proxy: Proxy,
   @get:JvmName("socketAddress") val socketAddress: InetSocketAddress,
+  @get:JvmName("echConfigList") val echConfigList: ByteString?,
 ) {
+  constructor(
+    address: Address,
+    proxy: Proxy,
+    socketAddress: InetSocketAddress,
+  ) : this(address, proxy, socketAddress, null)
+
   @JvmName("-deprecated_address")
   @Deprecated(
     message = "moved to val",
@@ -81,13 +89,15 @@ class Route(
     other is Route &&
       other.address == address &&
       other.proxy == proxy &&
-      other.socketAddress == socketAddress
+      other.socketAddress == socketAddress &&
+      other.echConfigList == echConfigList
 
   override fun hashCode(): Int {
     var result = 17
     result = 31 * result + address.hashCode()
     result = 31 * result + proxy.hashCode()
     result = 31 * result + socketAddress.hashCode()
+    result = 31 * result + echConfigList.hashCode()
     return result
   }
 
@@ -126,6 +136,10 @@ class Route(
         }
         append(":")
         append(socketAddress.port)
+      }
+
+      if (echConfigList != null) {
+        append(" with ECH")
       }
     }
 }

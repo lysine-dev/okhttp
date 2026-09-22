@@ -14,9 +14,12 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+@file:OptIn(OkHttpInternalApi::class)
+
 package okhttp3
 
 import java.util.concurrent.TimeUnit
+import okhttp3.internal.OkHttpInternalApi
 import okhttp3.internal.concurrent.TaskRunner
 import okhttp3.internal.connection.ConnectionListener
 import okhttp3.internal.connection.RealConnectionPool

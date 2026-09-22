@@ -59,7 +59,7 @@ class StatusLineTest {
     assertThat(statusLine.code).isEqualTo(code)
   }
 
-  // https://github.com/square/okhttp/issues/386
+  // https://github.com/lysine-dev/okhttp/issues/386
   @Test
   fun shoutcast() {
     val statusLine = parse("ICY 200 OK")

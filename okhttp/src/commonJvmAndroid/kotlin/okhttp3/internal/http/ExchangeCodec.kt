@@ -20,12 +20,14 @@ import okhttp3.Headers
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.Route
+import okhttp3.internal.OkHttpInternalApi
 import okhttp3.internal.connection.RealCall
 import okio.Sink
 import okio.Socket
 import okio.Source
 
 /** Encodes HTTP requests and decodes HTTP responses. */
+@OkHttpInternalApi
 interface ExchangeCodec {
   /** The connection or CONNECT tunnel that owns this codec. */
   val carrier: Carrier

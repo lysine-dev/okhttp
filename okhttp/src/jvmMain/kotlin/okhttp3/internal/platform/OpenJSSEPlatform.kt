@@ -23,6 +23,7 @@ import javax.net.ssl.SSLSocketFactory
 import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509TrustManager
 import okhttp3.Protocol
+import okio.ByteString
 
 /**
  * Platform using OpenJSSE (https://github.com/openjsse/openjsse) if installed as the first
@@ -63,6 +64,7 @@ class OpenJSSEPlatform private constructor() : Platform() {
     sslSocket: SSLSocket,
     hostname: String?,
     protocols: List<@JvmSuppressWildcards Protocol>,
+    echConfigList: ByteString?,
   ) {
     if (sslSocket is org.openjsse.javax.net.ssl.SSLSocket) {
       val sslParameters = sslSocket.sslParameters
@@ -75,7 +77,7 @@ class OpenJSSEPlatform private constructor() : Platform() {
         sslSocket.sslParameters = sslParameters
       }
     } else {
-      super.configureTlsExtensions(sslSocket, hostname, protocols)
+      super.configureTlsExtensions(sslSocket, hostname, protocols, echConfigList)
     }
   }
 

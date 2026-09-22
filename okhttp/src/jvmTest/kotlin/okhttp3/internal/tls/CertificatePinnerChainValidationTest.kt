@@ -67,7 +67,7 @@ class CertificatePinnerChainValidationTest {
    */
   @Test
   fun pinRootNotPresentInChain() {
-    // Fails on 11.0.1 https://github.com/square/okhttp/issues/4703
+    // Fails on 11.0.1 https://github.com/lysine-dev/okhttp/issues/4703
     val rootCa =
       HeldCertificate
         .Builder()
@@ -139,7 +139,7 @@ class CertificatePinnerChainValidationTest {
    */
   @Test
   fun pinIntermediatePresentInChain() {
-    // Fails on 11.0.1 https://github.com/square/okhttp/issues/4703
+    // Fails on 11.0.1 https://github.com/lysine-dev/okhttp/issues/4703
     val rootCa =
       HeldCertificate
         .Builder()
@@ -232,7 +232,7 @@ class CertificatePinnerChainValidationTest {
 
   @Test
   fun unrelatedPinnedLeafCertificateInChain() {
-    // https://github.com/square/okhttp/issues/4729
+    // https://github.com/lysine-dev/okhttp/issues/4729
     platform.expectFailureOnConscryptPlatform()
     platform.expectFailureOnCorrettoPlatform()
     platform.expectFailureOnLoomPlatform()
@@ -336,7 +336,7 @@ class CertificatePinnerChainValidationTest {
 
   @Test
   fun unrelatedPinnedIntermediateCertificateInChain() {
-    // https://github.com/square/okhttp/issues/4729
+    // https://github.com/lysine-dev/okhttp/issues/4729
     platform.expectFailureOnConscryptPlatform()
     platform.expectFailureOnCorrettoPlatform()
     platform.expectFailureOnLoomPlatform()

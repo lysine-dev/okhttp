@@ -31,7 +31,7 @@ obj
 # Special Mkdocs files
 docs/5.x
 docs/changelog.md
-docs/contributing.md
+docs/contribute/contributing.md
 docs/index.md
 
 # jenv

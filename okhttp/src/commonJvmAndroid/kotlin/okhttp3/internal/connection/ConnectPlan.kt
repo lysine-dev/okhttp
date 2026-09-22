@@ -24,6 +24,7 @@ import java.net.Socket as JavaNetSocket
 import java.net.UnknownServiceException
 import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLException
 import javax.net.ssl.SSLPeerUnverifiedException
 import javax.net.ssl.SSLSocket
 import okhttp3.CertificatePinner
@@ -33,10 +34,13 @@ import okhttp3.Handshake.Companion.handshake
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Route
+import okhttp3.internal.OkHttpInternalApi
 import okhttp3.internal.closeQuietly
 import okhttp3.internal.concurrent.TaskRunner
 import okhttp3.internal.concurrent.withLock
 import okhttp3.internal.connection.RoutePlanner.ConnectResult
+import okhttp3.internal.ech.EchRetryPlan
+import okhttp3.internal.ech.EchUntrustedException
 import okhttp3.internal.http.ExchangeCodec
 import okhttp3.internal.http1.Http1ExchangeCodec
 import okhttp3.internal.platform.Platform
@@ -54,6 +58,7 @@ import okhttp3.internal.toHostHeader
  * Each step may fail. If a retry is possible, a new instance is created with the next plan, which
  * will be configured differently.
  */
+@OkHttpInternalApi
 class ConnectPlan internal constructor(
   private val taskRunner: TaskRunner,
   private val connectionPool: RealConnectionPool,
@@ -72,6 +77,7 @@ class ConnectPlan internal constructor(
   private val tunnelRequest: Request?,
   internal val connectionSpecIndex: Int,
   internal val isTlsFallback: Boolean,
+  private val echRetryPlan: EchRetryPlan? = null,
 ) : RoutePlanner.Plan,
   ExchangeCodec.Carrier {
   /** True if this connect was canceled; typically because it lost a race. */
@@ -97,10 +103,12 @@ class ConnectPlan internal constructor(
     get() = protocol != null
 
   private fun copy(
+    route: Route = this.route,
     attempt: Int = this.attempt,
     tunnelRequest: Request? = this.tunnelRequest,
     connectionSpecIndex: Int = this.connectionSpecIndex,
     isTlsFallback: Boolean = this.isTlsFallback,
+    echRetryPlan: EchRetryPlan? = this.echRetryPlan,
   ): ConnectPlan =
     ConnectPlan(
       taskRunner = taskRunner,
@@ -119,6 +127,7 @@ class ConnectPlan internal constructor(
       tunnelRequest = tunnelRequest,
       connectionSpecIndex = connectionSpecIndex,
       isTlsFallback = isTlsFallback,
+      echRetryPlan = echRetryPlan,
     )
 
   override fun connectTcp(): ConnectResult {
@@ -199,11 +208,13 @@ class ConnectPlan internal constructor(
         val tlsEquipPlan = planWithCurrentOrInitialConnectionSpec(connectionSpecs, sslSocket)
         val connectionSpec = connectionSpecs[tlsEquipPlan.connectionSpecIndex]
 
-        // Figure out the next connection spec in case we need a retry.
-        retryTlsConnection = tlsEquipPlan.nextConnectionSpec(connectionSpecs, sslSocket)
-
         connectionSpec.apply(sslSocket, isFallback = tlsEquipPlan.isTlsFallback)
-        connectTls(sslSocket, connectionSpec)
+        try {
+          connectTls(sslSocket, connectionSpec)
+        } catch (e: SSLException) {
+          retryTlsConnection = tlsEquipPlan.nextConnectionSpec(connectionSpecs, sslSocket, e)
+          throw e
+        }
         call.eventListener.secureConnectEnd(call, handshake)
       } else {
         javaNetSocket = rawSocket
@@ -237,10 +248,6 @@ class ConnectPlan internal constructor(
     } catch (e: IOException) {
       call.eventListener.connectFailed(call, route.socketAddress, route.proxy, null, e)
       connectionPool.connectionListener.connectFailed(route, call, e)
-
-      if (!retryOnConnectionFailure || !retryTlsHandshake(e)) {
-        retryTlsConnection = null
-      }
 
       return ConnectResult(
         plan = this,
@@ -282,7 +289,7 @@ class ConnectPlan internal constructor(
 
     // The following try/catch block is a pseudo hacky way to get around a crash on Android 7.0
     // More details:
-    // https://github.com/square/okhttp/issues/3245
+    // https://github.com/lysine-dev/okhttp/issues/3245
     // https://android-review.googlesource.com/#/c/271775/
     try {
       this.socket = rawSocket.asBufferedSocket()
@@ -345,7 +352,12 @@ class ConnectPlan internal constructor(
     var success = false
     try {
       if (connectionSpec.supportsTlsExtensions) {
-        Platform.get().configureTlsExtensions(sslSocket, address.url.host, address.protocols)
+        Platform.get().configureTlsExtensions(
+          sslSocket = sslSocket,
+          hostname = address.url.host,
+          protocols = address.protocols,
+          echConfigList = route.echConfigList,
+        )
       }
 
       // Force handshake. This can throw!
@@ -473,7 +485,7 @@ class ConnectPlan internal constructor(
     sslSocket: SSLSocket,
   ): ConnectPlan {
     if (connectionSpecIndex != -1) return this
-    return nextConnectionSpec(connectionSpecs, sslSocket)
+    return nextCompatibleConnectionSpec(connectionSpecs, sslSocket)
       ?: throw UnknownServiceException(
         "Unable to find acceptable protocols." +
           " isFallback=$isTlsFallback," +
@@ -483,10 +495,56 @@ class ConnectPlan internal constructor(
   }
 
   /**
-   * Returns a copy of this connection with the next connection spec to try, or null if no other
-   * compatible connection specs are available.
+   * Returns a copy of this connection that recovers from [sslException], or null if the failure
+   * should not be retried.
    */
   internal fun nextConnectionSpec(
+    connectionSpecs: List<ConnectionSpec>,
+    sslSocket: SSLSocket,
+    sslException: SSLException,
+  ): ConnectPlan? {
+    // If this was an ECH retry, don't retry again.
+    if (echRetryPlan != null) return null
+
+    val nextEchRetryPlan = Platform.get().echRetryPlan(sslException)
+    if (nextEchRetryPlan != null) {
+      // Validate the publicHostname against the session certificate. The session is protected by
+      // the outer client hello (e.g. cloudflare-ech.com), not the origin server. If this fails,
+      // we must not retry further.
+      val hostnameVerifier = route.address.hostnameVerifier!!
+      if (!hostnameVerifier.verify(nextEchRetryPlan.publicName, sslSocket.session)) {
+        throw EchUntrustedException(
+          "public_name '${nextEchRetryPlan.publicName}' not verified",
+          sslException,
+        )
+      }
+
+      return copy(
+        route =
+          Route(
+            address = route.address,
+            proxy = route.proxy,
+            socketAddress = route.socketAddress,
+            echConfigList = nextEchRetryPlan.configList,
+          ),
+        echRetryPlan = nextEchRetryPlan,
+      )
+    }
+
+    // If recovery is configured off, don't retry.
+    if (!retryOnConnectionFailure) return null
+
+    // If the exception is not recoverable, don't retry.
+    if (!attemptAnotherConnectionSpec(sslException)) return null
+
+    return nextCompatibleConnectionSpec(connectionSpecs, sslSocket)
+  }
+
+  /**
+   * Returns a copy of this connection with the next compatible connection spec, or null if none
+   * are available.
+   */
+  private fun nextCompatibleConnectionSpec(
     connectionSpecs: List<ConnectionSpec>,
     sslSocket: SSLSocket,
   ): ConnectPlan? {
@@ -555,6 +613,7 @@ class ConnectPlan internal constructor(
       tunnelRequest = tunnelRequest,
       connectionSpecIndex = connectionSpecIndex,
       isTlsFallback = isTlsFallback,
+      echRetryPlan = echRetryPlan,
     )
 
   fun closeQuietly() {

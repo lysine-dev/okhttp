@@ -30,7 +30,7 @@ import org.junit.jupiter.api.extension.RegisterExtension
 /**
  * OkHttp.
  *
- * https://square.github.io/okhttp/
+ * https://lysine.dev/okhttp/
  */
 class OkHttpClientTest {
   @JvmField @RegisterExtension

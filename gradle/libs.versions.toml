@@ -10,56 +10,53 @@ androidx-test-runner = "1.7.0"
 animalsniffer = "2.0.1"
 animalsniffer-annotations = "1.27"
 assertk = "0.28.1"
-binary-compatibility-validator = "0.18.1"
-bnd = "7.2.3"
+binary-compatibility-validator = "0.18.2"
+bnd = "7.4.0"
 brotli-dec = "0.1.2"
 burst = "2.10.2"
-checkstyle = "13.4.0"
+checkstyle = "14.0.0"
 clikt = "5.1.0"
-extra-java-module-info = "1.14"
+extra-java-module-info = "1.14.2"
 codehaus-signature-java18 = "1.0"
-coroutines = "1.10.2"
+coroutines = "1.11.0"
 de-mannodermaus-junit5 = "2.0.1"
 dokka = "2.2.0"
-eclipse-osgi = "3.24.100"
-graalvm = "25.0.2"
-graalvm-plugin = "1.0.0"
-guava = "33.6.0-jre"
+eclipse-osgi = "3.24.300"
+graalvm = "25.0.4"
+graalvm-plugin = "1.1.10"
+guava = "33.7.1-jre"
 hamcrest-library = "3.0"
-http-client5 = "5.6.1"
+http-client5 = "5.6.4"
 jetty-client = "9.4.58.v20250814"
-jlink = "0.7"
+jlink = "0.9"
 jetbrains-annotations = "26.1.0"
-jnr-unixsocket = "0.38.25"
-jsoup = "1.22.2"
+jnr-unixsocket = "0.39.3"
+jsoup = "1.23.2"
 junit-pioneer = "1.9.1"
-junit-platform = "1.14.3"
+junit-platform = "1.14.4"
 junit4 = "4.13.2"
 kotlin = "2.2.21"
-ksp = "2.3.8"
-lint-gradle = "1.0.0-alpha05"
-maven-publish = "0.36.0"
+ksp = "2.3.11"
+lint-gradle = "1.0.0"
+maven-publish = "0.37.0"
 maven-sympathy = "0.3.0"
-mockserver-client = "5.15.0"
 mrjar = "0.1.1"
 openjsse = "1.1.14"
-org-bouncycastle = "1.83"
-org-conscrypt = "2.5.2"
+org-conscrypt = "2.6.3"
 org-junit-jupiter = "5.13.4"
 playservices-safetynet = "18.1.0"
-robolectric = "4.16.1"
-robolectric-android = "16-robolectric-13921718"
+robolectric = "4.17-beta-4"
+robolectric-android = "17-robolectric-15733970"
 serialization = "1.11.0"
-shadow-plugin = "9.4.1"
+shadow-plugin = "9.6.1"
 signature-android-apilevel21 = "5.0.1_r2"
 signature-android-apilevel24 = "7.0_r2"
-spotless-plugin = "8.4.0"
+spotless-plugin = "8.10.2"
 square-kotlin-poet = "2.3.0"
 square-moshi = "1.15.2"
-square-okio = "3.17.0"
+square-okio = "3.18.2"
 square-retrofit = "3.0.0"
 startup-runtime = "1.2.0"
-testcontainers = "1.21.4"
 zstd-kmp-okio = "0.4.0"
 
 # Set to lower version than KGP version to maximize compatibility
@@ -79,9 +76,11 @@ animalsniffer-annotations = { module = "org.codehaus.mojo:animal-sniffer-annotat
 aqute-bnd = { module = "biz.aQute.bnd:biz.aQute.bnd", version.ref = "bnd" }
 aqute-resolve = { module = "biz.aQute.bnd:biz.aQute.resolve", version.ref = "bnd" }
 assertk = { module = "com.willowtreeapps.assertk:assertk", version.ref = "assertk" }
-bouncycastle-bcpkix = { module = "org.bouncycastle:bcpkix-jdk15to18", version.ref = "org-bouncycastle" }
-bouncycastle-bcprov = { module = "org.bouncycastle:bcprov-jdk15to18", version.ref = "org-bouncycastle" }
-bouncycastle-bctls = { module = "org.bouncycastle:bctls-jdk15to18", version.ref = "org-bouncycastle" }
+bouncycastle-bcpkix = { module = "org.bouncycastle:bcpkix-jdk15to18" }
+bouncycastle-bcprov = { module = "org.bouncycastle:bcprov-jdk15to18" }
+bouncycastle-bcutil = { module = "org.bouncycastle:bcutil-jdk15to18" }
+bouncycastle-bctls = { module = "org.bouncycastle:bctls-jdk15to18" }
+bouncycastle-bom = "org.bouncycastle:bc-jdk15to18-bom:1.85.2"
 brotli-dec = { module = "org.brotli:dec", version.ref = "brotli-dec" }
 checkstyle = { module = "com.puppycrawl.tools:checkstyle", version.ref = "checkstyle" }
 clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
@@ -120,8 +119,6 @@ kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-c
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "serialization" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
-mockserver = { module = "org.testcontainers:mockserver", version.ref = "testcontainers" }
-mockserver-client = { module = "org.mock-server:mockserver-client-java-no-dependencies", version.ref = "mockserver-client" }
 native-image-svm = { module = "org.graalvm.nativeimage:svm", version.ref = "graalvm" }
 openjsse = { module = "org.openjsse:openjsse", version.ref = "openjsse" }
 playservices-safetynet = { module = "com.google.android.gms:play-services-safetynet", version.ref = "playservices-safetynet" }
@@ -136,8 +133,6 @@ square-moshi-kotlin = { module = "com.squareup.moshi:moshi-kotlin", version.ref 
 square-kotlin-poet = { module = "com.squareup:kotlinpoet", version.ref = "square-kotlin-poet" }
 square-okio = { module = "com.squareup.okio:okio", version.ref = "square-okio" }
 square-okio-fakefilesystem = { module = "com.squareup.okio:okio-fakefilesystem", version.ref = "square-okio" }
-testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
-testcontainers-junit5 = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
 square-zstd-kmp-okio = { module = "com.squareup.zstd:zstd-kmp-okio", version.ref = "zstd-kmp-okio" }
 
 # Build Logic Dependencies
@@ -159,6 +154,7 @@ gradlePlugin-tapmoc = { module =  "com.gradleup.tapmoc:com.gradleup.tapmoc.gradl
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-junit5 = { id = "de.mannodermaus.android-junit5", version.ref = "android-junit5" }
 android-library = { id = "com.android.library", version.ref = "agp" }
+android-lint = { id = "com.android.lint", version.ref = "agp" }
 animalsniffer = { id = "ru.vyarus.animalsniffer", version.ref = "animalsniffer" }
 binary-compatibility-validator = { id = "org.jetbrains.kotlinx.binary-compatibility-validator", version.ref = "binary-compatibility-validator" }
 bnd = { id = "biz.aQute.bnd", version.ref = "bnd" }
@@ -169,7 +165,6 @@ kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
-gradle-lint = { id = "com.android.lint", version.ref = "lint-gradle" }
 maven-publish = { id = "com.vanniktech.maven.publish.base", version.ref = "maven-publish" }
 maven-sympathy = { id = "io.github.usefulness.maven-sympathy", version.ref = "maven-sympathy" }
 mrjar = { id = "me.champeau.mrjar", version.ref = "mrjar" }

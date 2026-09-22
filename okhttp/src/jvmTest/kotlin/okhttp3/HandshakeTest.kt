@@ -25,6 +25,7 @@ import java.io.IOException
 import java.security.cert.Certificate
 import kotlin.test.assertFailsWith
 import okhttp3.Handshake.Companion.handshake
+import okhttp3.sockets.DelegatingSSLSession
 import okhttp3.tls.HeldCertificate
 import org.junit.jupiter.api.Test
 

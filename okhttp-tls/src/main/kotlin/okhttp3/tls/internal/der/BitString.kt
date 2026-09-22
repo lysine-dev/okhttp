@@ -24,12 +24,4 @@ internal data class BitString(
   val byteString: ByteString,
   /** 0-7 unused bits in the last byte. */
   val unusedBitsCount: Int,
-) {
-  // Avoid Long.hashCode(long) which isn't available on Android 5.
-  override fun hashCode(): Int {
-    var result = 0
-    result = 31 * result + byteString.hashCode()
-    result = 31 * result + unusedBitsCount
-    return result
-  }
-}
+)

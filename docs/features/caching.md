@@ -102,4 +102,4 @@ Make sure you are reading responses fully as unless they are read fully, cancell
 
 ### Overriding normal cache behaviour
 
-See [`Cache`](https://square.github.io/okhttp/5.x/okhttp/okhttp3/-cache/) documentation.
+See [`Cache`](https://lysine.dev/okhttp/5.x/okhttp/okhttp3/-cache/) documentation.

@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@file:OptIn(OkHttpInternalApi::class)
+
 package okhttp3
 
 import java.util.ArrayDeque
@@ -20,6 +22,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.SynchronousQueue
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
+import okhttp3.internal.OkHttpInternalApi
 import okhttp3.internal.assertLockNotHeld
 import okhttp3.internal.connection.RealCall
 import okhttp3.internal.connection.RealCall.AsyncCall
@@ -31,8 +34,12 @@ import okhttp3.internal.unmodifiable
  * Policy on when async requests are executed.
  *
  * Each dispatcher uses an [ExecutorService] to run calls internally. If you supply your own
- * executor, it should be able to run [the configured maximum][maxRequests] number of calls
- * concurrently.
+ * executor, it must accept new tasks while up to [the configured maximum][maxRequests] calls
+ * are already running. A pool sized exactly to [maxRequests] is not sufficient with a
+ * [SynchronousQueue], because the dispatcher may submit the next call from a worker that has
+ * not yet returned to the queue. Prefer the default pattern (`corePoolSize=0`,
+ * `maxPoolSize=Int.MAX_VALUE`, [SynchronousQueue]), a bound of about `2 * maxRequests`, or a
+ * queueing executor.
  */
 class Dispatcher() {
   /**

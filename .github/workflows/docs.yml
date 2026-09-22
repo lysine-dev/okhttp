@@ -3,7 +3,7 @@ name: docs
 on:
   push:
     branches:
-      - master
+      - main
   pull_request:
     types: [opened, labeled, unlabeled, synchronize]
 
@@ -18,19 +18,19 @@ jobs:
     permissions:
       checks: write # for actions/upload-artifact
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master' || contains(github.event.pull_request.labels.*.name, 'documentation')
+    if: github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'documentation')
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Configure JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: 'temurin'
           java-version: 21
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: 3.x
 
@@ -39,7 +39,7 @@ jobs:
       - name: Generate Docs
         run: ./test_docs.sh
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: docs
           path: site/

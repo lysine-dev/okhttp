@@ -20,6 +20,7 @@ import java.net.InetSocketAddress
 import java.net.Socket
 import java.net.SocketAddress
 import okhttp3.internal.platform.Platform
+import okhttp3.sockets.DelegatingSocketFactory
 
 /**
  * A [SocketFactory] that redirects connections to [defaultAddress] or specific overridden address via [set].

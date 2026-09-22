@@ -26,6 +26,7 @@ import javax.net.ssl.TrustManager
 import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509TrustManager
 import okhttp3.Protocol
+import okio.ByteString
 import org.conscrypt.Conscrypt
 import org.conscrypt.ConscryptHostnameVerifier
 
@@ -78,6 +79,7 @@ class ConscryptPlatform private constructor() : Platform() {
     sslSocket: SSLSocket,
     hostname: String?,
     protocols: List<@JvmSuppressWildcards Protocol>,
+    echConfigList: ByteString?,
   ) {
     if (Conscrypt.isConscrypt(sslSocket)) {
       // Enable session tickets.
@@ -87,7 +89,7 @@ class ConscryptPlatform private constructor() : Platform() {
       val names = alpnProtocolNames(protocols)
       Conscrypt.setApplicationProtocols(sslSocket, names.toTypedArray())
     } else {
-      super.configureTlsExtensions(sslSocket, hostname, protocols)
+      super.configureTlsExtensions(sslSocket, hostname, protocols, echConfigList)
     }
   }
 

@@ -150,7 +150,7 @@ class Http2ConnectionTest {
   /**
    * Webservers may set the initial window size to zero, which is a special case because it means
    * that we have to flush headers immediately before any request body can be sent.
-   * https://github.com/square/okhttp/issues/2543
+   * https://github.com/lysine-dev/okhttp/issues/2543
    */
   @Test fun peerSetsZeroFlowControl() {
     peer.setClient(true)
@@ -488,7 +488,7 @@ class Http2ConnectionTest {
    * something worse (like an [IllegalStateException].
    *
    *
-   * See https://github.com/square/okhttp/issues/1651
+   * See https://github.com/lysine-dev/okhttp/issues/1651
    */
   @Test fun socketExceptionWhileWritingHeaders() {
     peer.acceptFrame() // SYN_STREAM.

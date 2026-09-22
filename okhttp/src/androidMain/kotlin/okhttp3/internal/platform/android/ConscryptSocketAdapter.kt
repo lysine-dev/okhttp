@@ -18,6 +18,7 @@ package okhttp3.internal.platform.android
 import javax.net.ssl.SSLSocket
 import okhttp3.Protocol
 import okhttp3.internal.platform.Platform
+import okio.ByteString
 import org.conscrypt.Conscrypt
 
 /**
@@ -39,6 +40,7 @@ class ConscryptSocketAdapter : SocketAdapter {
     sslSocket: SSLSocket,
     hostname: String?,
     protocols: List<Protocol>,
+    echConfigList: ByteString?,
   ) {
     // No TLS extensions if the socket class is custom.
     if (matchesSocket(sslSocket)) {
