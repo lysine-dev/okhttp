@@ -43,10 +43,13 @@ import okhttp3.internal.concurrent.TaskRunner
 import okhttp3.internal.concurrent.notifyAll
 import okhttp3.internal.concurrent.wait
 import okhttp3.internal.concurrent.withLock
+import okhttp3.internal.connection.BufferedSocket
 import okhttp3.internal.connection.asBufferedSocket
 import okio.AsyncTimeout
 import okio.Buffer
+import okio.BufferedSink
 import okio.BufferedSource
+import okio.Sink
 import okio.Source
 import okio.buffer
 import org.junit.jupiter.api.AfterEach
@@ -1624,6 +1627,124 @@ class Http2ConnectionTest {
     assertThat(peer.takeFrame().type).isEqualTo(Http2.TYPE_PING)
     assertThat(peer.takeFrame().type).isEqualTo(Http2.TYPE_DATA)
     assertThat(peer.takeFrame().type).isEqualTo(Http2.TYPE_RST_STREAM)
+  }
+
+  /**
+   * Regression test for https://github.com/square/okhttp/issues/9237: readTimeout/writeTimeout
+   * did nothing for an HTTP/2 connection stuck in a real TCP-level stall (e.g. a network
+   * blackhole), because [Http2Stream.StreamTimeout.timedOut] only woke threads parked in a
+   * flow-control wait -- never a thread blocked inside an actual socket write. [BlockingSocket]
+   * simulates that stall: its `sink.write()` blocks until [BlockingSocket.cancel] is called, at
+   * which point it fails, exactly like a real socket does once closed.
+   *
+   * Before the fix, this write also had no timeout wired up at all yet: [Http2Connection.newStream]
+   * wrote the initial HEADERS frame before the caller had a chance to configure the returned
+   * stream's [Http2Stream.writeTimeout]. So on a stalled connection, even a plain GET request
+   * would hang forever, regardless of any configured writeTimeout.
+   */
+  @Test fun newStreamTimesOutOnBlockedSocket() {
+    val socket = BlockingSocket()
+    val connection =
+      Http2Connection
+        .Builder(true, TaskRunner.INSTANCE)
+        .socket(socket, "blocked")
+        .build()
+    connection.start(sendConnectionPreface = false)
+
+    val startNanos = System.nanoTime()
+    assertFailsWith<InterruptedIOException> {
+      connection.newStream(headerEntries("b", "banana"), false, writeTimeoutMillis = 500L)
+    }
+    val elapsedNanos = System.nanoTime() - startNanos
+    awaitWatchdogIdle()
+
+    // Generous delta: this races the AsyncTimeout watchdog against BlockingSocket.cancel(), not
+    // just a notifyAll() wakeup like the flow-control timeout tests above.
+    assertThat(TimeUnit.NANOSECONDS.toMillis(elapsedNanos).toDouble())
+      .isCloseTo(500.0, 1000.0)
+  }
+
+  /**
+   * Regression test for https://github.com/square/okhttp/issues/9237, covering the DATA frame
+   * write path (an in-progress request body) rather than the initial HEADERS write covered by
+   * [newStreamTimesOutOnBlockedSocket]. See that test's doc for the full explanation.
+   */
+  @Test fun dataWriteTimesOutOnBlockedSocket() {
+    val socket = BlockingSocket()
+    val connection =
+      Http2Connection
+        .Builder(true, TaskRunner.INSTANCE)
+        .socket(socket, "blocked")
+        .build()
+    connection.start(sendConnectionPreface = false)
+
+    // out=true with a fresh flow-control window: newStream() returns without touching the
+    // blocked socket because the HEADERS frame is buffered, not flushed, in that case.
+    val stream = connection.newStream(headerEntries("b", "banana"), true, writeTimeoutMillis = 0L)
+    stream.writeTimeout().timeout(500, TimeUnit.MILLISECONDS)
+
+    val startNanos = System.nanoTime()
+    assertFailsWith<InterruptedIOException> {
+      // At least EMIT_BUFFER_SIZE, so FramingSink.write() emits (and blocks on) a DATA frame
+      // without needing an explicit flush() call.
+      stream.sink.write(Buffer().write(ByteArray(16384)), 16384L)
+    }
+    val elapsedNanos = System.nanoTime() - startNanos
+    awaitWatchdogIdle()
+
+    assertThat(TimeUnit.NANOSECONDS.toMillis(elapsedNanos).toDouble())
+      .isCloseTo(500.0, 1000.0)
+  }
+
+  /**
+   * A [BufferedSocket] that simulates a TCP-level network stall: the connection looks alive, but
+   * reads and writes block until [cancel] is called, at which point they fail -- like a real
+   * socket does once its underlying transport is closed out from under a blocked thread.
+   */
+  private class BlockingSocket : BufferedSocket {
+    private val releaseLatch = CountDownLatch(1)
+
+    override val source: BufferedSource =
+      object : Source {
+        override fun read(
+          sink: Buffer,
+          byteCount: Long,
+        ): Long = awaitRelease()
+
+        override fun timeout() = okio.Timeout.NONE
+
+        override fun close() {}
+      }.buffer()
+
+    override val sink: BufferedSink =
+      object : Sink {
+        override fun write(
+          source: Buffer,
+          byteCount: Long,
+        ) {
+          source.skip(byteCount)
+          awaitRelease()
+        }
+
+        override fun flush() {}
+
+        override fun timeout() = okio.Timeout.NONE
+
+        override fun close() {}
+      }.buffer()
+
+    private fun awaitRelease(): Nothing {
+      try {
+        releaseLatch.await()
+      } catch (e: InterruptedException) {
+        throw IOException(e)
+      }
+      throw IOException("socket cancelled")
+    }
+
+    override fun cancel() {
+      releaseLatch.countDown()
+    }
   }
 
   @Test fun outgoingWritesAreBatched() {
