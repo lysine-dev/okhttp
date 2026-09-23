@@ -14,20 +14,15 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package okhttp3.internal.cache
+package okhttp3
 
 import java.io.IOException
 import java.net.HttpURLConnection.HTTP_GATEWAY_TIMEOUT
 import java.net.HttpURLConnection.HTTP_NOT_MODIFIED
 import java.util.concurrent.TimeUnit.MILLISECONDS
-import okhttp3.Cache
-import okhttp3.Headers
-import okhttp3.Interceptor
-import okhttp3.Protocol
-import okhttp3.Request
-import okhttp3.Response
+import okhttp3.internal.cache.CacheRequest
+import okhttp3.internal.cache.CacheStrategy
 import okhttp3.internal.closeQuietly
-import okhttp3.internal.connection.RealCall
 import okhttp3.internal.discard
 import okhttp3.internal.http.ExchangeCodec
 import okhttp3.internal.http.HttpMethod
@@ -39,7 +34,14 @@ import okio.Source
 import okio.Timeout
 import okio.buffer
 
-/** Serves requests from the cache and writes responses to the cache. */
+/**
+ * Serves requests from, and writes responses to, the provided [Cache].
+ *
+ * **IMPORTANT**: you do **NOT** usually need to use this class to benefit from OkHttp caching, as
+ * [OkHttpClient] internally calls this interceptor by default, immediately after application
+ * interceptors. This class is only useful in narrow, advanced cases, e.g. alongside a
+ * short-circuiting application interceptor. This will not apply to most users.
+ */
 class CacheInterceptor : Interceptor {
   @Throws(IOException::class)
   override fun intercept(chain: Interceptor.Chain): Response {
@@ -235,62 +237,60 @@ class CacheInterceptor : Interceptor {
       .build()
   }
 
-  companion object {
-    /** Combines cached headers with a network headers as defined by RFC 7234, 4.3.4. */
-    private fun combine(
-      cachedHeaders: Headers,
-      networkHeaders: Headers,
-    ): Headers {
-      val result = Headers.Builder()
+  /** Combines cached headers with a network headers as defined by RFC 7234, 4.3.4. */
+  private fun combine(
+    cachedHeaders: Headers,
+    networkHeaders: Headers,
+  ): Headers {
+    val result = Headers.Builder()
 
-      for (index in 0 until cachedHeaders.size) {
-        val fieldName = cachedHeaders.name(index)
-        val value = cachedHeaders.value(index)
-        if ("Warning".equals(fieldName, ignoreCase = true) && value.startsWith("1")) {
-          // Drop 100-level freshness warnings.
-          continue
-        }
-        if (isContentSpecificHeader(fieldName) ||
-          !isEndToEnd(fieldName) ||
-          networkHeaders[fieldName] == null
-        ) {
-          result.addLenient(fieldName, value)
-        }
+    for (index in 0 until cachedHeaders.size) {
+      val fieldName = cachedHeaders.name(index)
+      val value = cachedHeaders.value(index)
+      if ("Warning".equals(fieldName, ignoreCase = true) && value.startsWith("1")) {
+        // Drop 100-level freshness warnings.
+        continue
       }
-
-      for (index in 0 until networkHeaders.size) {
-        val fieldName = networkHeaders.name(index)
-        if (!isContentSpecificHeader(fieldName) && isEndToEnd(fieldName)) {
-          result.addLenient(fieldName, networkHeaders.value(index))
-        }
+      if (isContentSpecificHeader(fieldName) ||
+        !isEndToEnd(fieldName) ||
+        networkHeaders[fieldName] == null
+      ) {
+        result.addLenient(fieldName, value)
       }
-
-      return result.build()
     }
 
-    /**
-     * Returns true if [fieldName] is an end-to-end HTTP header, as defined by RFC 2616,
-     * 13.5.1.
-     */
-    private fun isEndToEnd(fieldName: String): Boolean =
-      !"Connection".equals(fieldName, ignoreCase = true) &&
-        !"Keep-Alive".equals(fieldName, ignoreCase = true) &&
-        !"Proxy-Authenticate".equals(fieldName, ignoreCase = true) &&
-        !"Proxy-Authorization".equals(fieldName, ignoreCase = true) &&
-        !"TE".equals(fieldName, ignoreCase = true) &&
-        !"Trailers".equals(fieldName, ignoreCase = true) &&
-        !"Transfer-Encoding".equals(fieldName, ignoreCase = true) &&
-        !"Upgrade".equals(fieldName, ignoreCase = true)
+    for (index in 0 until networkHeaders.size) {
+      val fieldName = networkHeaders.name(index)
+      if (!isContentSpecificHeader(fieldName) && isEndToEnd(fieldName)) {
+        result.addLenient(fieldName, networkHeaders.value(index))
+      }
+    }
 
-    /**
-     * Returns true if [fieldName] is content specific and therefore should always be used
-     * from cached headers.
-     */
-    private fun isContentSpecificHeader(fieldName: String): Boolean =
-      "Content-Length".equals(fieldName, ignoreCase = true) ||
-        "Content-Encoding".equals(fieldName, ignoreCase = true) ||
-        "Content-Type".equals(fieldName, ignoreCase = true)
+    return result.build()
   }
+
+  /**
+   * Returns true if [fieldName] is an end-to-end HTTP header, as defined by RFC 2616,
+   * 13.5.1.
+   */
+  private fun isEndToEnd(fieldName: String): Boolean =
+    !"Connection".equals(fieldName, ignoreCase = true) &&
+      !"Keep-Alive".equals(fieldName, ignoreCase = true) &&
+      !"Proxy-Authenticate".equals(fieldName, ignoreCase = true) &&
+      !"Proxy-Authorization".equals(fieldName, ignoreCase = true) &&
+      !"TE".equals(fieldName, ignoreCase = true) &&
+      !"Trailers".equals(fieldName, ignoreCase = true) &&
+      !"Transfer-Encoding".equals(fieldName, ignoreCase = true) &&
+      !"Upgrade".equals(fieldName, ignoreCase = true)
+
+  /**
+   * Returns true if [fieldName] is content specific and therefore should always be used
+   * from cached headers.
+   */
+  private fun isContentSpecificHeader(fieldName: String): Boolean =
+    "Content-Length".equals(fieldName, ignoreCase = true) ||
+      "Content-Encoding".equals(fieldName, ignoreCase = true) ||
+      "Content-Type".equals(fieldName, ignoreCase = true)
 }
 
 private fun Request.requestForCache(): Request {
