@@ -706,6 +706,8 @@ class KotlinSourceModernTest {
   @Test
   fun interceptorChain() {
     val chain: Interceptor.Chain = newInterceptorChain()
+    val interceptors: List<Interceptor> = chain.interceptors
+    val networkInterceptors: List<Interceptor> = chain.networkInterceptors
   }
 
   @Test
@@ -1460,6 +1462,10 @@ class KotlinSourceModernTest {
       override val followRedirects: Boolean
         get() = TODO()
       override val eventListener: EventListener
+        get() = TODO()
+      override val interceptors: List<Interceptor>
+        get() = TODO()
+      override val networkInterceptors: List<Interceptor>
         get() = TODO()
     }
 }
