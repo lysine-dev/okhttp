@@ -294,5 +294,15 @@ fun interface Interceptor {
     fun withConnectionPool(connectionPool: ConnectionPool): Chain
 
     val eventListener: EventListener
+
+    /**
+     * Returns the interceptors that have not yet run.
+     */
+    val interceptors: List<Interceptor>
+
+    /**
+     * Returns the network interceptors that have not yet run.
+     */
+    val networkInterceptors: List<Interceptor>
   }
 }

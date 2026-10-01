@@ -52,7 +52,7 @@ import okhttp3.internal.tls.CertificateChainCleaner
  */
 class RealInterceptorChain(
   internal val call: RealCall,
-  private val interceptors: List<Interceptor>,
+  private val chainInterceptors: List<Interceptor>,
   private val index: Int,
   internal val exchange: Exchange?,
   internal val request: Request,
@@ -74,6 +74,8 @@ class RealInterceptorChain(
   override val sslSocketFactoryOrNull: SSLSocketFactory?,
   override val x509TrustManagerOrNull: X509TrustManager?,
   val certificateChainCleaner: CertificateChainCleaner?,
+  override val interceptors: List<Interceptor>,
+  override val networkInterceptors: List<Interceptor>,
 ) : Interceptor.Chain {
   internal constructor(
     call: RealCall,
@@ -84,7 +86,7 @@ class RealInterceptorChain(
     client: OkHttpClient = call.client,
   ) : this(
     call = call,
-    interceptors = interceptors,
+    chainInterceptors = interceptors,
     index = index,
     exchange = exchange,
     request = request,
@@ -106,6 +108,8 @@ class RealInterceptorChain(
     sslSocketFactoryOrNull = client.sslSocketFactoryOrNull,
     x509TrustManagerOrNull = client.x509TrustManager,
     certificateChainCleaner = client.certificateChainCleaner,
+    interceptors = client.interceptors,
+    networkInterceptors = client.networkInterceptors,
   )
 
   private var calls: Int = 0
@@ -132,9 +136,11 @@ class RealInterceptorChain(
     sslSocketFactory: SSLSocketFactory? = this.sslSocketFactoryOrNull,
     x509TrustManager: X509TrustManager? = this.x509TrustManagerOrNull,
     certificateChainCleaner: CertificateChainCleaner? = this.certificateChainCleaner,
+    interceptors: List<Interceptor> = this.interceptors,
+    networkInterceptors: List<Interceptor> = this.networkInterceptors,
   ) = RealInterceptorChain(
     call = call,
-    interceptors = interceptors,
+    chainInterceptors = chainInterceptors,
     index = index,
     exchange = exchange,
     request = request,
@@ -156,6 +162,8 @@ class RealInterceptorChain(
     sslSocketFactoryOrNull = sslSocketFactory,
     x509TrustManagerOrNull = x509TrustManager,
     certificateChainCleaner = certificateChainCleaner,
+    interceptors = interceptors,
+    networkInterceptors = networkInterceptors,
   )
 
   override val eventListener: EventListener
@@ -310,22 +318,50 @@ class RealInterceptorChain(
 
   @Throws(IOException::class)
   override fun proceed(request: Request): Response {
-    check(index < interceptors.size)
+    check(index < chainInterceptors.size)
 
     calls++
 
     if (exchange != null) {
       check(exchange.finder.routePlanner.sameHostAndPort(request.url)) {
-        "network interceptor ${interceptors[index - 1]} must retain the same host and port"
+        "network interceptor ${chainInterceptors[index - 1]} must retain the same host and port"
       }
       check(calls == 1) {
-        "network interceptor ${interceptors[index - 1]} must call proceed() exactly once"
+        "network interceptor ${chainInterceptors[index - 1]} must call proceed() exactly once"
       }
     }
 
+    // Compute the lists of interceptors that the next interceptor will see in
+    // `chain.interceptors` and `chain.networkInterceptors`. Note we cannot simply surface
+    // `chainInterceptors` because that may contain internal OkHttp interceptors that we do
+    // not want users to be able to see. Instead, we use the original lists of interceptors
+    // provided to OkHttpClient and pop them one by one. This works based on the
+    // assumption that any internal interceptors will be located *after* user interceptors.
+    // Also, we assume that if `exchange` is unset then we are running application
+    // interceptors, otherwise we are running network interceptors.
+    val nextInterceptors =
+      if (interceptors.isNotEmpty()) {
+        check(exchange == null)
+        interceptors.drop(1)
+      } else {
+        emptyList()
+      }
+    val nextNetworkInterceptors =
+      if (exchange != null) {
+        check(interceptors.isEmpty())
+        if (networkInterceptors.isNotEmpty()) networkInterceptors.drop(1) else emptyList()
+      } else {
+        networkInterceptors
+      }
     // Call the next interceptor in the chain.
-    val next = copy(index = index + 1, request = request)
-    val interceptor = interceptors[index]
+    val next =
+      copy(
+        index = index + 1,
+        request = request,
+        interceptors = nextInterceptors,
+        networkInterceptors = nextNetworkInterceptors,
+      )
+    val interceptor = chainInterceptors[index]
 
     @Suppress("USELESS_ELVIS")
     val response =
@@ -334,7 +370,7 @@ class RealInterceptorChain(
       )
 
     if (exchange != null) {
-      check(index + 1 >= interceptors.size || next.calls == 1) {
+      check(index + 1 >= chainInterceptors.size || next.calls == 1) {
         "network interceptor $interceptor must call proceed() exactly once"
       }
     }
