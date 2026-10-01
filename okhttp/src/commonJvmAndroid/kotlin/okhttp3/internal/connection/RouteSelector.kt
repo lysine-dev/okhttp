@@ -221,7 +221,14 @@ class RouteSelector internal constructor(
         else -> socketPort
       }
 
-    val dnsRequest = Dns.Request(socketHost, dnsPort)
+    val dnsRequest =
+      try {
+        Dns.Request(socketHost, dnsPort)
+      } catch (e: IllegalArgumentException) {
+        throw UnknownHostException(socketHost).apply {
+          initCause(e)
+        }
+      }
     val result =
       when (val dnsCall = address.dns.newCall(dnsRequest)) {
         is LookupDnsCall -> {
