@@ -25,7 +25,10 @@ import assertk.assertThat
 import assertk.assertions.containsExactly
 import assertk.assertions.hasMessage
 import assertk.assertions.isEqualTo
+import assertk.assertions.isFalse
+import assertk.assertions.isGreaterThan
 import assertk.assertions.isIn
+import assertk.assertions.isNotNull
 import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.UnknownHostException
@@ -338,6 +341,29 @@ open class ConnectionListenerTest {
     )
     val event = listener.removeUpToEvent(ConnectionEvent.ConnectEnd::class.java)
     assertThat(event.connection.route().proxy).isEqualTo(proxy)
+  }
+
+  @Test
+  @Throws(IOException::class)
+  fun connectionMetrics() {
+    server.enqueue(MockResponse())
+    val call =
+      client.newCall(
+        Request
+          .Builder()
+          .url(server.url("/"))
+          .build(),
+      )
+    val response = call.execute()
+    assertThat(response.code).isEqualTo(200)
+    response.body.close()
+    val event = listener.removeUpToEvent(ConnectionEvent.ConnectEnd::class.java)
+    val connection = event.connection
+    assertThat(connection.connectAtMillis()).isGreaterThan(0L)
+    assertThat(connection.successCount()).isEqualTo(1)
+    assertThat(connection.callCount()).isEqualTo(0)
+    assertThat(connection.idleAtMillis()).isNotNull()
+    assertThat(connection.noNewExchanges()).isFalse()
   }
 
   private fun enableTls() {

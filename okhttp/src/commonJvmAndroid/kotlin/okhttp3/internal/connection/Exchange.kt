@@ -176,7 +176,7 @@ class Exchange(
   }
 
   fun noNewExchangesOnConnection() {
-    codec.carrier.noNewExchanges()
+    codec.carrier.prohibitNewExchanges()
   }
 
   fun cancel() {

@@ -94,7 +94,7 @@ interface ExchangeCodec {
       e: IOException?,
     )
 
-    fun noNewExchanges()
+    fun prohibitNewExchanges()
 
     fun cancel()
   }
