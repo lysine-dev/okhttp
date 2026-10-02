@@ -31,11 +31,16 @@ import java.io.InterruptedIOException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.assertFailsWith
 import okhttp3.Headers
 import okhttp3.Headers.Companion.headersOf
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Route
 import okhttp3.TestUtil.headerEntries
 import okhttp3.TestUtil.repeat
+import okhttp3.TestValueFactory
 import okhttp3.internal.EMPTY_BYTE_ARRAY
 import okhttp3.internal.concurrent.Lockable
 import okhttp3.internal.concurrent.TaskFaker
@@ -43,10 +48,13 @@ import okhttp3.internal.concurrent.TaskRunner
 import okhttp3.internal.concurrent.notifyAll
 import okhttp3.internal.concurrent.wait
 import okhttp3.internal.concurrent.withLock
+import okhttp3.internal.connection.RealCall
 import okhttp3.internal.connection.asBufferedSocket
+import okhttp3.internal.http.ExchangeCodec
 import okio.AsyncTimeout
 import okio.Buffer
 import okio.BufferedSource
+import okio.Sink
 import okio.Source
 import okio.buffer
 import org.junit.jupiter.api.AfterEach
@@ -1924,6 +1932,50 @@ class Http2ConnectionTest {
     assertThat(queues).hasSize(1)
   }
 
+  @Test fun cancelHttp2ExchangeInterruptsBlockedStreamCreation() {
+    val socket = BlockingFlushSocket()
+    val connection =
+      Http2Connection
+        .Builder(true, TaskRunner.INSTANCE)
+        .socket(socket, "peer")
+        .build()
+    val client = OkHttpClient()
+    val request = Request.Builder().url("https://example.com/").build()
+    val call = RealCall(client, request, forWebSocket = false)
+    val factory = TestValueFactory()
+    val codec =
+      Http2ExchangeCodec(
+        client = client,
+        carrier = FakeCarrier(factory.newRoute()),
+        chain = factory.newChain(call),
+        http2Connection = connection,
+      )
+    val result = AtomicReference<Any?>()
+    val done = CountDownLatch(1)
+
+    val writer =
+      Thread {
+        try {
+          codec.writeRequestHeaders(request)
+        } catch (e: IOException) {
+          result.set(e)
+        } finally {
+          done.countDown()
+        }
+      }
+
+    writer.start()
+    assertThat(socket.flushStarted.await(1, TimeUnit.SECONDS)).isTrue()
+    codec.cancel()
+    val completed = done.await(1, TimeUnit.SECONDS)
+    if (!completed) {
+      socket.cancel()
+    }
+    assertThat(completed).isTrue()
+    writer.join()
+    assertThat(result.get() is IOException).isTrue()
+  }
+
   private fun data(byteCount: Int): Buffer = Buffer().write(ByteArray(byteCount))
 
   private fun assertStreamData(
@@ -2074,5 +2126,54 @@ class Http2ConnectionTest {
           errorCode: ErrorCode,
         ) {}
       }
+  }
+
+  private class BlockingFlushSocket : okhttp3.internal.connection.BufferedSocket {
+    val flushStarted = CountDownLatch(1)
+    private val canceled = CountDownLatch(1)
+
+    override val source: BufferedSource = Buffer()
+
+    override val sink =
+      object : Sink {
+        override fun write(
+          source: Buffer,
+          byteCount: Long,
+        ) {
+          source.skip(byteCount)
+        }
+
+        override fun flush() {
+          flushStarted.countDown()
+          canceled.await()
+          throw IOException("canceled")
+        }
+
+        override fun timeout(): okio.Timeout = okio.Timeout.NONE
+
+        override fun close() {
+          cancel()
+        }
+      }.buffer()
+
+    override fun cancel() {
+      canceled.countDown()
+    }
+  }
+
+  private class FakeCarrier(
+    override val route: Route,
+  ) : ExchangeCodec.Carrier {
+    override fun trackFailure(
+      call: RealCall,
+      e: IOException?,
+    ) {
+    }
+
+    override fun noNewExchanges() {
+    }
+
+    override fun cancel() {
+    }
   }
 }
