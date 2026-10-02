@@ -311,6 +311,20 @@ class DnsOverHttpsTest(
     assertThat(rootCause).isInstanceOf<EOFException>()
   }
 
+  @Test
+  fun failOnHttpErrorResponse() {
+    server.sequenceIndexToOverride[0] =
+      MockResponse
+        .Builder()
+        .code(429)
+        .build()
+    val e =
+      assertFailsWith<UnknownHostException> {
+        dns(entryPoint, "lysine.dev")
+      }
+    assertThat(e).hasMessage("response: 429 Client Error")
+  }
+
   // TODO GET preferred order - with tests to confirm this
   // 1. successful fresh cached GET response
   // 2. unsuccessful (404, 500) fresh cached GET response
