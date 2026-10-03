@@ -21,6 +21,7 @@ internal object ObjectIdentifiers {
   const val SHA256_WITH_ECDSA = "1.2.840.10045.4.3.2"
   const val RSA_ENCRYPTION = "1.2.840.113549.1.1.1"
   const val SHA256_WITH_RSA_ENCRYPTION = "1.2.840.113549.1.1.11"
+  const val ED25519 = "1.3.101.112"
   const val SUBJECT_ALTERNATIVE_NAME = "2.5.29.17"
   const val BASIC_CONSTRAINTS = "2.5.29.19"
   const val COMMON_NAME = "2.5.4.3"
