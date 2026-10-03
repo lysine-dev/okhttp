@@ -191,8 +191,7 @@ class Http2ConnectionTest {
   }
 
   /**
-   * Confirm that we account for discarded data frames. It's possible that data frames are in-flight
-   * just prior to us canceling a stream.
+   * Leftover DATA in flight when we cancelled must still count toward the connection flow-control window.
    */
   @Test fun discardedDataFramesAreCounted() {
     // Write the mocking script.
@@ -202,8 +201,11 @@ class Http2ConnectionTest {
     peer.sendFrame().headers(false, 3, headerEntries("a", "apple"))
     peer.sendFrame().data(false, 3, data(1024), 1024)
     peer.acceptFrame() // RST_STREAM
+    peer.sendFrame().data(false, 3, data(1024), 1024)
+    peer.sendFrame().data(false, 3, data(1024), 1024)
     peer.sendFrame().data(true, 3, data(1024), 1024)
-    peer.acceptFrame() // RST_STREAM
+    peer.sendFrame().ping(false, 2, 0)
+    peer.acceptFrame() // PING
     peer.play()
     val connection = connect(peer)
     val stream1 = connection.newStream(headerEntries("b", "bark"), false)
@@ -215,10 +217,92 @@ class Http2ConnectionTest {
     assertThat(frame1.type).isEqualTo(Http2.TYPE_HEADERS)
     val frame2 = peer.takeFrame()
     assertThat(frame2.type).isEqualTo(Http2.TYPE_RST_STREAM)
-    val frame3 = peer.takeFrame()
-    assertThat(frame3.type).isEqualTo(Http2.TYPE_RST_STREAM)
+    val ping = peer.takeFrame()
+    assertThat(ping.type).isEqualTo(Http2.TYPE_PING)
+    assertThat(ping.payload1).isEqualTo(2)
     assertThat(connection.readBytes.acknowledged).isEqualTo(0L)
-    assertThat(connection.readBytes.total).isEqualTo(2048L)
+    assertThat(connection.readBytes.total).isEqualTo(4096L)
+  }
+
+  @Test fun dataFrameAfterAsyncCancelIsIgnored() {
+    // Write the mocking script.
+    peer.sendFrame().settings(Settings())
+    peer.acceptFrame() // ACK
+    peer.acceptFrame() // SYN_STREAM
+    peer.sendFrame().headers(false, 3, headerEntries("a", "apple"))
+    peer.acceptFrame() // RST_STREAM
+    peer.sendFrame().data(true, 3, data(1024), 1024)
+    peer.sendFrame().ping(false, 2, 0)
+    peer.acceptFrame() // PING
+    peer.play()
+
+    // Play it back.
+    val connection = connect(peer)
+    val stream = connection.newStream(headerEntries("b", "bark"), false)
+    stream.cancel()
+
+    // The late DATA must not trigger another RST_STREAM.
+    val frame1 = peer.takeFrame()
+    assertThat(frame1.type).isEqualTo(Http2.TYPE_HEADERS)
+    val frame2 = peer.takeFrame()
+    assertThat(frame2.type).isEqualTo(Http2.TYPE_RST_STREAM)
+    val ping = peer.takeFrame()
+    assertThat(ping.type).isEqualTo(Http2.TYPE_PING)
+    assertThat(ping.payload1).isEqualTo(2)
+    assertThat(connection.readBytes.total).isEqualTo(1024L)
+  }
+
+  @Test fun headersFrameAfterCancelIsIgnored() {
+    // Write the mocking script.
+    peer.sendFrame().settings(Settings())
+    peer.acceptFrame() // ACK
+    peer.acceptFrame() // SYN_STREAM
+    peer.sendFrame().headers(false, 3, headerEntries("a", "apple"))
+    peer.acceptFrame() // RST_STREAM
+    peer.sendFrame().headers(true, 3, headerEntries("trailer", "peach"))
+    peer.sendFrame().ping(false, 2, 0)
+    peer.acceptFrame() // PING
+    peer.play()
+
+    // Play it back.
+    val connection = connect(peer)
+    val stream = connection.newStream(headerEntries("b", "bark"), false)
+    stream.cancel()
+
+    // The late HEADERS must not trigger another RST_STREAM.
+    assertThat(peer.takeFrame().type).isEqualTo(Http2.TYPE_HEADERS)
+    assertThat(peer.takeFrame().type).isEqualTo(Http2.TYPE_RST_STREAM)
+    val ping = peer.takeFrame()
+    assertThat(ping.type).isEqualTo(Http2.TYPE_PING)
+    assertThat(ping.payload1).isEqualTo(2)
+  }
+
+  @Test fun trackedResetStreamIdsAreBounded() {
+    peer.play()
+    val connection = newConnection(taskFaker.taskRunner)
+
+    val eldestStreamId = 3
+    val newestStreamId = eldestStreamId + 2 * Http2Connection.MAX_TRACKED_RESET_STREAM_IDS
+    for (streamId in eldestStreamId..newestStreamId step 2) {
+      connection.recordRstStream(streamId)
+    }
+
+    assertThat(connection.wasReset(eldestStreamId)).isFalse()
+    assertThat(connection.wasReset(eldestStreamId + 2)).isTrue()
+    assertThat(connection.wasReset(newestStreamId)).isTrue()
+  }
+
+  @Test fun resettingSameStreamTwiceDoesNotEvict() {
+    peer.play()
+    val connection = newConnection(taskFaker.taskRunner)
+
+    connection.recordRstStream(3)
+    for (i in 0..Http2Connection.MAX_TRACKED_RESET_STREAM_IDS) {
+      connection.recordRstStream(5)
+    }
+
+    assertThat(connection.wasReset(3)).isTrue()
+    assertThat(connection.wasReset(5)).isTrue()
   }
 
   @Test fun receiveGoAwayHttp2() {
@@ -470,16 +554,72 @@ class Http2ConnectionTest {
           ),
       )
     peer.acceptFrame() // RST_STREAM
+    peer.sendFrame().data(true, 2, data(1024), 1024)
+    peer.sendFrame().ping(false, 2, 0)
+    peer.acceptFrame() // PING
     peer.play()
 
     // Play it back.
-    connect(peer, PushObserver.CANCEL, Http2Connection.Listener.REFUSE_INCOMING_STREAMS)
+    val connection =
+      connect(peer, PushObserver.CANCEL, Http2Connection.Listener.REFUSE_INCOMING_STREAMS)
 
     // Verify the peer received what was expected.
     val rstStream = peer.takeFrame()
     assertThat(rstStream.type).isEqualTo(Http2.TYPE_RST_STREAM)
     assertThat(rstStream.streamId).isEqualTo(2)
     assertThat(rstStream.errorCode).isEqualTo(ErrorCode.CANCEL)
+    val ping = peer.takeFrame()
+    assertThat(ping.type).isEqualTo(Http2.TYPE_PING)
+    assertThat(ping.payload1).isEqualTo(2)
+    assertThat(connection.readBytes.total).isEqualTo(1024L)
+  }
+
+  @Test fun pushPromiseForResetStreamIsRejected() {
+    // Write the mocking script.
+    peer.sendFrame().settings(Settings())
+    peer.acceptFrame() // ACK
+    peer.sendFrame().pushPromise(3, 2, headerEntries("a", "apple"))
+    peer.acceptFrame() // RST_STREAM
+    peer.sendFrame().pushPromise(3, 2, headerEntries("b", "banana"))
+    peer.acceptFrame() // RST_STREAM
+    peer.sendFrame().pushPromise(3, 2, headerEntries("c", "cherry"))
+    peer.acceptFrame() // RST_STREAM
+    peer.play()
+
+    // Play it back.
+    connect(peer, PushObserver.CANCEL, Http2Connection.Listener.REFUSE_INCOMING_STREAMS)
+
+    // The push observer cancels the first promise.
+    val cancel = peer.takeFrame()
+    assertThat(cancel.type).isEqualTo(Http2.TYPE_RST_STREAM)
+    assertThat(cancel.streamId).isEqualTo(2)
+    assertThat(cancel.errorCode).isEqualTo(ErrorCode.CANCEL)
+
+    repeat(2) {
+      val rstStream = peer.takeFrame()
+      assertThat(rstStream.type).isEqualTo(Http2.TYPE_RST_STREAM)
+      assertThat(rstStream.streamId).isEqualTo(2)
+      assertThat(rstStream.errorCode).isEqualTo(ErrorCode.PROTOCOL_ERROR)
+    }
+  }
+
+  @Test fun pushedDataIsCountedAgainstConnectionFlowControl() {
+    // Write the mocking script.
+    peer.sendFrame().settings(Settings())
+    peer.acceptFrame() // ACK
+    peer.sendFrame().pushPromise(3, 2, headerEntries("a", "apple"))
+    peer.sendFrame().data(true, 2, data(1024), 1024)
+    peer.sendFrame().ping(false, 2, 0)
+    peer.acceptFrame() // PING
+    peer.play()
+
+    // Play it back.
+    val connection = connect(peer)
+
+    val ping = peer.takeFrame()
+    assertThat(ping.type).isEqualTo(Http2.TYPE_PING)
+    assertThat(ping.payload1).isEqualTo(2)
+    assertThat(connection.readBytes.total).isEqualTo(1024L)
   }
 
   /**
@@ -1985,6 +2125,13 @@ class Http2ConnectionTest {
     assertThat(ackFrame.ack).isTrue()
     return connection
   }
+
+  private fun newConnection(taskRunner: TaskRunner): Http2Connection =
+    Http2Connection
+      .Builder(true, taskRunner)
+      .socket(peer.openSocket().asBufferedSocket(), "peer")
+      .pushObserver(IGNORE)
+      .build()
 
   private class RecordingPushObserver :
     PushObserver,
