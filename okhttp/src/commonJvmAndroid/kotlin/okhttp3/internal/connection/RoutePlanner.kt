@@ -69,9 +69,9 @@ interface RoutePlanner {
   fun hasNext(failedConnection: RealConnection? = null): Boolean
 
   /**
-   * Returns true if the host and port are unchanged from when this was created. This is used to
-   * detect if followups need to do a full connection-finding process including DNS resolution, and
-   * certificate pin checks.
+   * Returns true if the host, port, and scheme are unchanged from when this was created. This is
+   * used to detect if followups need to do a full connection-finding process including DNS
+   * resolution, and certificate pin checks.
    */
   fun sameHostAndPort(url: HttpUrl): Boolean
 
