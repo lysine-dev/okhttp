@@ -118,6 +118,11 @@ public final class okhttp3/CacheControl$Companion {
 	public final fun parse (Lokhttp3/Headers;)Lokhttp3/CacheControl;
 }
 
+public final class okhttp3/CacheInterceptor : okhttp3/Interceptor {
+	public fun <init> ()V
+	public fun intercept (Lokhttp3/Interceptor$Chain;)Lokhttp3/Response;
+}
+
 public abstract interface class okhttp3/Call : java/lang/Cloneable {
 	public abstract fun addEventListener (Lokhttp3/EventListener;)V
 	public abstract fun cancel ()V
