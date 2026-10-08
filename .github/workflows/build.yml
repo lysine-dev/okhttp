@@ -70,7 +70,7 @@ jobs:
             11
             21
 
-      - uses: graalvm/setup-graalvm@0426e2e191540e8514dff98dc52a5f5146a2a276 # v1.6.6
+      - uses: graalvm/setup-graalvm@27b360dbb857524eaf0b4c4cef364d38e5b4f173 # v1.6.7
         with:
           distribution: 'graalvm'
           java-version: 25
@@ -272,7 +272,7 @@ jobs:
           distribution: 'temurin'
           java-version: 21
 
-      - uses: graalvm/setup-graalvm@0426e2e191540e8514dff98dc52a5f5146a2a276 # v1.6.6
+      - uses: graalvm/setup-graalvm@27b360dbb857524eaf0b4c4cef364d38e5b4f173 # v1.6.7
         with:
           distribution: 'graalvm'
           java-version: 25
