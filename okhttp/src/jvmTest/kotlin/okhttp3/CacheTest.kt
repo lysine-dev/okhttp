@@ -3138,6 +3138,16 @@ class CacheTest {
 
   @Test
   fun conditionalHitUpdatesCache() {
+    assertConditionalHitUpdatesCache()
+  }
+
+  @Test
+  fun conditionalHitUpdatesCacheOnWindowsFileSystem() {
+    fileSystem.emulateWindows()
+    assertConditionalHitUpdatesCache()
+  }
+
+  private fun assertConditionalHitUpdatesCache() {
     server.enqueue(
       MockResponse
         .Builder()
