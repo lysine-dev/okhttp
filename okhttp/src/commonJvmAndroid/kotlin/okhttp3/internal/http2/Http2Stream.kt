@@ -282,6 +282,9 @@ class Http2Stream internal constructor(
         return false
       }
     }
+
+    // Record the reset before removing the stream so the reader thread never sees an unknown stream.
+    connection.recordRstStream(id)
     connection.removeStream(id)
     return true
   }
