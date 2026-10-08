@@ -45,6 +45,7 @@ import java.net.CookiePolicy
 import java.net.HttpCookie
 import java.net.HttpURLConnection
 import java.net.InetAddress
+import java.net.InetSocketAddress
 import java.net.ProtocolException
 import java.net.Proxy
 import java.net.SocketTimeoutException
@@ -1070,6 +1071,21 @@ open class CallTest {
         hasSize(1)
         index(0).matches(".* Connect timed out".toRegex(RegexOption.IGNORE_CASE))
       }
+  }
+
+  /** https://github.com/lysine-dev/okhttp/issues/9758 */
+  @Test
+  fun malformedProxyHostnameFailsGracefully() {
+    val proxySelector = RecordingProxySelector()
+    proxySelector.proxies.add(
+      Proxy(
+        Proxy.Type.HTTP,
+        InetSocketAddress.createUnresolved("internet ", 8080),
+      ),
+    )
+    client = client.newBuilder().proxySelector(proxySelector).build()
+    executeSynchronously(server.url("/").toString())
+      .assertFailure(UnknownHostException::class.java)
   }
 
   /** https://github.com/lysine-dev/okhttp/issues/4875  */
