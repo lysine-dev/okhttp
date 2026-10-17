@@ -100,6 +100,16 @@ class StatusLineTest {
   }
 
   @Test
+  fun nonAsciiDigitCode() {
+    // toIntOrNull() honors a sign prefix and any Unicode decimal digit, so a status code such
+    // as "+99", "-12" or the Arabic-Indic "٢٠٠" would otherwise be accepted even though
+    // RFC 9112 defines status-code as three ASCII DIGIT.
+    assertInvalid("HTTP/1.1 +99 OK")
+    assertInvalid("HTTP/1.1 -12 OK")
+    assertInvalid("HTTP/1.1 ٢٠٠ OK")
+  }
+
+  @Test
   fun truncated() {
     assertInvalid("")
     assertInvalid("H")
