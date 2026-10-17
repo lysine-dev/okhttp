@@ -402,7 +402,7 @@ public final class okhttp3/Cookie {
 	public final fun -deprecated_persistent ()Z
 	public final fun -deprecated_secure ()Z
 	public final fun -deprecated_value ()Ljava/lang/String;
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;JLjava/lang/String;Ljava/lang/String;ZZZZLjava/lang/String;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;JLjava/lang/String;Ljava/lang/String;ZZZZLjava/lang/String;ZLkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun domain ()Ljava/lang/String;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun expiresAt ()J
@@ -414,6 +414,7 @@ public final class okhttp3/Cookie {
 	public final fun newBuilder ()Lokhttp3/Cookie$Builder;
 	public static final fun parse (Lokhttp3/HttpUrl;Ljava/lang/String;)Lokhttp3/Cookie;
 	public static final fun parseAll (Lokhttp3/HttpUrl;Lokhttp3/Headers;)Ljava/util/List;
+	public final fun partitioned ()Z
 	public final fun path ()Ljava/lang/String;
 	public final fun persistent ()Z
 	public final fun sameSite ()Ljava/lang/String;
@@ -430,6 +431,7 @@ public final class okhttp3/Cookie$Builder {
 	public final fun hostOnlyDomain (Ljava/lang/String;)Lokhttp3/Cookie$Builder;
 	public final fun httpOnly ()Lokhttp3/Cookie$Builder;
 	public final fun name (Ljava/lang/String;)Lokhttp3/Cookie$Builder;
+	public final fun partitioned ()Lokhttp3/Cookie$Builder;
 	public final fun path (Ljava/lang/String;)Lokhttp3/Cookie$Builder;
 	public final fun sameSite (Ljava/lang/String;)Lokhttp3/Cookie$Builder;
 	public final fun secure ()Lokhttp3/Cookie$Builder;

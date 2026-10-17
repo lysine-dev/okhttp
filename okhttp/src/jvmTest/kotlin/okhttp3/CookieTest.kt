@@ -362,6 +362,18 @@ class CookieTest {
     assertThat(parse(url, "a=b; Secure")!!.secure).isTrue()
   }
 
+  @Test fun partitioned() {
+    assertThat(parse(url, "a=b")!!.partitioned).isFalse()
+    assertThat(parse(url, "a=b; Partitioned")!!.partitioned).isTrue()
+  }
+
+  @Test fun securePartitioned() {
+    val cookie = parse(url, "a=b; Secure; SameSite=None; Partitioned")
+    assertThat(cookie!!.secure).isTrue()
+    assertThat(cookie.partitioned).isTrue()
+    assertThat(cookie.toString()).isEqualTo("a=b; path=/; secure; samesite=None; partitioned")
+  }
+
   @Test fun maxAgeTakesPrecedenceOverExpires() {
     // Max-Age = 1, Expires = 2. In either order.
     assertThat(parseCookie(0L, url, "a=b; Max-Age=1; Expires=Thu, 01 Jan 1970 00:00:02 GMT")!!.expiresAt)
@@ -434,6 +446,7 @@ class CookieTest {
     assertThat(cookie.persistent).isFalse()
     assertThat(cookie.hostOnly).isFalse()
     assertThat(cookie.sameSite).isNull()
+    assertThat(cookie.partitioned).isFalse()
   }
 
   @Test fun newBuilder() {
@@ -565,6 +578,18 @@ class CookieTest {
     assertThat(cookie.httpOnly).isTrue()
   }
 
+  @Test fun builderPartitioned() {
+    val cookie =
+      Cookie
+        .Builder()
+        .name("a")
+        .value("b")
+        .hostOnlyDomain("example.com")
+        .partitioned()
+        .build()
+    assertThat(cookie.partitioned).isTrue()
+  }
+
   @Test fun builderIpv6() {
     val cookie =
       Cookie
@@ -658,6 +683,8 @@ class CookieTest {
         "a=b; Path=/c; Domain=example.com;            Secure; HttpOnly; SameSite=Lax",
         "a=b; Path=/c; Domain=example.com; Max-Age=5;         HttpOnly; SameSite=Lax",
         "a=b; Path=/c; Domain=example.com; Max-Age=5; Secure;         ; SameSite=Lax",
+        "a=b; Path=/c; Domain=example.com; Max-Age=5; Secure; HttpOnly; Partitioned",
+        "a=b; Path=/c; Domain=example.com; Max-Age=5; Secure; HttpOnly; SameSite=None; Partitioned",
       )
     for (stringA in cookieStrings) {
       val cookieA = parseCookie(0, url, stringA!!)
