@@ -662,6 +662,7 @@ public final class okhttp3/Headers : java/lang/Iterable, kotlin/jvm/internal/mar
 	public static final field EMPTY Lokhttp3/Headers;
 	public final fun -deprecated_size ()I
 	public final fun byteCount ()J
+	public final fun combine (Lokhttp3/Headers;)Lokhttp3/Headers;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun get (Ljava/lang/String;)Ljava/lang/String;
 	public final fun getDate (Ljava/lang/String;)Ljava/util/Date;
@@ -690,6 +691,8 @@ public final class okhttp3/Headers$Builder {
 	public final fun addUnsafeNonAscii (Ljava/lang/String;Ljava/lang/String;)Lokhttp3/Headers$Builder;
 	public final fun build ()Lokhttp3/Headers;
 	public final fun get (Ljava/lang/String;)Ljava/lang/String;
+	public final synthetic fun minusAssign (Ljava/lang/String;)V
+	public final synthetic fun plusAssign (Lokhttp3/Headers;)V
 	public final fun removeAll (Ljava/lang/String;)Lokhttp3/Headers$Builder;
 	public final fun set (Ljava/lang/String;Ljava/lang/String;)Lokhttp3/Headers$Builder;
 	public final fun set (Ljava/lang/String;Ljava/time/Instant;)Lokhttp3/Headers$Builder;
