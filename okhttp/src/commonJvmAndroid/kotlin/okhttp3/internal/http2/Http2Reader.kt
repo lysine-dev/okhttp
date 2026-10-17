@@ -266,6 +266,9 @@ class Http2Reader(
       when (id) {
         // SETTINGS_HEADER_TABLE_SIZE
         1 -> {
+          if (value < 0) {
+            throw IOException("PROTOCOL_ERROR SETTINGS_HEADER_TABLE_SIZE > 2^31 - 1")
+          }
         }
 
         // SETTINGS_ENABLE_PUSH
