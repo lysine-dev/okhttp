@@ -47,6 +47,11 @@ object Hpack {
   private const val PREFIX_6_BITS = 0x3f
   private const val PREFIX_7_BITS = 0x7f
 
+  /**
+   * Per-entry overhead of a header list entry, as defined by RFC 9113 section 6.5.2.
+   */
+  private const val HEADER_ENTRY_OVERHEAD = 32
+
   private const val SETTINGS_HEADER_TABLE_SIZE = 4_096
 
   /**
@@ -411,7 +416,9 @@ object Hpack {
       private fun addHeader(header: Header) {
         headerList.add(header)
 
-        val headerSize = header.name.size + header.value.size
+        // Include the per-entry overhead of RFC 9113 section 6.5.2, so the accounting
+        // also grows for headers whose name and value are both empty.
+        val headerSize = header.name.size + header.value.size + HEADER_ENTRY_OVERHEAD
         val newHeaderListSize = headerListByteCount + headerSize
         headerListByteCount = newHeaderListSize
         if (newHeaderListSize > HEADER_LIMIT) {
