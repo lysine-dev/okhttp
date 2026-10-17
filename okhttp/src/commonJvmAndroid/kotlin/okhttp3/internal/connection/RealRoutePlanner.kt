@@ -348,6 +348,8 @@ class RealRoutePlanner internal constructor(
 
   override fun sameHostAndPort(url: HttpUrl): Boolean {
     val routeUrl = address.url
-    return url.port == routeUrl.port && url.host == routeUrl.host
+    return url.port == routeUrl.port &&
+      url.host == routeUrl.host &&
+      url.scheme == routeUrl.scheme
   }
 }
