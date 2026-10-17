@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater
 import kotlin.reflect.KClass
+import okhttp3.CacheInterceptor
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.EventListener
@@ -37,7 +38,6 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.internal.OkHttpInternalApi
 import okhttp3.internal.assertLockNotHeld
-import okhttp3.internal.cache.CacheInterceptor
 import okhttp3.internal.closeQuietly
 import okhttp3.internal.computeIfAbsent
 import okhttp3.internal.concurrent.Lockable
