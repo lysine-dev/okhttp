@@ -447,7 +447,8 @@ internal object Adapters {
         val adapter = chooser(writer.typeHint) as DerAdapter<Any?>?
         when {
           adapter != null -> adapter.toDer(writer, value)
-          else -> writer.writeOctetString(value as ByteString)
+          value != null -> writer.writeOctetString(value as ByteString)
+          // else: unknown type with null value — field is absent, write nothing
         }
       }
 
