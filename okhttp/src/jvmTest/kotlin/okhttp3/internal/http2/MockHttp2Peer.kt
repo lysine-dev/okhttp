@@ -66,6 +66,21 @@ class MockHttp2Peer : Closeable {
     return writer
   }
 
+  fun sendPaddedData(
+    inFinished: Boolean,
+    streamId: Int,
+    data: Buffer,
+    byteCount: Int,
+    padding: Int,
+  ) {
+    require(padding in 0..255)
+    val flags = Http2.FLAG_PADDED or if (inFinished) Http2.FLAG_END_STREAM else 0
+    sendFrame().frameHeader(streamId, byteCount + padding + 1, Http2.TYPE_DATA, flags)
+    bytesOut.writeByte(padding)
+    bytesOut.write(data, byteCount.toLong())
+    bytesOut.write(ByteArray(padding))
+  }
+
   /**
    * Shortens the last frame from its original length to `length`. This will cause the peer to
    * close the socket as soon as this frame has been written; otherwise the peer stays open until
@@ -195,6 +210,8 @@ class MockHttp2Peer : Closeable {
 
     @JvmField var data: ByteArray? = null
 
+    @JvmField var padding = 0
+
     @JvmField var settings: Settings? = null
 
     @JvmField var ack = false
@@ -244,6 +261,15 @@ class MockHttp2Peer : Closeable {
       this.inFinished = inFinished
       this.streamId = streamId
       this.data = source.readByteString(length.toLong()).toByteArray()
+    }
+
+    override fun dataPadding(
+      streamId: Int,
+      length: Int,
+    ) {
+      check(type == Http2.TYPE_DATA)
+      check(this.streamId == streamId)
+      this.padding = length
     }
 
     override fun rstStream(
