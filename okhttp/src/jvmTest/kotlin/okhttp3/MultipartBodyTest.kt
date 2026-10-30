@@ -333,15 +333,35 @@ class MultipartBodyTest {
     }
   }
 
+  /**
+   * Verifies that the builder preserves an explicit part-level Content-Length
+   * header and includes its bytes in the total multipart content length.
+   */
   @Test
-  fun contentLengthHeaderIsForbidden() {
-    val multipart = MultipartBody.Builder()
-    assertFailsWith<IllegalArgumentException> {
-      multipart.addPart(
-        headersOf("Content-Length", "13"),
-        "Hello, World!".toRequestBody(null),
-      )
-    }
+  fun contentLengthHeaderIsPreserved() {
+    val body =
+      MultipartBody
+        .Builder("123")
+        .addPart(
+          headersOf("Content-Length", "13"),
+          "Hello, World!".toRequestBody(null),
+        ).build()
+
+    val expected =
+      """
+    |--123
+    |Content-Length: 13
+    |
+    |Hello, World!
+    |--123--
+    |
+      """.trimMargin().replace("\n", "\r\n")
+
+    val buffer = Buffer()
+    body.writeTo(buffer)
+
+    assertThat(body.contentLength()).isEqualTo(buffer.size)
+    assertThat(buffer.readUtf8()).isEqualTo(expected)
   }
 
   @Test
@@ -451,4 +471,84 @@ class MultipartBodyTest {
         sink.writeUtf8(this@toOneShotRequestBody)
       }
     }
+
+  /**
+   * Verifies that an explicit part-level Content-Length header is preserved
+   * and that the multipart content length matches the bytes written.
+   */
+  @Test
+  fun explicitContentLengthHeader() {
+    val part =
+      MultipartBody.Part.create(
+        headersOf("Content-Length", "13"),
+        "Hello, World!".toRequestBody(null),
+      )
+
+    val body =
+      MultipartBody
+        .Builder("123")
+        .setType(MultipartBody.MIXED)
+        .addPart(part)
+        .build()
+
+    val expected =
+      """
+    |--123
+    |Content-Length: 13
+    |
+    |Hello, World!
+    |--123--
+    |
+      """.trimMargin().replace("\n", "\r\n")
+
+    val buffer = Buffer()
+    body.writeTo(buffer)
+
+    assertThat(body.contentLength()).isEqualTo(buffer.size)
+    assertThat(buffer.readUtf8()).isEqualTo(expected)
+  }
+
+  /**
+   * Verifies that an explicit part-level Content-Length header is preserved
+   * without determining the multipart length when the body length is unknown.
+   */
+  @Test
+  fun explicitContentLengthDoesNotDetermineUnknownBodyLength() {
+    val streamingBody =
+      object : RequestBody() {
+        override fun contentType(): MediaType? = null
+
+        override fun contentLength(): Long = -1L
+
+        override fun writeTo(sink: BufferedSink) {
+          sink.writeUtf8("Hello, World!")
+        }
+      }
+
+    val body =
+      MultipartBody
+        .Builder("123")
+        .addPart(
+          headersOf("Content-Length", "13"),
+          streamingBody,
+        ).build()
+
+    assertThat(body.contentLength()).isEqualTo(-1L)
+
+    val buffer = Buffer()
+    body.writeTo(buffer)
+
+    val expected =
+      """
+    |--123
+    |Content-Length: 13
+    |
+    |Hello, World!
+    |--123--
+    |
+      """.trimMargin().replace("\n", "\r\n")
+
+    assertThat(buffer.readUtf8()).isEqualTo(expected)
+    assertThat(body.contentLength()).isEqualTo(-1L)
+  }
 }

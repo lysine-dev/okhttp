@@ -212,7 +212,6 @@ class MultipartBody internal constructor(
         body: RequestBody,
       ): Part {
         require(headers?.get("Content-Type") == null) { "Unexpected header: Content-Type" }
-        require(headers?.get("Content-Length") == null) { "Unexpected header: Content-Length" }
         return Part(headers, body)
       }
 
