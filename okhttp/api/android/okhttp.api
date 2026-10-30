@@ -624,6 +624,17 @@ public final class okhttp3/FormBody$Builder {
 public final class okhttp3/FormBody$Companion {
 }
 
+public class okhttp3/ForwardingRequestBody : okhttp3/RequestBody {
+	public fun <init> (Lokhttp3/RequestBody;)V
+	public fun contentLength ()J
+	public fun contentType ()Lokhttp3/MediaType;
+	public final fun delegate ()Lokhttp3/RequestBody;
+	public fun isDuplex ()Z
+	public fun isOneShot ()Z
+	public fun toString ()Ljava/lang/String;
+	public fun writeTo (Lokio/BufferedSink;)V
+}
+
 public final class okhttp3/Gzip : okhttp3/CompressionInterceptor$DecompressionAlgorithm {
 	public static final field INSTANCE Lokhttp3/Gzip;
 	public fun decompress (Lokio/BufferedSource;)Lokio/Source;
