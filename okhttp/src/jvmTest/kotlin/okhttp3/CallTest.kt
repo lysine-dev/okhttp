@@ -1334,6 +1334,32 @@ open class CallTest {
   }
 
   @Test
+  fun doesNotRetryConnectionFailuresUnboundedly() {
+    // More usable routes (25) than the cap allows. Asserting the exact request count proves the
+    // cap stopped the call, not route exhaustion.
+    val dispatcher = QueueDispatcher()
+    repeat(25) {
+      dispatcher.enqueue(MockResponse.Builder().onResponseStart(CloseSocket()).build())
+    }
+    server.dispatcher = dispatcher
+    client =
+      client
+        .newBuilder()
+        .dns(
+          object : Dns {
+            override fun lookup(hostname: String): List<InetAddress> {
+              val address = Dns.SYSTEM.lookup(hostname)[0]
+              return List(25) { address }
+            }
+          },
+        ).build()
+    assertFailsWith<IOException> {
+      client.newCall(Request.Builder().url(server.url("/")).build()).execute()
+    }
+    assertThat(server.requestCount).isEqualTo(21)
+  }
+
+  @Test
   fun noRecoverWhenRetryOnConnectionFailureIsFalse() {
     server.enqueue(MockResponse(body = "seed connection pool"))
     server.enqueue(MockResponse.Builder().onResponseStart(CloseSocket()).build())
