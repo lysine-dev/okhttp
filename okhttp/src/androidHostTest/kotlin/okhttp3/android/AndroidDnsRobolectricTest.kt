@@ -27,6 +27,8 @@ import assertk.assertions.containsExactly
 import assertk.assertions.hasSize
 import assertk.assertions.isEmpty
 import java.net.InetAddress
+import java.net.UnknownHostException
+import kotlin.test.assertFailsWith
 import okhttp3.Dns
 import okhttp3.DnsCache
 import okhttp3.FakeDns
@@ -166,6 +168,13 @@ class AndroidDnsRobolectricTest {
     val addresses = androidDns.lookup("publicobject.com")
     assertThat(addresses).containsExactly(InetAddress.getByName("10.20.30.40"))
     assertThat(dnsServer.takeAllRequests()).hasSize(1)
+  }
+
+  @Test
+  fun lookupFailsGracefullyForMalformedHostname() {
+    assertFailsWith<UnknownHostException> {
+      androidDns.lookup("internet ")
+    }
   }
 
   private fun Dns.recordsFor(
