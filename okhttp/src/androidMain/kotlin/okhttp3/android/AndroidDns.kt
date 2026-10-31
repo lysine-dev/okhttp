@@ -97,11 +97,21 @@ class AndroidDns internal constructor(
    * Resolves addresses only, for callers using the legacy blocking API. [Dns] cannot carry
    * HTTPS/ECH metadata, so this skips that query rather than paying for it and discarding it.
    */
-  override fun lookup(hostname: String): List<InetAddress> =
-    call(Dns.Request(hostname), includeServiceMetadata = false)
+  @Throws(UnknownHostException::class)
+  override fun lookup(hostname: String): List<InetAddress> {
+    val request =
+      try {
+        Dns.Request(hostname)
+      } catch (e: IllegalArgumentException) {
+        throw UnknownHostException("invalid host $hostname.").apply {
+          initCause(e)
+        }
+      }
+    return call(request, includeServiceMetadata = false)
       .execute()
       .filterIsInstance<Dns.Record.IpAddress>()
       .map { it.address }
+  }
 
   override fun newCall(request: Dns.Request): Dns.Call = call(request, includeServiceMetadata = includeServiceMetadata)
 
