@@ -93,7 +93,7 @@ import org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement
  * ```
  *
  * This example shows a call with a short 500 millisecond read timeout and a 1000 millisecond
- * write timeout. Original configuration is kept, but can be overriden.
+ * write timeout. Original configuration is kept, but can be overridden.
  *
  * ```java
  * OkHttpClient eagerClient = client.newBuilder()
