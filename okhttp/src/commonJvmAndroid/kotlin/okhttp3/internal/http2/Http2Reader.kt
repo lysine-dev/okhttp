@@ -261,19 +261,16 @@ class Http2Reader(
     val settings = Settings()
     for (i in 0 until length step 6) {
       val id = source.readShort() and 0xffff
-      val value = source.readInt()
+      val value = source.readInt() and 0xffffffffL // Setting values are unsigned 32-bit.
 
       when (id) {
         // SETTINGS_HEADER_TABLE_SIZE
         1 -> {
-          if (value < 0) {
-            throw IOException("PROTOCOL_ERROR SETTINGS_HEADER_TABLE_SIZE > 2^31 - 1")
-          }
         }
 
         // SETTINGS_ENABLE_PUSH
         2 -> {
-          if (value != 0 && value != 1) {
+          if (value != 0L && value != 1L) {
             throw IOException("PROTOCOL_ERROR SETTINGS_ENABLE_PUSH != 0 or 1")
           }
         }
@@ -284,7 +281,7 @@ class Http2Reader(
 
         // SETTINGS_INITIAL_WINDOW_SIZE
         4 -> {
-          if (value < 0) {
+          if (value > Int.MAX_VALUE) {
             throw IOException("PROTOCOL_ERROR SETTINGS_INITIAL_WINDOW_SIZE > 2^31 - 1")
           }
         }
@@ -304,7 +301,8 @@ class Http2Reader(
         else -> {
         }
       }
-      settings[id] = value
+      // Settings holds Ints. Anything past 2^31 - 1 is a size or count larger than we'd ever use.
+      settings[id] = minOf(value, Int.MAX_VALUE.toLong()).toInt()
     }
     handler.settings(false, settings)
   }
