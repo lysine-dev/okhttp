@@ -479,6 +479,14 @@ class DiskLruCache(
   fun edit(
     key: String,
     expectedSequenceNumber: Long = ANY_SEQUENCE_NUMBER,
+  ): Editor? = edit(key, expectedSequenceNumber, allowSourceLocks = false)
+
+  @Synchronized
+  @Throws(IOException::class)
+  private fun edit(
+    key: String,
+    expectedSequenceNumber: Long,
+    allowSourceLocks: Boolean,
   ): Editor? {
     initialize()
 
@@ -495,7 +503,7 @@ class DiskLruCache(
       return null // Another edit is in progress.
     }
 
-    if (entry != null && entry.lockingSourceCount != 0) {
+    if (!allowSourceLocks && entry != null && entry.lockingSourceCount != 0) {
       return null // We can't write this file because a reader is still reading it.
     }
 
@@ -854,6 +862,9 @@ class DiskLruCache(
      */
     @Throws(IOException::class)
     fun edit(): Editor? = this@DiskLruCache.edit(key, sequenceNumber)
+
+    @Throws(IOException::class)
+    internal fun editMetadata(): Editor? = this@DiskLruCache.edit(key, sequenceNumber, allowSourceLocks = true)
 
     /** Returns the unbuffered stream with the value for [index]. */
     fun getSource(index: Int): Source = sources[index]

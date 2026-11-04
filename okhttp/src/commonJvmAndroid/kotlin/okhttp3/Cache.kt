@@ -263,7 +263,7 @@ class Cache internal constructor(
     val snapshot = (cached.body as CacheResponseBody).snapshot
     var editor: DiskLruCache.Editor? = null
     try {
-      editor = snapshot.edit() ?: return // edit() returns null if snapshot is not current.
+      editor = snapshot.editMetadata() ?: return // editMetadata() returns null if snapshot is not current.
       entry.writeTo(editor)
       editor.commit()
     } catch (_: IOException) {
