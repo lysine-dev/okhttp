@@ -20,6 +20,7 @@ import assertk.assertions.containsExactly
 import assertk.assertions.isEqualTo
 import java.util.concurrent.TimeUnit
 import mockwebserver3.MockResponse
+import mockwebserver3.MockResponseBody
 import mockwebserver3.MockWebServer
 import mockwebserver3.junit5.StartStop
 import okhttp3.CallEvent.CallEnd
@@ -46,6 +47,7 @@ import okhttp3.Request
 import okhttp3.sse.EventSource
 import okhttp3.sse.EventSources.createFactory
 import okhttp3.testing.PlatformRule
+import okio.BufferedSink
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
@@ -173,6 +175,50 @@ class EventSourceHttpTest {
     listener.assertOpen()
     listener.assertEvent(null, null, "hey")
     listener.assertClose()
+  }
+
+  @Test
+  fun readTimeoutAppliesOnceConnected() {
+    client =
+      client
+        .newBuilder()
+        .callTimeout(250, TimeUnit.MILLISECONDS)
+        .readTimeout(500, TimeUnit.MILLISECONDS)
+        .build()
+
+    val body = object : MockResponseBody {
+      override val contentLength: Long
+        get() = -1
+
+      override fun writeTo(sink: BufferedSink) {
+        repeat(10) {
+          sink.writeUtf8("data: hey $it\n\n")
+          sink.flush()
+          if (it == 4) {
+            Thread.sleep(2_000)
+          } else {
+            Thread.sleep(100)
+          }
+        }
+      }
+    }
+
+    server.enqueue(
+      MockResponse
+        .Builder()
+        .setHeader("content-type", "text/event-stream")
+        .body(body)
+        .build(),
+    )
+    val source = newEventSource()
+    assertThat(source.request().url.encodedPath).isEqualTo("/")
+    listener.assertOpen()
+    listener.assertEvent(null, null, "hey 0")
+    listener.assertEvent(null, null, "hey 1")
+    listener.assertEvent(null, null, "hey 2")
+    listener.assertEvent(null, null, "hey 3")
+    listener.assertEvent(null, null, "hey 4")
+    listener.assertFailure("timeout")
   }
 
   @Test
