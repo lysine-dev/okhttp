@@ -23,7 +23,8 @@ import java.io.IOException
 import java.net.Inet4Address
 import java.net.Inet6Address
 import java.net.InetAddress
-import java.net.Socket
+import java.net.InetSocketAddress
+import java.net.Proxy
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.test.assertFailsWith
@@ -34,8 +35,6 @@ import okhttp3.CallEvent.ConnectEnd
 import okhttp3.CallEvent.ConnectFailed
 import okhttp3.CallEvent.ConnectStart
 import okhttp3.internal.http2.ErrorCode
-import okhttp3.internal.platform.Platform
-import okhttp3.sockets.DelegatingSocketFactory
 import okhttp3.testing.Flaky
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -281,18 +280,19 @@ class FastFallbackTest {
     serverIpv4.protocols = listOf(Protocol.H2_PRIOR_KNOWLEDGE)
     serverIpv6.protocols = listOf(Protocol.H2_PRIOR_KNOWLEDGE)
 
-    // Yield the first IP address so the second IP address completes first.
-    val firstConnectLatch = CountDownLatch(1)
-    val socketFactory =
-      object : DelegatingSocketFactory(Platform.get().socketFactory) {
-        var first = true
-
-        override fun createSocket(): Socket {
-          if (first) {
-            first = false
-            firstConnectLatch.await()
+    // Stall IPv6 so the IPv4 address completes first. Fast fallback connects on separate threads,
+    // so stall by destination address, not by the order of the connect attempts.
+    val ipv6ConnectLatch = CountDownLatch(1)
+    val stallIpv6 =
+      object : EventListener() {
+        override fun connectStart(
+          call: Call,
+          inetSocketAddress: InetSocketAddress,
+          proxy: Proxy,
+        ) {
+          if (inetSocketAddress.address == localhostIpv6) {
+            ipv6ConnectLatch.await()
           }
-          return super.createSocket()
         }
       }
 
@@ -300,13 +300,13 @@ class FastFallbackTest {
       client
         .newBuilder()
         .protocols(listOf(Protocol.H2_PRIOR_KNOWLEDGE))
-        .socketFactory(socketFactory)
+        .eventListenerFactory(clientTestRule.wrap(eventRecorder.eventListener + stallIpv6))
         .addNetworkInterceptor(
           Interceptor { chain ->
             try {
               chain.proceed(chain.request())
             } finally {
-              firstConnectLatch.countDown()
+              ipv6ConnectLatch.countDown()
             }
           },
         ).build()
