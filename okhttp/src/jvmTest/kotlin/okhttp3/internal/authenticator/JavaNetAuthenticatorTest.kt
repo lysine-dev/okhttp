@@ -17,7 +17,8 @@ package okhttp3.internal.authenticator
 
 import java.net.Authenticator
 import java.net.InetAddress
-import junit.framework.TestCase.assertNull
+import java.net.InetSocketAddress
+import java.net.Proxy
 import okhttp3.FakeDns
 import okhttp3.Protocol.HTTP_2
 import okhttp3.Request
@@ -26,6 +27,7 @@ import okhttp3.TestValueFactory
 import okhttp3.internal.RecordingAuthenticator
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -99,5 +101,61 @@ class JavaNetAuthenticatorTest {
 
     val authRequest = authenticator.authenticate(null, response)
     assertNull(authRequest)
+  }
+
+  @Test
+  fun testProxyAuthDirect() {
+    fakeDns["server"] = listOf(InetAddress.getLocalHost())
+
+    val route = factory.newRoute()
+
+    val request =
+      Request
+        .Builder()
+        .url("https://server/robots.txt")
+        .build()
+    val response =
+      Response
+        .Builder()
+        .request(request)
+        .code(407)
+        .header("Proxy-Authenticate", "Basic realm=\"User Visible Realm\"")
+        .protocol(HTTP_2)
+        .message("Unauthorized")
+        .build()
+    val authRequest = authenticator.authenticate(route, response)
+
+    assertNull(authRequest)
+  }
+
+  @Test
+  fun testProxyAuthUnresolvedAddress() {
+    fakeDns["server"] = listOf(InetAddress.getLocalHost())
+    fakeDns["127.0.0.1"] = listOf(InetAddress.getLocalHost())
+
+    // ProxySelector's default implementation, sun.net.spi.DefaultProxySelector, returns unresolved addresses
+    val proxy = Proxy(Proxy.Type.HTTP, InetSocketAddress.createUnresolved("127.0.0.1", 3128))
+    val route = factory.newRoute(proxy = proxy)
+
+    val request =
+      Request
+        .Builder()
+        .url("https://server/robots.txt")
+        .build()
+    val response =
+      Response
+        .Builder()
+        .request(request)
+        .code(407)
+        .header("Proxy-Authenticate", "Basic realm=\"User Visible Realm\"")
+        .protocol(HTTP_2)
+        .message("Unauthorized")
+        .build()
+    val authRequest = authenticator.authenticate(route, response)
+
+    assertEquals(
+      "Basic ${RecordingAuthenticator.BASE_64_CREDENTIALS}",
+      authRequest!!.header("Proxy-Authorization"),
+    )
   }
 }
