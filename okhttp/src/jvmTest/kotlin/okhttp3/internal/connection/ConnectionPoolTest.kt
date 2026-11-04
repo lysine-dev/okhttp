@@ -20,6 +20,7 @@ import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
 import assertk.assertions.isNotEmpty
+import assertk.assertions.isNotSameInstanceAs
 import assertk.assertions.isTrue
 import okhttp3.ConnectionPool
 import okhttp3.FakeRoutePlanner
@@ -176,6 +177,34 @@ class ConnectionPoolTest {
 
     // Can't allocate once a leak has been detected.
     assertThat(c1.noNewExchanges).isTrue()
+  }
+
+  @Test fun multipleLeakedAllocations() {
+    val pool = factory.newConnectionPool()
+    val poolApi = ConnectionPool(pool)
+    val c1 = factory.newConnection(pool, routeA1, 0L)
+    allocateAndLeakAllocation(poolApi, c1)
+    val c2 = factory.newConnection(pool, routeA1, 0L)
+    allocateAndLeakAllocation(poolApi, c2)
+    awaitGarbageCollection()
+    assertThat(pool.closeConnections(100L)).isEqualTo(0L)
+
+    assertThat(c1.calls).isEmpty()
+    assertThat(c1.noNewExchanges).isTrue()
+
+    assertThat(c2.calls).isEmpty()
+    assertThat(c2.noNewExchanges).isTrue()
+
+    val client =
+      OkHttpClient
+        .Builder()
+        .connectionPool(poolApi)
+        .build()
+    val call = client.newCall(Request(c1.route().address.url)) as RealCall
+    val c3 = pool.callAcquirePooledConnection(false, c1.route().address, call, null, false)
+
+    assertThat(c3).isNotSameInstanceAs(c1)
+    assertThat(c3).isNotSameInstanceAs(c2)
   }
 
   @Test fun interruptStopsThread() {
