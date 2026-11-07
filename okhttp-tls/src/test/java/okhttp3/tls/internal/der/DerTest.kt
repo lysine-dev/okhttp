@@ -405,6 +405,20 @@ internal class DerTest {
     assertThat(derReader.hasNext()).isFalse()
   }
 
+  @Test fun `decode object identifier with overflowing subidentifier`() {
+    val buffer =
+      Buffer()
+        .write("060a81808080808080808000".decodeHex())
+
+    val derReader = DerReader(buffer)
+
+    assertFailsWith<ProtocolException> {
+      derReader.read("test") { derReader.readObjectIdentifier() }
+    }.also { expected ->
+      assertThat(expected.message).isEqualTo("variable length long > Long.MAX_VALUE")
+    }
+  }
+
   @Test fun `encode object identifier without adapter`() {
     val buffer = Buffer()
     val derWriter = DerWriter(buffer)

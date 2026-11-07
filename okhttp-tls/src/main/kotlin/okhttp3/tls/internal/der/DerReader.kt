@@ -305,12 +305,16 @@ internal class DerReader(
 
   /** Used for tags and subidentifiers. */
   private fun readVariableLengthLong(): Long {
-    // TODO(jwilson): detect overflow.
     var result = 0L
     while (true) {
       val byteN = source.readByte().toLong() and 0xff
       if ((byteN and 0b1000_0000L) == 0b1000_0000L) {
-        result = (result + (byteN and 0b0111_1111)) shl 7
+        result += byteN and 0b0111_1111
+        // Once more than 56 bits are used the following shift left by 7 would drop set bits and
+        // could flip the sign, so the encoded value doesn't fit in a Long. Fail instead of
+        // silently returning a truncated (possibly negative) number.
+        if (result ushr 56 != 0L) throw ProtocolException("variable length long > Long.MAX_VALUE")
+        result = result shl 7
       } else {
         return result + byteN
       }
