@@ -54,6 +54,8 @@ import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 
 @Timeout(5)
 @Tag("Slow")
@@ -316,6 +318,155 @@ class Http2ConnectionTest {
       // stream
       assertThat(windowUpdateStreamIds).contains(3)
     }
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = [0, 39, 255])
+  fun paddedDataSendsConnectionWindowUpdate(padding: Int) {
+    val payloadLength = 10 + 1 + padding
+    peer.sendFrame().settings(Settings())
+    peer.acceptFrame() // ACK
+    peer.acceptFrame() // HEADERS
+    peer.sendFrame().headers(false, 3, headerEntries("a", "android"))
+    peer.sendPaddedData(true, 3, data(10), 10, padding)
+    peer.acceptFrame() // Connection WINDOW_UPDATE, before the application reads the body.
+    peer.sendFrame().ping(false, 2, 3)
+    peer.acceptFrame() // PING ACK
+    peer.play()
+
+    val connection = connect(peer)
+    connection.okHttpSettings[Settings.INITIAL_WINDOW_SIZE] = payloadLength * 2
+    val stream = connection.newStream(headerEntries("b", "banana"), false)
+    assertThat(peer.takeFrame().type).isEqualTo(Http2.TYPE_HEADERS)
+    val windowUpdate = peer.takeFrame()
+    assertThat(windowUpdate.type).isEqualTo(Http2.TYPE_WINDOW_UPDATE)
+    assertThat(windowUpdate.streamId).isEqualTo(0)
+    assertThat(windowUpdate.windowSizeIncrement).isEqualTo(payloadLength.toLong())
+    val ping = peer.takeFrame()
+    assertThat(ping.type).isEqualTo(Http2.TYPE_PING)
+    assertThat(ping.ack).isTrue()
+    assertThat(connection.readBytes.total).isEqualTo(payloadLength.toLong())
+    assertThat(connection.readBytes.acknowledged).isEqualTo(payloadLength.toLong())
+    val buffer = Buffer()
+    buffer.writeAll(stream.source)
+    assertThat(buffer).isEqualTo(data(10))
+  }
+
+  @Test fun paddedDataSendsStreamWindowUpdate() {
+    peer.sendFrame().settings(Settings())
+    peer.acceptFrame() // ACK
+    peer.acceptFrame() // HEADERS
+    peer.sendFrame().headers(false, 3, headerEntries("a", "android"))
+    repeat(3) {
+      peer.sendPaddedData(false, 3, data(10), 10, 39)
+      peer.acceptFrame() // Connection WINDOW_UPDATE
+      peer.acceptFrame() // Stream WINDOW_UPDATE
+    }
+    peer.sendFrame().data(true, 3, data(0), 0)
+    peer.play()
+
+    val connection = connect(peer)
+    connection.okHttpSettings[Settings.INITIAL_WINDOW_SIZE] = 100
+    val stream = connection.newStream(headerEntries("b", "banana"), false)
+    val buffer = Buffer()
+    buffer.writeAll(stream.source)
+    assertThat(buffer).isEqualTo(data(30))
+    assertThat(peer.takeFrame().type).isEqualTo(Http2.TYPE_HEADERS)
+    repeat(3) {
+      val updates = listOf(peer.takeFrame(), peer.takeFrame())
+      assertThat(updates.map { it.streamId }.toSet()).isEqualTo(setOf(0, 3))
+      for (update in updates) {
+        assertThat(update.type).isEqualTo(Http2.TYPE_WINDOW_UPDATE)
+        assertThat(update.windowSizeIncrement).isEqualTo(50L)
+      }
+    }
+    assertThat(connection.readBytes.total).isEqualTo(150L)
+    assertThat(connection.readBytes.acknowledged).isEqualTo(150L)
+    assertThat(stream.readBytes.total).isEqualTo(150L)
+    assertThat(stream.readBytes.acknowledged).isEqualTo(150L)
+  }
+
+  @Test fun paddingOnlyDataSendsWindowUpdateWithoutReadingBody() {
+    peer.sendFrame().settings(Settings())
+    peer.acceptFrame() // ACK
+    peer.acceptFrame() // HEADERS
+    peer.sendFrame().headers(false, 3, headerEntries("a", "android"))
+    peer.sendPaddedData(false, 3, data(0), 0, 49)
+    peer.acceptFrame() // Connection WINDOW_UPDATE
+    peer.acceptFrame() // Stream WINDOW_UPDATE
+    peer.sendFrame().data(true, 3, data(0), 0)
+    peer.play()
+
+    val connection = connect(peer)
+    connection.okHttpSettings[Settings.INITIAL_WINDOW_SIZE] = 100
+    val stream = connection.newStream(headerEntries("b", "banana"), false)
+    assertThat(peer.takeFrame().type).isEqualTo(Http2.TYPE_HEADERS)
+    val updates = listOf(peer.takeFrame(), peer.takeFrame())
+    assertThat(updates.map { it.streamId }.toSet()).isEqualTo(setOf(0, 3))
+    for (update in updates) {
+      assertThat(update.type).isEqualTo(Http2.TYPE_WINDOW_UPDATE)
+      assertThat(update.windowSizeIncrement).isEqualTo(50L)
+    }
+    assertThat(stream.source.read(Buffer(), 1)).isEqualTo(-1L)
+    assertThat(connection.readBytes.total).isEqualTo(50L)
+    assertThat(stream.readBytes.total).isEqualTo(50L)
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = [false, true])
+  fun paddedDataOnUnknownStreamSendsConnectionWindowUpdate(removed: Boolean) {
+    peer.sendFrame().settings(Settings())
+    peer.acceptFrame() // ACK
+    if (removed) {
+      peer.acceptFrame() // HEADERS
+      peer.sendFrame().rstStream(3, ErrorCode.CANCEL)
+    }
+    peer.acceptFrame() // PING
+    peer.sendPaddedData(true, 3, data(10), 10, 39)
+    peer.acceptFrame() // RST_STREAM
+    peer.acceptFrame() // Connection WINDOW_UPDATE
+    peer.sendFrame().ping(true, Http2Connection.AWAIT_PING, 0)
+    peer.play()
+
+    val connection = connect(peer)
+    connection.okHttpSettings[Settings.INITIAL_WINDOW_SIZE] = 100
+    if (removed) {
+      connection.newStream(headerEntries("b", "banana"), false)
+      assertThat(peer.takeFrame().type).isEqualTo(Http2.TYPE_HEADERS)
+    }
+    connection.writePingAndAwaitPong()
+    assertThat(peer.takeFrame().type).isEqualTo(Http2.TYPE_PING)
+    val reset = peer.takeFrame()
+    assertThat(reset.type).isEqualTo(Http2.TYPE_RST_STREAM)
+    assertThat(reset.streamId).isEqualTo(3)
+    val windowUpdate = peer.takeFrame()
+    assertThat(windowUpdate.type).isEqualTo(Http2.TYPE_WINDOW_UPDATE)
+    assertThat(windowUpdate.streamId).isEqualTo(0)
+    assertThat(windowUpdate.windowSizeIncrement).isEqualTo(50L)
+    assertThat(connection.readBytes.total).isEqualTo(50L)
+  }
+
+  @Test fun paddingOnPushedStreamSendsConnectionWindowUpdate() {
+    peer.sendFrame().settings(Settings())
+    peer.acceptFrame() // ACK
+    peer.acceptFrame() // HEADERS
+    peer.sendFrame().headers(false, 3, headerEntries("a", "android"))
+    peer.sendFrame().pushPromise(3, 2, headerEntries("a", "android"))
+    peer.sendPaddedData(true, 2, data(0), 0, 49)
+    peer.acceptFrame() // Connection WINDOW_UPDATE
+    peer.sendFrame().data(true, 3, data(0), 0)
+    peer.play()
+
+    val connection = connect(peer)
+    connection.okHttpSettings[Settings.INITIAL_WINDOW_SIZE] = 100
+    val stream = connection.newStream(headerEntries("b", "banana"), false)
+    assertThat(peer.takeFrame().type).isEqualTo(Http2.TYPE_HEADERS)
+    val windowUpdate = peer.takeFrame()
+    assertThat(windowUpdate.type).isEqualTo(Http2.TYPE_WINDOW_UPDATE)
+    assertThat(windowUpdate.streamId).isEqualTo(0)
+    assertThat(windowUpdate.windowSizeIncrement).isEqualTo(50L)
+    assertThat(stream.source.read(Buffer(), 1)).isEqualTo(-1L)
+    assertThat(connection.readBytes.total).isEqualTo(50L)
   }
 
   @Test fun serverSendsEmptyDataClientDoesntSendWindowUpdateHttp2() {

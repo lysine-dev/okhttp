@@ -405,14 +405,10 @@ class Http2Stream internal constructor(
               readBytesDelivered = readBuffer.read(sink, minOf(byteCount, readBuffer.size))
               readBytes.update(total = readBytesDelivered)
 
-              val unacknowledgedBytesRead = readBytes.unacknowledged
-              if (errorExceptionToDeliver == null &&
-                unacknowledgedBytesRead >= connection.okHttpSettings.initialWindowSize / 2
-              ) {
+              if (errorExceptionToDeliver == null) {
                 // Flow control: notify the peer that we're ready for more data! Only send a
                 // WINDOW_UPDATE if the stream isn't in error.
-                connection.writeWindowUpdateLater(id, unacknowledgedBytesRead)
-                readBytes.update(acknowledged = unacknowledgedBytesRead)
+                acknowledgeBytesRead()
               }
             } else if (!finished && errorExceptionToDeliver == null) {
               // Nothing to do. Wait until that changes then try again.
@@ -447,6 +443,27 @@ class Http2Stream internal constructor(
 
         return -1L // This source is exhausted.
       }
+    }
+
+    private fun acknowledgeBytesRead() {
+      val unacknowledgedBytesRead = readBytes.unacknowledged
+      if (unacknowledgedBytesRead >= connection.okHttpSettings.initialWindowSize / 2) {
+        connection.writeWindowUpdateLater(id, unacknowledgedBytesRead)
+        readBytes.update(acknowledged = unacknowledgedBytesRead)
+      }
+    }
+
+    /** Padding is consumed by the reader, so it can be acknowledged without an application read. */
+    internal fun receivePadding(byteCount: Long) {
+      assertLockNotHeld()
+
+      withLock {
+        readBytes.update(total = byteCount)
+        if (!closed && errorCode == null) {
+          acknowledgeBytesRead()
+        }
+      }
+      connection.flowControlListener.receivingStreamWindowChanged(id, readBytes, readBuffer.size)
     }
 
     private fun updateConnectionFlowControl(read: Long) {
