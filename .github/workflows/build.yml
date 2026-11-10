@@ -33,7 +33,7 @@ jobs:
           java-version: 21
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
       - name: Upload Artifacts
         run: ./gradlew clean publish --stacktrace
@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - uses: gradle/actions/wrapper-validation@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
       - name: Validate Renovate
         uses: rinchsan/renovate-config-validator@8cf44ae5646f111f838a03ac7ebd4e1c1f9be983 # v0.2.1
         with:
@@ -70,7 +70,7 @@ jobs:
             11
             21
 
-      - uses: graalvm/setup-graalvm@27b360dbb857524eaf0b4c4cef364d38e5b4f173 # v1.6.7
+      - uses: graalvm/setup-graalvm@f70bc8032f90a104502824a54bcb94b6f01715bc # v1.6.8
         with:
           distribution: 'graalvm'
           java-version: 25
@@ -78,7 +78,7 @@ jobs:
           native-image-job-reports: true
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
       - name: Run Checks
         run: ./gradlew check -PgraalBuild=true -x jvmTest -x test -x allTests -x java9Test
@@ -109,14 +109,14 @@ jobs:
             21
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
       - name: Run Tests
         run: ./gradlew test allTests -Ptest.java.version=${{ matrix.java-version }}
 
       - name: Publish Test Report
         if: github.repository == 'lysine-dev/okhttp' && github.ref == 'refs/heads/main' && matrix.java-version == '11'
-        uses: mikepenz/action-junit-report@6ef3fdcfcd5f0b5d14df3e659ef19b8c6820f93d # v6.6.1
+        uses: mikepenz/action-junit-report@4a26df3e2ae132254ba12a53f65a388d0961e786 # v6.7.0
         with:
           report_paths: '**/build/test-results/*/TEST-*.xml'
           check_name: OpenJDK 11 Test Report
@@ -149,7 +149,7 @@ jobs:
           java-version: 21
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
       - name: Run Tests
         run: ./gradlew test allTests -Ptest.java.version=8 -Pokhttp.platform=jdk8alpn -Palpn.boot.version=8.1.13.v20181017 -Dorg.gradle.java.installations.paths=/opt/hostedtoolcache/Java_Adopt_jdk/8.0.242-8.1/x64
@@ -182,7 +182,7 @@ jobs:
             21
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
       - name: Run Tests
         run: ./gradlew test allTests -Pokhttp.platform=${{ matrix.provider }} -Ptest.java.version=${{ matrix.java-version }}
@@ -208,7 +208,7 @@ jobs:
           echo 'kotlin.jvm.target.validation.mode=ignore' >> ./gradle.properties
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
       - name: Run Tests
         run: ./gradlew test allTests -Ptest.java.version=24
@@ -235,7 +235,7 @@ jobs:
           echo 'kotlin.jvm.target.validation.mode=ignore' >> ./gradle.properties
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
       - name: Run Tests
         run: ./gradlew test allTests -Ptest.java.version=25
@@ -254,7 +254,7 @@ jobs:
           java-version: 21
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
       - name: Run Tests
         run: ./gradlew test allTests
@@ -272,7 +272,7 @@ jobs:
           distribution: 'temurin'
           java-version: 21
 
-      - uses: graalvm/setup-graalvm@27b360dbb857524eaf0b4c4cef364d38e5b4f173 # v1.6.7
+      - uses: graalvm/setup-graalvm@f70bc8032f90a104502824a54bcb94b6f01715bc # v1.6.8
         with:
           distribution: 'graalvm'
           java-version: 25
@@ -280,13 +280,13 @@ jobs:
           native-image-job-reports: true
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
       - name: Build okcurl
         run: ./gradlew okcurl:nativeBuild
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
       - name: Run native-image tests
         run: ./gradlew -PgraalBuild=true native-image-tests:nativeTest
@@ -379,7 +379,7 @@ jobs:
           echo "version=$("$SDK/cmdline-tools/latest/bin/sdkmanager" --version 2>/dev/null | grep -Eo '^[0-9][0-9.]*' | head -1)" >> "$GITHUB_OUTPUT"
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
       - name: Warm the Gradle cache
         # Build the instrumentation APK to warm the cache, but don't run the Robolectric unit
@@ -462,7 +462,7 @@ jobs:
           java-version: 21
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
       - name: Publish local snapshot
         run: ./gradlew publishToMavenLocal
@@ -485,7 +485,7 @@ jobs:
           java-version: 24
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
       - name: Test module-tests
         run: ./gradlew module-tests:test -PokhttpModuleTests=true
