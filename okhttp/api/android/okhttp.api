@@ -826,6 +826,8 @@ public abstract interface class okhttp3/Interceptor$Chain {
 	public abstract fun getFollowRedirects ()Z
 	public abstract fun getFollowSslRedirects ()Z
 	public abstract fun getHostnameVerifier ()Ljavax/net/ssl/HostnameVerifier;
+	public abstract fun getInterceptors ()Ljava/util/List;
+	public abstract fun getNetworkInterceptors ()Ljava/util/List;
 	public abstract fun getProxy ()Ljava/net/Proxy;
 	public abstract fun getProxyAuthenticator ()Lokhttp3/Authenticator;
 	public abstract fun getProxySelector ()Ljava/net/ProxySelector;
