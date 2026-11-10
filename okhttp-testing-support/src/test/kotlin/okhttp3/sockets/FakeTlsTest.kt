@@ -255,12 +255,12 @@ class FakeTlsTest {
 
     val serverSslSocket = serverTls.clientSocket(serverSocket)
 
-    taskRunner.schedule("close server later", 250.milliseconds) {
-      serverSocket.close()
-    }
-
     val elapsed =
       measureTime {
+        taskRunner.schedule("close server later", 250.milliseconds) {
+          serverSocket.close()
+        }
+
         assertFailsWith<SocketException> {
           serverSslSocket.startHandshake()
         }
