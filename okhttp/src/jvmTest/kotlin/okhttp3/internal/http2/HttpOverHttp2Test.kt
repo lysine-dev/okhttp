@@ -43,6 +43,7 @@ import javax.net.ssl.SSLException
 import kotlin.test.assertFailsWith
 import mockwebserver3.Dispatcher
 import mockwebserver3.MockResponse
+import mockwebserver3.MockResponseBody
 import mockwebserver3.MockWebServer
 import mockwebserver3.PushPromise
 import mockwebserver3.QueueDispatcher
@@ -379,15 +380,16 @@ class HttpOverHttp2Test(
     assertThat(response2.body.string()).isEqualTo("abc")
   }
 
-  /** Wait for the client to receive `dataLength` DATA frames.  */
+  /** Waits for inbound DATA frames totaling at least [dataLength] bytes. */
   private fun waitForDataFrames(dataLength: Int) {
-    val expectedFrameCount = dataLength / 16384
-    var dataFrameCount = 0
-    while (dataFrameCount < expectedFrameCount) {
+    // Matches inbound DATA frames on stream 3 and captures their byte length, regardless of flags.
+    val dataFramePattern = Regex("""FINE: << 0x00000003\s+(\d+)\s+DATA(?:\s.*)?""")
+    var receivedByteCount = 0L
+
+    while (receivedByteCount < dataLength.toLong()) {
       val log = testLogHandler.take()
-      if (log == "FINE: << 0x00000003 16384 DATA          ") {
-        dataFrameCount++
-      }
+      val match = dataFramePattern.matchEntire(log) ?: continue
+      receivedByteCount += match.groupValues[1].toLong()
     }
   }
 
@@ -424,8 +426,20 @@ class HttpOverHttp2Test(
     server.enqueue(
       MockResponse
         .Builder()
-        .body(Buffer().write(ByteArray(Http2Connection.OKHTTP_CLIENT_WINDOW_SIZE)))
-        .build(),
+        .body(
+          object : MockResponseBody {
+            override val contentLength =
+              Http2Connection.OKHTTP_CLIENT_WINDOW_SIZE.toLong()
+
+            override fun writeTo(sink: BufferedSink) {
+              val chunk = ByteArray(8192)
+              kotlin.repeat(Http2Connection.OKHTTP_CLIENT_WINDOW_SIZE / chunk.size) {
+                sink.write(chunk)
+                sink.flush()
+              }
+            }
+          },
+        ).build(),
     )
     server.enqueue(
       MockResponse(body = "abc"),
