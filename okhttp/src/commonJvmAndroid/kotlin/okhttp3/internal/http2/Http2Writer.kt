@@ -193,6 +193,7 @@ class Http2Writer(
     if (byteCount > 0) {
       sink.write(buffer!!, byteCount.toLong())
     }
+    sink.flush()
   }
 
   /** Write okhttp's settings to the peer. */

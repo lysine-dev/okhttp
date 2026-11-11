@@ -1626,6 +1626,54 @@ class Http2ConnectionTest {
     assertThat(peer.takeFrame().type).isEqualTo(Http2.TYPE_RST_STREAM)
   }
 
+  @Test fun dataFrameIsFlushedWithSmallInitialWindowSize() {
+    // The peer advertises a small initial window, so a body larger than the window
+    // must be sent in several data frames. The first frame has to reach the peer
+    // so it can send WINDOW_UPDATE frames for the remaining bytes.
+    val peerSettings = Settings().set(Settings.INITIAL_WINDOW_SIZE, 4096)
+
+    // Write the mocking script.
+    peer.sendFrame().settings(peerSettings)
+    peer.acceptFrame() // ACK SETTINGS
+    peer.acceptFrame() // PING
+    peer.sendFrame().ping(true, Http2Connection.AWAIT_PING, 0)
+    peer.acceptFrame() // HEADERS
+    peer.acceptFrame() // DATA (4096 bytes)
+    peer.sendFrame().windowUpdate(0, 16384)
+    peer.sendFrame().windowUpdate(3, 16384)
+    peer.acceptFrame() // DATA (16384 bytes)
+    peer.acceptFrame() // DATA (empty, END_STREAM)
+    peer.play()
+
+    // Play it back.
+    val connection = connect(peer)
+    connection.writePingAndAwaitPong() // Make sure settings have been received.
+    val stream = connection.newStream(headerEntries("b", "banana"), true)
+    val sink = stream.sink
+    stream.writeTimeout().timeout(2, TimeUnit.SECONDS)
+
+    // 16384 bytes fills the emit buffer, so the first data frame is written
+    // from inside write() rather than from flush().
+    sink.write(Buffer().write(ByteArray(16384)), 16384)
+    sink.write(Buffer().write(ByteArray(4096)), 4096)
+    sink.flush()
+    sink.close()
+
+    // Verify the peer received what was expected.
+    assertThat(peer.takeFrame().type).isEqualTo(Http2.TYPE_PING)
+    assertThat(peer.takeFrame().type).isEqualTo(Http2.TYPE_HEADERS)
+    val data1 = peer.takeFrame()
+    assertThat(data1.type).isEqualTo(Http2.TYPE_DATA)
+    assertThat(data1.data!!.size).isEqualTo(4096)
+    val data2 = peer.takeFrame()
+    assertThat(data2.type).isEqualTo(Http2.TYPE_DATA)
+    assertThat(data2.data!!.size).isEqualTo(16384)
+    val data3 = peer.takeFrame()
+    assertThat(data3.type).isEqualTo(Http2.TYPE_DATA)
+    assertThat(data3.data!!.size).isEqualTo(0)
+    assertThat(data3.inFinished).isTrue()
+  }
+
   @Test fun outgoingWritesAreBatched() {
     // Write the mocking script.
     peer.sendFrame().settings(Settings())
