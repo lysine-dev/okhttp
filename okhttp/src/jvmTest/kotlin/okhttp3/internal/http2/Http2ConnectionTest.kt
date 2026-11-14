@@ -194,7 +194,8 @@ class Http2ConnectionTest {
    * Confirm that we account for discarded data frames. It's possible that data frames are in-flight
    * just prior to us canceling a stream.
    */
-  @Test fun discardedDataFramesAreCounted() {
+  @Test
+  fun discardedDataFramesAreCounted() {
     // Write the mocking script.
     peer.sendFrame().settings(Settings())
     peer.acceptFrame() // ACK
@@ -204,6 +205,8 @@ class Http2ConnectionTest {
     peer.acceptFrame() // RST_STREAM
     peer.sendFrame().data(true, 3, data(1024), 1024)
     peer.acceptFrame() // RST_STREAM
+    peer.sendFrame().ping(false, 2, 3)
+    peer.acceptFrame() // PING ACK
     peer.play()
     val connection = connect(peer)
     val stream1 = connection.newStream(headerEntries("b", "bark"), false)
@@ -217,6 +220,14 @@ class Http2ConnectionTest {
     assertThat(frame2.type).isEqualTo(Http2.TYPE_RST_STREAM)
     val frame3 = peer.takeFrame()
     assertThat(frame3.type).isEqualTo(Http2.TYPE_RST_STREAM)
+
+    // Wait until the reader has finished processing the discarded DATA frame.
+    val ping = peer.takeFrame()
+    assertThat(ping.type).isEqualTo(Http2.TYPE_PING)
+    assertThat(ping.ack).isTrue()
+    assertThat(ping.payload1).isEqualTo(2)
+    assertThat(ping.payload2).isEqualTo(3)
+
     assertThat(connection.readBytes.acknowledged).isEqualTo(0L)
     assertThat(connection.readBytes.total).isEqualTo(2048L)
   }
