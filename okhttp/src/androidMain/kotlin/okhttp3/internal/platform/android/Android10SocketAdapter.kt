@@ -25,6 +25,7 @@ import okhttp3.Protocol
 import okhttp3.internal.SuppressSignatureCheck
 import okhttp3.internal.platform.Platform
 import okhttp3.internal.platform.Platform.Companion.isAndroid
+import okio.ByteString
 
 /**
  * Simple non-reflection SocketAdapter for Android Q+.
@@ -57,6 +58,7 @@ class Android10SocketAdapter : SocketAdapter {
     sslSocket: SSLSocket,
     hostname: String?,
     protocols: List<Protocol>,
+    echConfigList: ByteString?,
   ) {
     try {
       SSLSockets.setUseSessionTickets(sslSocket, true)

@@ -200,6 +200,9 @@ class Http2Reader(
 
     handler.data(inFinished, streamId, source, dataLength)
     source.skip(padding.toLong())
+    if (length > dataLength) {
+      handler.dataPadding(streamId, length - dataLength)
+    }
   }
 
   @Throws(IOException::class)
@@ -455,6 +458,12 @@ class Http2Reader(
       inFinished: Boolean,
       streamId: Int,
       source: BufferedSource,
+      length: Int,
+    )
+
+    /** Reports discarded DATA padding, including the Pad Length field. */
+    fun dataPadding(
+      streamId: Int,
       length: Int,
     )
 

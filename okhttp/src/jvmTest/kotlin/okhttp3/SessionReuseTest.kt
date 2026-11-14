@@ -25,6 +25,7 @@ import javax.net.ssl.SSLSocket
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import mockwebserver3.junit5.StartStop
+import okhttp3.sockets.DelegatingSSLSocketFactory
 import okhttp3.testing.PlatformRule
 import okhttp3.testing.PlatformVersion
 import okio.ByteString.Companion.toByteString

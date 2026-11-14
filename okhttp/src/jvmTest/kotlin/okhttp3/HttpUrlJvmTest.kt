@@ -39,7 +39,7 @@ open class HttpUrlJvmTest {
 
   /**
    * Strip unexpected characters when converting to URI (which is more strict).
-   * https://github.com/square/okhttp/issues/5667
+   * https://github.com/lysine-dev/okhttp/issues/5667
    */
   @Test
   fun hostToUriStripsCharacters() {
@@ -47,7 +47,7 @@ open class HttpUrlJvmTest {
     assertThat(httpUrl.toUri().toString()).isEqualTo("http://example.com/")
   }
 
-  /** Confirm that URI retains other characters. https://github.com/square/okhttp/issues/5236 */
+  /** Confirm that URI retains other characters. https://github.com/lysine-dev/okhttp/issues/5236 */
   @Test
   fun hostToUriStripsCharacters2() {
     val httpUrl = "http://\${tracker}/".toHttpUrl()
@@ -331,7 +331,7 @@ open class HttpUrlJvmTest {
     assertThat("https://localhost".toHttpUrl().topPrivateDomain()).isNull()
     assertThat("https://127.0.0.1".toHttpUrl().topPrivateDomain()).isNull()
 
-    // https://github.com/square/okhttp/issues/6109
+    // https://github.com/lysine-dev/okhttp/issues/6109
     assertThat("http://a./".toHttpUrl().topPrivateDomain()).isNull()
     assertThat("http://squareup.com./".toHttpUrl().topPrivateDomain())
       .isEqualTo("squareup.com")

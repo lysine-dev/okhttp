@@ -370,7 +370,8 @@ internal val okHttpName: String =
  *
  * Returns the previous value. This will always be the replaced value if the value was updated.
  */
-internal tailrec fun <T> AtomicReference<T>.testAndSet(
+@OkHttpInternalApi
+tailrec fun <T> AtomicReference<T>.testAndSet(
   newValue: T,
   condition: (T) -> Boolean,
 ): T {
