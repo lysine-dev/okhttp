@@ -116,7 +116,7 @@ jobs:
 
       - name: Publish Test Report
         if: github.repository == 'lysine-dev/okhttp' && github.ref == 'refs/heads/main' && matrix.java-version == '11'
-        uses: mikepenz/action-junit-report@4a26df3e2ae132254ba12a53f65a388d0961e786 # v6.7.0
+        uses: mikepenz/action-junit-report@a16be3a69023e9bd7e748ede768b3282ea7b30ce # v6.7.1
         with:
           report_paths: '**/build/test-results/*/TEST-*.xml'
           check_name: OpenJDK 11 Test Report
