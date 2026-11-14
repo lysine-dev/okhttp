@@ -94,19 +94,17 @@ internal class DerCertificatesTest {
       .isEqualTo(javaCertificate.signature.toByteString())
 
     val publicKeyBytes =
-      (
-        "3081890281810080a451e1b6b2da9f6f2afa8328959b9a4df58103457968c22fab7d81" +
-          "b25a10bba2e5bd7d70278604a140a30e53ceb6986ded72db5260676c8ccdf3d5cae1425533a4aaa772bcf0a9" +
-          "bccfb80caddadf4e89bfdbbe302f6e5f20247ec83110e5f51560198900a5d91756a8234988a04c74c45b1084" +
-          "827adfbbf6331243ba977ad70203010001"
-      ).decodeHex()
+      """
+      3081890281810080a451e1b6b2da9f6f2afa8328959b9a4df58103457968c22fab7d81b25a10bba2e5bd7d70278604
+      a140a30e53ceb6986ded72db5260676c8ccdf3d5cae1425533a4aaa772bcf0a9bccfb80caddadf4e89bfdbbe302f6e
+      5f20247ec83110e5f51560198900a5d91756a8234988a04c74c45b1084827adfbbf6331243ba977ad70203010001
+      """.decodeHex(ignoreWhitespace = true)
     val signatureBytes =
-      (
-        "36a6515c0a879472edeb373b1b58dc8810ba73d4a0b7341b0ef5825f59fbbb76149e55" +
-          "91c2398167eeb667716766c35c223cf15d2fc68d691d79db06b9f1852fd9dd305eaf0f11c90a9c69639da7ea" +
-          "415f2216991fa31e4f5c1d90aa42f793201b188da03d54486075a561c41b13daacd4343b1794ecc6b258b39c" +
-          "37e8a844db"
-      ).decodeHex()
+      """
+      36a6515c0a879472edeb373b1b58dc8810ba73d4a0b7341b0ef5825f59fbbb76149e5591c2398167eeb667716766c3
+      5c223cf15d2fc68d691d79db06b9f1852fd9dd305eaf0f11c90a9c69639da7ea415f2216991fa31e4f5c1d90aa42f7
+      93201b188da03d54486075a561c41b13daacd4343b1794ecc6b258b39c37e8a844db
+      """.decodeHex(ignoreWhitespace = true)
 
     assertThat(okHttpCertificate).isEqualTo(
       Certificate(
@@ -222,25 +220,23 @@ internal class DerCertificatesTest {
         .fromDer(certificateByteString)
 
     val publicKeyBytes =
-      (
-        "3082010a0282010100ba84b672db9e0c6be299e93001a776ea32b895411ac9da614e58" +
-          "72cffef68279bf7361060aa527d8b35fd3454e1c72d64e32f2728a0ff78319d06a808000451eb0c7e79abf12" +
-          "57271ca3682f0a87bd6a6b0e5e65f31c77d5d4858d7021b4b332e78ba2d5863902b1b8d247cee4c949c43ba7" +
-          "defb547d57bef0e86ec279b23a0b55e250981632135c2f7856c1c294b3f25ae4279a9f24d7c6ecd09b2582e3" +
-          "ccc2c445c58c977a066b2a119fa90a6e483b6fdbd4111942f78f07bff5535f9c3ef4172ce669ac4e324c6277" +
-          "eab7e8e5bb34bc198bae9c51e7b77eb553b13322e56dcf703c1afae29b67b683f48da5af624c4de058ac6434" +
-          "1203f8b68d946324a4710203010001"
-      ).decodeHex()
+      """
+      3082010a0282010100ba84b672db9e0c6be299e93001a776ea32b895411ac9da614e5872cffef68279bf7361060aa5
+      27d8b35fd3454e1c72d64e32f2728a0ff78319d06a808000451eb0c7e79abf1257271ca3682f0a87bd6a6b0e5e65f3
+      1c77d5d4858d7021b4b332e78ba2d5863902b1b8d247cee4c949c43ba7defb547d57bef0e86ec279b23a0b55e25098
+      1632135c2f7856c1c294b3f25ae4279a9f24d7c6ecd09b2582e3ccc2c445c58c977a066b2a119fa90a6e483b6fdbd4
+      111942f78f07bff5535f9c3ef4172ce669ac4e324c6277eab7e8e5bb34bc198bae9c51e7b77eb553b13322e56dcf70
+      3c1afae29b67b683f48da5af624c4de058ac64341203f8b68d946324a4710203010001
+      """.decodeHex(ignoreWhitespace = true)
     val signatureBytes =
-      (
-        "693383fc287a6f7def9d55ebc53e7a9d75b3ccc33836d934a2286818ea1e69d3bde7d0" +
-          "77dab800834e4acf6fd1f1c1223f74e4f798499e9bb69ee1db98772d5634b1a83cd9fdc0cdc7bf0503d402c5" +
-          "f1e5c6da08a513c7622311d161301d608445ef79a8c62693a4b7cd34b869c513f691b3c9457376b692f6760a" +
-          "5be10347b7e9294c913223374a9c35d878fd1d1fe483892480adb7f9cfe45da5d471c4855b701fdb3f1c01eb" +
-          "1a45263114cc65bf67decacc3365e54191d737be411a969de68a979da7ceac4e9a3dbd01a06ad94f22008b44" +
-          "d569627b2eebccbae7927d69673dfcb87cde4187d069eaba0a187a1a9543b3797128766da1fb574aec4dc80e" +
-          "10"
-      ).decodeHex()
+      """
+      693383fc287a6f7def9d55ebc53e7a9d75b3ccc33836d934a2286818ea1e69d3bde7d077dab800834e4acf6fd1f1c1
+      223f74e4f798499e9bb69ee1db98772d5634b1a83cd9fdc0cdc7bf0503d402c5f1e5c6da08a513c7622311d161301d
+      608445ef79a8c62693a4b7cd34b869c513f691b3c9457376b692f6760a5be10347b7e9294c913223374a9c35d878fd
+      1d1fe483892480adb7f9cfe45da5d471c4855b701fdb3f1c01eb1a45263114cc65bf67decacc3365e54191d737be41
+      1a969de68a979da7ceac4e9a3dbd01a06ad94f22008b44d569627b2eebccbae7927d69673dfcb87cde4187d069eaba
+      0a187a1a9543b3797128766da1fb574aec4dc80e10
+      """.decodeHex(ignoreWhitespace = true)
 
     assertThat(okHttpCertificate.signatureValue.byteString)
       .isEqualTo(javaCertificate.signature.toByteString())
@@ -363,28 +359,27 @@ internal class DerCertificatesTest {
                   id = authorityInfoAccess,
                   critical = false,
                   value =
-                    (
-                      "3025302306082b060105050730018617687474703a2f2f6f6373702e656" +
-                        "e74727573742e6e6574"
-                    ).decodeHex(),
+                    """
+                    3025302306082b060105050730018617687474703a2f2f6f6373702e656e74727573742e6e6574
+                    """.decodeHex(ignoreWhitespace = true),
                 ),
                 Extension(
                   id = crlDistributionPoints,
                   critical = false,
                   value =
-                    (
-                      "302a3028a026a0248622687474703a2f2f63726c2e656e74727573742e6" +
-                        "e65742f726f6f746361312e63726c"
-                    ).decodeHex(),
+                    """
+                    302a3028a026a0248622687474703a2f2f63726c2e656e74727573742e6e65742f726f6f74636131
+                    2e63726c
+                    """.decodeHex(ignoreWhitespace = true),
                 ),
                 Extension(
                   id = certificatePolicies,
                   critical = false,
                   value =
-                    (
-                      "303230300604551d20003028302606082b06010505070201161a6874747" +
-                        "03a2f2f7777772e656e74727573742e6e65742f435053"
-                    ).decodeHex(),
+                    """
+                    303230300604551d20003028302606082b06010505070201161a687474703a2f2f7777772e656e74
+                    727573742e6e65742f435053
+                    """.decodeHex(ignoreWhitespace = true),
                 ),
                 Extension(
                   id = subjectKeyIdentifier,
@@ -472,25 +467,23 @@ internal class DerCertificatesTest {
         .fromDer(certificateByteString)
 
     val publicKeyBytes =
-      (
-        "3082010a0282010100aafda24b05af6facacfd1bb82ed4b3d11e300dac6496b1481aa7" +
-          "49af1c5874074b423ca31f226c7e435076ddaee0960f44a6914d5611f55208796531fc88e1661b063ecb4f32" +
-          "3613ddc37556ca61483b6b455bb16259a4aef1daaf41e869d36bd4c1ddf7a01c877835409955f2ec9427b257" +
-          "a4f08d27c10c887e769fc6d5ce98c38d7c28620de8398bdc7ad780d0627955660008381f9a47a868dd42c77d" +
-          "4ef6a712894939018f077c09cf876d1572b9cfa367499a6edf9142a8848c6b323b69c22e5eb16842059264e7" +
-          "416f78aae075e49ee17c4d2fbb893c3f3d489b4a997ee3c68350498de6acfb2c2dd69dc25b543a1cdce0b726" +
-          "a23e0e6f6e09c6e570f10203010001"
-      ).decodeHex()
+      """
+      3082010a0282010100aafda24b05af6facacfd1bb82ed4b3d11e300dac6496b1481aa749af1c5874074b423ca31f22
+      6c7e435076ddaee0960f44a6914d5611f55208796531fc88e1661b063ecb4f323613ddc37556ca61483b6b455bb162
+      59a4aef1daaf41e869d36bd4c1ddf7a01c877835409955f2ec9427b257a4f08d27c10c887e769fc6d5ce98c38d7c28
+      620de8398bdc7ad780d0627955660008381f9a47a868dd42c77d4ef6a712894939018f077c09cf876d1572b9cfa367
+      499a6edf9142a8848c6b323b69c22e5eb16842059264e7416f78aae075e49ee17c4d2fbb893c3f3d489b4a997ee3c6
+      8350498de6acfb2c2dd69dc25b543a1cdce0b726a23e0e6f6e09c6e570f10203010001
+      """.decodeHex(ignoreWhitespace = true)
     val signatureBytes =
-      (
-        "60b5fa4d2b90a92004bb7ee927e6aef48951880121b5dc9bc6bde686e208d332267a38" +
-          "4bba8da49ced920f9f5abc20c13e2bc84ec4af87669ec0e52678a8f519823bbf5eb108e093433de4df5b0201" +
-          "7d8bec3a331ed6eb638c06ee151203d752bff698244b5e6e4c229b79601f0bf73470378a25b7ada1f50cf253" +
-          "8509b1149ae74f5ccbd0b41b3359d140c5da0557d0104848627ad4ebbdb1e83fdcc9aeabe54c16c9edd33990" +
-          "87d0b87e61a66ab6e2b1f651081176b18c3de3a4697044bb84fdf23a7d783ed2432f6aa3552e6a4d6894fb59" +
-          "e1ece5b91fd1d53baed0de7ebd2229ea88c6b95444f81b796645f06024a5d35a0b058c0c014ef031b4e0afad" +
-          "03"
-      ).decodeHex()
+      """
+      60b5fa4d2b90a92004bb7ee927e6aef48951880121b5dc9bc6bde686e208d332267a384bba8da49ced920f9f5abc20
+      c13e2bc84ec4af87669ec0e52678a8f519823bbf5eb108e093433de4df5b02017d8bec3a331ed6eb638c06ee151203
+      d752bff698244b5e6e4c229b79601f0bf73470378a25b7ada1f50cf2538509b1149ae74f5ccbd0b41b3359d140c5da
+      0557d0104848627ad4ebbdb1e83fdcc9aeabe54c16c9edd3399087d0b87e61a66ab6e2b1f651081176b18c3de3a469
+      7044bb84fdf23a7d783ed2432f6aa3552e6a4d6894fb59e1ece5b91fd1d53baed0de7ebd2229ea88c6b95444f81b79
+      6645f06024a5d35a0b058c0c014ef031b4e0afad03
+      """.decodeHex(ignoreWhitespace = true)
 
     assertThat(okHttpCertificate.signatureValue.byteString)
       .isEqualTo(javaCertificate.signature.toByteString())
@@ -660,30 +653,29 @@ internal class DerCertificatesTest {
                   id = authorityInfoAccess,
                   critical = false,
                   value =
-                    (
-                      "305a302306082b060105050730018617687474703a2f2f6f6373702e656" +
-                        "e74727573742e6e6574303306082b060105050730028627687474703a2f2f6169612" +
-                        "e656e74727573742e6e65742f6c316d2d636861696e3235362e636572"
-                    ).decodeHex(),
+                    """
+                    305a302306082b060105050730018617687474703a2f2f6f6373702e656e74727573742e6e657430
+                    3306082b060105050730028627687474703a2f2f6169612e656e74727573742e6e65742f6c316d2d
+                    636861696e3235362e636572
+                    """.decodeHex(ignoreWhitespace = true),
                 ),
                 Extension(
                   id = crlDistributionPoints,
                   critical = false,
                   value =
-                    (
-                      "302a3028a026a0248622687474703a2f2f63726c2e656e74727573742e6" +
-                        "e65742f6c6576656c316d2e63726c"
-                    ).decodeHex(),
+                    """
+                    302a3028a026a0248622687474703a2f2f63726c2e656e74727573742e6e65742f6c6576656c316d
+                    2e63726c
+                    """.decodeHex(ignoreWhitespace = true),
                 ),
                 Extension(
                   id = certificatePolicies,
                   critical = false,
                   value =
-                    (
-                      "30413036060a6086480186fa6c0a01023028302606082b0601050507020" +
-                        "1161a687474703a2f2f7777772e656e74727573742e6e65742f72706130070605678" +
-                        "10c0101"
-                    ).decodeHex(),
+                    """
+                    30413036060a6086480186fa6c0a01023028302606082b06010505070201161a687474703a2f2f77
+                    77772e656e74727573742e6e65742f7270613007060567810c0101
+                    """.decodeHex(ignoreWhitespace = true),
                 ),
                 Extension(
                   id = authorityKeyIdentifier,

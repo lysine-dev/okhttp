@@ -17,8 +17,6 @@ pom.xml.*
 release.properties
 local.properties
 
-.vscode
-
 .idea
 *.iml
 *.ipr
@@ -31,9 +29,9 @@ obj
 .DS_Store
 
 # Special Mkdocs files
-docs/4.x
+docs/5.x
 docs/changelog.md
-docs/contributing.md
+docs/contribute/contributing.md
 docs/index.md
 
 # jenv

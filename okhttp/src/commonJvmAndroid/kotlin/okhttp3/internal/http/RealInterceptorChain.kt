@@ -83,29 +83,29 @@ class RealInterceptorChain(
     request: Request,
     client: OkHttpClient = call.client,
   ) : this(
-    call,
-    interceptors,
-    index,
-    exchange,
-    request,
-    client.connectTimeoutMillis,
-    client.readTimeoutMillis,
-    client.writeTimeoutMillis,
-    client.authenticator,
-    client.cache,
-    client.certificatePinner,
-    client.connectionPool,
-    client.cookieJar,
-    client.dns,
-    client.hostnameVerifier,
-    client.proxy,
-    client.proxyAuthenticator,
-    client.proxySelector,
-    client.retryOnConnectionFailure,
-    client.socketFactory,
-    client.sslSocketFactoryOrNull,
-    client.x509TrustManager,
-    client.certificateChainCleaner,
+    call = call,
+    interceptors = interceptors,
+    index = index,
+    exchange = exchange,
+    request = request,
+    connectTimeoutMillis = client.connectTimeoutMillis,
+    readTimeoutMillis = client.readTimeoutMillis,
+    writeTimeoutMillis = client.writeTimeoutMillis,
+    authenticator = client.authenticator,
+    cache = client.cache,
+    certificatePinner = client.certificatePinner,
+    connectionPool = client.connectionPool,
+    cookieJar = client.cookieJar,
+    dns = client.dns,
+    hostnameVerifier = client.hostnameVerifier,
+    proxy = client.proxy,
+    proxyAuthenticator = client.proxyAuthenticator,
+    proxySelector = client.proxySelector,
+    retryOnConnectionFailure = client.retryOnConnectionFailure,
+    socketFactory = client.socketFactory,
+    sslSocketFactoryOrNull = client.sslSocketFactoryOrNull,
+    x509TrustManagerOrNull = client.x509TrustManager,
+    certificateChainCleaner = client.certificateChainCleaner,
   )
 
   private var calls: Int = 0
@@ -133,29 +133,29 @@ class RealInterceptorChain(
     x509TrustManager: X509TrustManager? = this.x509TrustManagerOrNull,
     certificateChainCleaner: CertificateChainCleaner? = this.certificateChainCleaner,
   ) = RealInterceptorChain(
-    call,
-    interceptors,
-    index,
-    exchange,
-    request,
-    connectTimeoutMillis,
-    readTimeoutMillis,
-    writeTimeoutMillis,
-    authenticator,
-    cache,
-    certificatePinner,
-    connectionPool,
-    cookieJar,
-    dns,
-    hostnameVerifier,
-    proxy,
-    proxyAuthenticator,
-    proxySelector,
-    retryOnConnectionFailure,
-    socketFactory,
-    sslSocketFactory,
-    x509TrustManager,
-    certificateChainCleaner,
+    call = call,
+    interceptors = interceptors,
+    index = index,
+    exchange = exchange,
+    request = request,
+    connectTimeoutMillis = connectTimeoutMillis,
+    readTimeoutMillis = readTimeoutMillis,
+    writeTimeoutMillis = writeTimeoutMillis,
+    authenticator = authenticator,
+    cache = cache,
+    certificatePinner = certificatePinner,
+    connectionPool = connectionPool,
+    cookieJar = cookieJar,
+    dns = dns,
+    hostnameVerifier = hostnameVerifier,
+    proxy = proxy,
+    proxyAuthenticator = proxyAuthenticator,
+    proxySelector = proxySelector,
+    retryOnConnectionFailure = retryOnConnectionFailure,
+    socketFactory = socketFactory,
+    sslSocketFactoryOrNull = sslSocketFactory,
+    x509TrustManagerOrNull = x509TrustManager,
+    certificateChainCleaner = certificateChainCleaner,
   )
 
   override val eventListener: EventListener
@@ -172,34 +172,34 @@ class RealInterceptorChain(
   override fun connectTimeoutMillis(): Int = connectTimeoutMillis
 
   override fun withConnectTimeout(
-    timeout: Long,
+    timeout: Int,
     unit: TimeUnit,
   ): Interceptor.Chain {
     check(exchange == null) { "Timeouts can't be adjusted in a network interceptor" }
 
-    return copy(connectTimeoutMillis = checkDuration("connectTimeout", timeout, unit))
+    return copy(connectTimeoutMillis = checkDuration("connectTimeout", timeout.toLong(), unit))
   }
 
   override fun readTimeoutMillis(): Int = readTimeoutMillis
 
   override fun withReadTimeout(
-    timeout: Long,
+    timeout: Int,
     unit: TimeUnit,
   ): Interceptor.Chain {
     check(exchange == null) { "Timeouts can't be adjusted in a network interceptor" }
 
-    return copy(readTimeoutMillis = checkDuration("readTimeout", timeout, unit))
+    return copy(readTimeoutMillis = checkDuration("readTimeout", timeout.toLong(), unit))
   }
 
   override fun writeTimeoutMillis(): Int = writeTimeoutMillis
 
   override fun withWriteTimeout(
-    timeout: Long,
+    timeout: Int,
     unit: TimeUnit,
   ): Interceptor.Chain {
     check(exchange == null) { "Timeouts can't be adjusted in a network interceptor" }
 
-    return copy(writeTimeoutMillis = checkDuration("writeTimeout", timeout, unit))
+    return copy(writeTimeoutMillis = checkDuration("writeTimeout", timeout.toLong(), unit))
   }
 
   override fun withDns(dns: Dns): Interceptor.Chain {

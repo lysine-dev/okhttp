@@ -1,11 +1,11 @@
+import com.gradleup.tapmoc.TapmocExtension
+import com.gradleup.tapmoc.configureKotlinCompatibility
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import kotlinx.validation.ApiValidationExtension
-import org.gradle.api.artifacts.VersionCatalogsExtension
-import okhttp3.buildsupport.testJavaVersion
 
 plugins {
   id("okhttp.base-conventions")
+  id("com.gradleup.tapmoc")
 }
 
 val libs = extensions.getByType<VersionCatalogsExtension>().named("libs")
@@ -20,6 +20,11 @@ extensions.configure<JavaPluginExtension> {
     languageVersion.set(JavaLanguageVersion.of(21))
   }
 }
+
+// Introduce in a separate change
+//configureJavaCompatibility(javaVersion = 8)
+
+configureKotlinCompatibility(version = version("kotlinCoreLibrariesVersion"))
 
 tasks.withType<JavaCompile> {
   options.encoding = Charsets.UTF_8.toString()
@@ -40,4 +45,9 @@ tasks.withType<KotlinCompile> {
       "-Xexpect-actual-classes",
     )
   }
+}
+
+extensions.configure<TapmocExtension> {
+  // Fail the build if any api dependency exposes incompatible Kotlin metadata, Kotlin stdlib, or Java bytecode version.
+  checkDependencies()
 }

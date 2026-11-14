@@ -12,6 +12,7 @@ dependencies {
   "friendsApi"(projects.okhttp)
   api(projects.mockwebserver3)
   api(libs.junit)
+  api(libs.square.okio)
 
   testImplementation(projects.okhttpTestingSupport)
   testImplementation(projects.okhttpTls)

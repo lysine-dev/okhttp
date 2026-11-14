@@ -107,7 +107,7 @@ fun interface Interceptor {
      * Returns a new chain with the specified connect timeout.
      */
     fun withConnectTimeout(
-      timeout: Long,
+      timeout: Int,
       unit: TimeUnit,
     ): Chain
 
@@ -120,7 +120,7 @@ fun interface Interceptor {
      * Returns a new chain with the specified read timeout.
      */
     fun withReadTimeout(
-      timeout: Long,
+      timeout: Int,
       unit: TimeUnit,
     ): Chain
 
@@ -133,7 +133,7 @@ fun interface Interceptor {
      * Returns a new chain with the specified write timeout.
      */
     fun withWriteTimeout(
-      timeout: Long,
+      timeout: Int,
       unit: TimeUnit,
     ): Chain
 

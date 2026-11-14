@@ -1,8 +1,6 @@
 import com.vanniktech.maven.publish.MavenPublishBaseExtension
-import ru.vyarus.gradle.plugin.animalsniffer.AnimalSnifferExtension
-import org.gradle.api.artifacts.VersionCatalogsExtension
-import org.gradle.kotlin.dsl.withType
 import ru.vyarus.gradle.plugin.animalsniffer.AnimalSniffer
+import ru.vyarus.gradle.plugin.animalsniffer.AnimalSnifferExtension
 
 plugins {
   id("okhttp.base-conventions")
@@ -55,6 +53,15 @@ configure<AnimalSnifferExtension> {
 
   signatures = androidSignature + jvmSignature
   failWithoutSignatures = false
+
+  // Android API 21 doesn't have Boolean.hashCode() (etc.) but the Android SDK will desugar these.
+  // https://r8.googlesource.com/r8/+/516a6684f134d06eff08080e7ef7129517071817
+  ignore(
+    "java.lang.Boolean",
+    "java.lang.Integer",
+    "java.lang.Long",
+    "java.lang.Short",
+  )
 }
 
 // Default to only published modules
@@ -70,8 +77,6 @@ dependencies {
   // For now, we'll keep the standard ones and allow modules to add more
   androidSignature(library("signature-android-apilevel21")) { artifact { type = "signature" } }
   jvmSignature(library("codehaus-signature-java18")) { artifact { type = "signature" } }
-
-  "lintChecks"(library("androidx-lint-gradle"))
 }
 
 configure<com.android.build.api.dsl.Lint> {

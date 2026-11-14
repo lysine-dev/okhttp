@@ -20,6 +20,9 @@ package okhttp3.internal
 
 import okhttp3.Headers
 
+/** This is the same as Chrome's limit. */
+internal const val HEADER_LIMIT = 256 * 1024L
+
 internal fun Headers.commonName(index: Int): String = namesAndValues.getOrNull(index * 2) ?: throw IndexOutOfBoundsException("name[$index]")
 
 internal fun Headers.commonValue(index: Int): String =

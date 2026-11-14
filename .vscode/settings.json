@@ -1,0 +1,4 @@
+{
+    "java.configuration.updateBuildConfiguration": "interactive",
+    "java.import.gradle.wrapper.enabled": true
+}
