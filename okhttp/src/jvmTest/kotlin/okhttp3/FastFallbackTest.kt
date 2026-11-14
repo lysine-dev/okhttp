@@ -23,10 +23,11 @@ import java.io.IOException
 import java.net.Inet4Address
 import java.net.Inet6Address
 import java.net.InetAddress
+import java.net.InetSocketAddress
 import java.net.Socket
+import java.net.SocketAddress
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
-import javax.net.SocketFactory
 import kotlin.test.assertFailsWith
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
@@ -35,6 +36,7 @@ import okhttp3.CallEvent.ConnectEnd
 import okhttp3.CallEvent.ConnectFailed
 import okhttp3.CallEvent.ConnectStart
 import okhttp3.internal.http2.ErrorCode
+import okhttp3.internal.platform.Platform
 import okhttp3.sockets.DelegatingSocketFactory
 import okhttp3.testing.Flaky
 import org.junit.jupiter.api.AfterEach
@@ -281,19 +283,23 @@ class FastFallbackTest {
     serverIpv4.protocols = listOf(Protocol.H2_PRIOR_KNOWLEDGE)
     serverIpv6.protocols = listOf(Protocol.H2_PRIOR_KNOWLEDGE)
 
-    // Yield the first IP address so the second IP address completes first.
-    val firstConnectLatch = CountDownLatch(1)
+    // Stall IPv6 so IPv4 wins regardless of socket creation order.
+    val ipv6ConnectLatch = CountDownLatch(1)
     val socketFactory =
-      object : DelegatingSocketFactory(SocketFactory.getDefault()) {
-        var first = true
-
-        override fun createSocket(): Socket {
-          if (first) {
-            first = false
-            firstConnectLatch.await()
+      object : DelegatingSocketFactory(Platform.get().socketFactory) {
+        override fun createSocket(): Socket =
+          object : Socket() {
+            override fun connect(
+              endpoint: SocketAddress?,
+              timeout: Int,
+            ) {
+              val target = endpoint as InetSocketAddress
+              if (target.address == localhostIpv6) {
+                ipv6ConnectLatch.await()
+              }
+              super.connect(target, timeout)
+            }
           }
-          return super.createSocket()
-        }
       }
 
     client =
@@ -306,7 +312,7 @@ class FastFallbackTest {
             try {
               chain.proceed(chain.request())
             } finally {
-              firstConnectLatch.countDown()
+              ipv6ConnectLatch.countDown()
             }
           },
         ).build()

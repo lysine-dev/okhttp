@@ -19,13 +19,17 @@ package okhttp3.internal.dns
 
 import app.cash.burst.Burst
 import assertk.assertThat
+import assertk.assertions.containsExactly
 import assertk.assertions.isEqualTo
+import assertk.assertions.isGreaterThan
+import assertk.assertions.size
 import java.net.InetAddress
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.seconds
 import okhttp3.Dns
 import okhttp3.Protocol
 import okhttp3.internal.OkHttpInternalApi
+import okio.ByteString.Companion.encodeUtf8
 
 @Burst
 class StateMachineDnsCallTest {
@@ -69,6 +73,51 @@ class StateMachineDnsCallTest {
       call.takeOnRecordsServiceMetadata(
         last = true,
         alpnIds = listOf(Protocol.HTTP_2),
+      )
+
+      if (caching) {
+        assertThat(cache.size).isEqualTo(3)
+        assertThat(cache.requestCount).isEqualTo(3)
+        assertThat(cache.networkCount).isEqualTo(3)
+        assertThat(cache.hitCount).isEqualTo(0)
+      }
+    }
+  }
+
+  @Test
+  fun `attrleaf is used for nondefault ports`(caching: Boolean = true) {
+    testStateMachineDnsCall {
+      val call =
+        newCall(
+          request = Dns.Request(hostname = "lysine.dev", port = 8443),
+          caching = caching,
+        )
+      call.enqueue()
+
+      val query0 = queryFactory.takeQuery("_8443._https.lysine.dev", TYPE_HTTPS)
+      val query1 = queryFactory.takeQuery("lysine.dev", TYPE_AAAA)
+      val query2 = queryFactory.takeQuery("lysine.dev", TYPE_A)
+
+      query0.respondServiceMetadata(
+        alpnIds = listOf("h2"),
+      )
+      call.takeOnRecordsServiceMetadata(
+        alpnIds = listOf(Protocol.HTTP_2),
+      )
+
+      query1.respondIpAddresses(
+        addresses = blueIpv6s,
+      )
+      call.takeOnRecordsIpAddresses(
+        addresses = blueIpv6s,
+      )
+
+      query2.respondIpAddresses(
+        addresses = blueIpv4s,
+      )
+      call.takeOnRecordsIpAddresses(
+        last = true,
+        addresses = blueIpv4s,
       )
 
       if (caching) {
@@ -1002,4 +1051,192 @@ class StateMachineDnsCallTest {
       assertThat(cache.networkCount).isEqualTo(3)
       assertThat(cache.hitCount).isEqualTo(0)
     }
+
+  @Test
+  fun `alias mode records are ignored`() =
+    testStateMachineDnsCall {
+      val call = newCall(request = Dns.Request(hostname = "lysine.dev"))
+      call.enqueue()
+
+      // Priority 0 means 'AliasMode'. We must ignore all SvcParams in AliasMode.
+      val query0 = queryFactory.takeQuery("lysine.dev", TYPE_HTTPS)
+      query0.respond(
+        ResourceRecord.Https(
+          timeToLive = 300,
+          name = "lysine.dev",
+          priority = 0,
+          alpnIds = listOf("h2"),
+        ),
+      )
+      queryFactory.respondToQuery(
+        hostname = "lysine.dev",
+        type = TYPE_AAAA,
+        addresses = blueIpv6s,
+      )
+      queryFactory.respondToQuery(
+        hostname = "lysine.dev",
+        type = TYPE_A,
+        addresses = blueIpv4s,
+      )
+
+      call.takeOnRecordsIpAddresses(
+        last = false,
+        addresses = blueIpv6s,
+      )
+      call.takeOnRecordsIpAddresses(
+        last = true,
+        addresses = blueIpv4s,
+      )
+    }
+
+  @Test
+  fun `service mode records are ignored if any alias mode record is present`() =
+    testStateMachineDnsCall {
+      val call = newCall(request = Dns.Request(hostname = "lysine.dev"))
+      call.enqueue()
+
+      // Priority 0 means 'AliasMode'. We must ignore all SvcParams in AliasMode.
+      val query0 = queryFactory.takeQuery("lysine.dev", TYPE_HTTPS)
+      query0.respond(
+        ResourceRecord.Https(
+          timeToLive = 300,
+          name = "lysine.dev",
+          priority = 0,
+        ),
+        ResourceRecord.Https(
+          timeToLive = 300,
+          name = "lysine.dev",
+          priority = 1,
+          alpnIds = listOf("h2"),
+        ),
+      )
+      queryFactory.respondToQuery(
+        hostname = "lysine.dev",
+        type = TYPE_AAAA,
+        addresses = blueIpv6s,
+      )
+      queryFactory.respondToQuery(
+        hostname = "lysine.dev",
+        type = TYPE_A,
+        addresses = blueIpv4s,
+      )
+
+      call.takeOnRecordsIpAddresses(
+        last = false,
+        addresses = blueIpv6s,
+      )
+      call.takeOnRecordsIpAddresses(
+        last = true,
+        addresses = blueIpv4s,
+      )
+    }
+
+  @Test
+  fun `service mode records are sorted by priority`(caching: Boolean = true) =
+    testStateMachineDnsCall {
+      val processedRecords =
+        serveAndProcessResourceRecords(
+          caching = caching,
+          attempt = 0,
+          ResourceRecord.Https(
+            name = "lysine.dev",
+            timeToLive = 300.seconds.inWholeSeconds.toInt(),
+            priority = 3,
+            echConfigList = "priority three ECH config list".encodeUtf8(),
+          ),
+          ResourceRecord.Https(
+            name = "lysine.dev",
+            timeToLive = 300.seconds.inWholeSeconds.toInt(),
+            priority = 1,
+            echConfigList = "priority one ECH config list".encodeUtf8(),
+          ),
+          ResourceRecord.Https(
+            name = "lysine.dev",
+            timeToLive = 300.seconds.inWholeSeconds.toInt(),
+            priority = 2,
+            echConfigList = "priority two ECH config list".encodeUtf8(),
+          ),
+        )
+
+      val sortedEchConfigLists =
+        processedRecords
+          .map { it.echConfigList }
+      assertThat(sortedEchConfigLists).containsExactly(
+        "priority one ECH config list".encodeUtf8(),
+        "priority two ECH config list".encodeUtf8(),
+        "priority three ECH config list".encodeUtf8(),
+      )
+    }
+
+  /**
+   * We've got 8 lists, each containing 3 elements. If we shuffle each list we should expect all the
+   * lists to be the same once in every ~280,000 runs. (So this test is flaky, but acceptably so.)
+   */
+  @Test
+  fun `service mode records are shuffled within each priority`(caching: Boolean = true) =
+    testStateMachineDnsCall {
+      val attemptCount = 8
+      val distinctOrderings = mutableSetOf<List<Dns.Record.ServiceMetadata>>()
+      for (i in 0 until attemptCount) {
+        val processedRecords =
+          serveAndProcessResourceRecords(
+            caching,
+            attempt = i,
+            ResourceRecord.Https(
+              name = "lysine.dev",
+              timeToLive = 300.seconds.inWholeSeconds.toInt(),
+              echConfigList = "element A ECH config list".encodeUtf8(),
+            ),
+            ResourceRecord.Https(
+              name = "lysine.dev",
+              timeToLive = 300.seconds.inWholeSeconds.toInt(),
+              echConfigList = "element B ECH config list".encodeUtf8(),
+            ),
+            ResourceRecord.Https(
+              name = "lysine.dev",
+              timeToLive = 300.seconds.inWholeSeconds.toInt(),
+              echConfigList = "element C ECH config list".encodeUtf8(),
+            ),
+          )
+
+        distinctOrderings += processedRecords
+      }
+
+      assertThat(distinctOrderings).size().isGreaterThan(1)
+    }
+
+  /**
+   * Use the state machine to transform server-provided [resourceRecords] to the user-facing
+   * [Dns.Record] instances.
+   */
+  private fun StateMachineDnsCallTester.serveAndProcessResourceRecords(
+    caching: Boolean,
+    attempt: Int,
+    vararg resourceRecords: ResourceRecord.Https,
+  ): List<Dns.Record.ServiceMetadata> {
+    val call =
+      newCall(
+        request = Dns.Request(hostname = "lysine.dev"),
+        caching = caching,
+        includeIPv6 = false,
+      )
+    call.enqueue()
+
+    if (attempt == 0 || !caching) {
+      queryFactory.respondToQuery(
+        hostname = "lysine.dev",
+        type = TYPE_HTTPS,
+        *resourceRecords,
+      )
+      queryFactory.respondToQuery(
+        hostname = "lysine.dev",
+        type = TYPE_A,
+        addresses = blueIpv4s,
+      )
+    }
+
+    return call
+      .takeAllRecords()
+      .filterIsInstance<Dns.Record.ServiceMetadata>()
+  }
 }

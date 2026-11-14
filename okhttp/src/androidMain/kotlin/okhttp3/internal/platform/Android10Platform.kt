@@ -17,17 +17,20 @@ package okhttp3.internal.platform
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.net.ssl.EchConfigMismatchException
 import android.os.Build
 import android.os.StrictMode
 import android.security.NetworkSecurityPolicy
 import android.util.CloseGuard
 import android.util.Log
 import javax.net.ssl.SSLContext
+import javax.net.ssl.SSLException
 import javax.net.ssl.SSLSocket
 import javax.net.ssl.SSLSocketFactory
 import javax.net.ssl.X509TrustManager
 import okhttp3.Protocol
 import okhttp3.internal.SuppressSignatureCheck
+import okhttp3.internal.ech.EchRetryPlan
 import okhttp3.internal.platform.AndroidPlatform.Companion.Tag
 import okhttp3.internal.platform.android.Android10SocketAdapter
 import okhttp3.internal.platform.android.Android17SocketAdapter
@@ -39,6 +42,7 @@ import okhttp3.internal.platform.android.DeferredSocketAdapter
 import okhttp3.internal.tls.CertificateChainCleaner
 import okhttp3.internal.tls.TrustRootIndex
 import okio.ByteString
+import okio.ByteString.Companion.toByteString
 
 /** Android 10+ (API 29+). */
 @SuppressSignatureCheck
@@ -84,6 +88,17 @@ class Android10Platform :
     socketAdapters
       .find { it.matchesSocket(sslSocket) }
       ?.configureTlsExtensions(sslSocket, hostname, protocols, echConfigList)
+  }
+
+  @SuppressLint("NewApi")
+  override fun echRetryPlan(exception: SSLException): EchRetryPlan? {
+    if (Build.VERSION.SDK_INT < 37 || exception !is EchConfigMismatchException) return null
+
+    val publicName = exception.publicHostname ?: return null
+    return EchRetryPlan.getOrNull(
+      publicName = publicName,
+      configList = exception.retryConfigList?.toBytes()?.toByteString(),
+    )
   }
 
   override fun getSelectedProtocol(sslSocket: SSLSocket): String? =

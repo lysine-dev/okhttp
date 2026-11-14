@@ -25,6 +25,7 @@ import okhttp3.Address
 import okhttp3.Dns
 import okhttp3.HttpUrl
 import okhttp3.Route
+import okhttp3.internal.OkHttpInternalApi
 import okhttp3.internal.canParseAsIpAddress
 import okhttp3.internal.dns.LookupDnsCall
 import okhttp3.internal.dns.execute
@@ -35,6 +36,7 @@ import okhttp3.internal.toImmutableList
  * Selects routes to connect to an origin server. Each connection requires a choice of proxy server,
  * IP address, and TLS mode. Connections may also be recycled.
  */
+@OkHttpInternalApi
 class RouteSelector internal constructor(
   private val address: Address,
   private val routeDatabase: RouteDatabase,
@@ -181,10 +183,14 @@ class RouteSelector internal constructor(
 
     val routes = dnsLookup(proxy, socketHost, socketPort)
 
+    // If DNS advertises ECH for any route, don't permit a retry without ECH.
+    val echRoutes = routes.filter { it.echConfigList != null }
+    val routesToTry = echRoutes.ifEmpty { routes }
+
     // Try each address for best behavior in mixed IPv4/IPv6 environments.
     return when {
-      fastFallback -> reorderForHappyEyeballs(routes)
-      else -> routes
+      fastFallback -> reorderForHappyEyeballs(routesToTry)
+      else -> routesToTry
     }
   }
 
@@ -207,7 +213,22 @@ class RouteSelector internal constructor(
       domainName = socketHost,
     )
 
-    val dnsRequest = Dns.Request(socketHost)
+    // If it's a 'http://' URL on the default port, do the DNS query for a 'https://' URL on the
+    // default port. DNS records that have a port promote HTTP to HTTPS.
+    val dnsPort =
+      when {
+        !address.url.isHttps && socketPort == 80 -> -1
+        else -> socketPort
+      }
+
+    val dnsRequest =
+      try {
+        Dns.Request(socketHost, dnsPort)
+      } catch (e: IllegalArgumentException) {
+        throw UnknownHostException("invalid host $socketHost.").apply {
+          initCause(e)
+        }
+      }
     val result =
       when (val dnsCall = address.dns.newCall(dnsRequest)) {
         is LookupDnsCall -> {
@@ -237,7 +258,11 @@ class RouteSelector internal constructor(
                 address = address,
                 proxy = proxy,
                 socketAddress = InetSocketAddress(record.address, socketPort),
-                echConfigList = serviceMetadata?.echConfigList,
+                echConfigList =
+                  when (proxy.type()) {
+                    Proxy.Type.DIRECT -> serviceMetadata?.echConfigList
+                    else -> null
+                  },
               )
             }
         }

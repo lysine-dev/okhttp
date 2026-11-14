@@ -39,23 +39,21 @@ import java.util.Locale.getDefault
 import java.util.concurrent.TimeUnit
 import javax.net.SocketFactory
 import javax.net.ssl.HostnameVerifier
-import javax.net.ssl.SSLException
 import javax.net.ssl.SSLSocket
 import javax.net.ssl.SSLSocketFactory
 import javax.net.ssl.X509TrustManager
 import kotlin.time.Duration.Companion.minutes
-import kotlin.time.Duration.Companion.nanoseconds
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import mockwebserver3.junit5.StartStop
 import okhttp3.CertificatePinner.Companion.pin
 import okhttp3.Headers.Companion.headersOf
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.internal.connection.ConnectionListener
 import okhttp3.internal.platform.Platform
 import okhttp3.sockets.DelegatingSSLSocketFactory
 import okhttp3.sockets.DelegatingSocketFactory
 import okhttp3.testing.PlatformRule
-import okio.BufferedSink
 import okio.ForwardingFileSystem
 import okio.IOException
 import okio.Path
@@ -244,23 +242,15 @@ class InterceptorOverridesTest {
 
       OverrideParam.RetryOnConnectionFailure -> {
         enableTls()
-        var first = true
+
+        server.enqueue(MockResponse.Builder().failHandshake().build())
         client =
           client
             .newBuilder()
             .connectionSpecs(listOf(ConnectionSpec.RESTRICTED_TLS, ConnectionSpec.MODERN_TLS))
-            .eventListener(
-              object : EventListener() {
-                override fun secureConnectEnd(
-                  call: Call,
-                  handshake: Handshake?,
-                ) {
-                  if (first) {
-                    first = false
-                    throw SSLException("")
-                  }
-                }
-              },
+            .sslSocketFactory(
+              FallbackTestClientSocketFactory(handshakeCertificates.sslSocketFactory()),
+              handshakeCertificates.trustManager,
             ).build()
 
         overrideBadImplementation(
@@ -295,21 +285,21 @@ class InterceptorOverridesTest {
       }
 
       OverrideParam.WriteTimeout -> {
-        val body =
-          object : RequestBody() {
-            override fun contentType(): MediaType? = null
+        client =
+          client
+            .newBuilder()
+            .socketFactory(
+              DelayingSocketFactory(onWrite = {
+                Thread.sleep(100L)
+              }),
+            ).build()
 
-            override fun writeTo(sink: BufferedSink) {
-              if (sink
-                  .timeout()
-                  .timeoutNanos()
-                  .nanoseconds.inWholeMilliseconds == 10L
-              ) {
-                throw IOException()
-              }
-            }
-          }
-        overrideBadImplementation(override = override.override, testItFails = testItFails, body = body)
+        // Need a body so KnownLengthSink.close() runs (issue 9228).
+        overrideBadImplementation(
+          override = override.override,
+          testItFails = testItFails,
+          body = "test".toRequestBody(),
+        )
       }
 
       OverrideParam.ReadTimeout -> {
@@ -530,7 +520,7 @@ class InterceptorOverridesTest {
           override fun configureSocket(socket: Socket): Socket = TODO()
         }
 
-      override fun isDefaultValue(value: SocketFactory): Boolean = value === SocketFactory.getDefault()
+      override fun isDefaultValue(value: SocketFactory): Boolean = value === Platform.get().socketFactory
     }
 
     object AuthenticatorOverride : Override<Authenticator> {

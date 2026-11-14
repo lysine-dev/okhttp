@@ -85,7 +85,7 @@ import okhttp3.internal.addHeaderLenient
 import okhttp3.internal.authenticator.JavaNetAuthenticator
 import okhttp3.internal.http.HTTP_PERM_REDIRECT
 import okhttp3.internal.http.HTTP_TEMP_REDIRECT
-import okhttp3.internal.platform.Platform.Companion.get
+import okhttp3.internal.platform.Platform
 import okhttp3.java.net.cookiejar.JavaNetCookieJar
 import okhttp3.sockets.DelegatingServerSocketFactory
 import okhttp3.sockets.DelegatingSocketFactory
@@ -624,7 +624,7 @@ class URLConnectionTest {
         .build()
     val response1 = getResponse(newRequest("/"))
     assertContent("this response comes via HTTPS", response1)
-    val sslContext2 = get().newSSLContext()
+    val sslContext2 = Platform.get().newSSLContext()
     sslContext2.init(null, null, null)
     val sslSocketFactory2 = sslContext2.socketFactory
     val trustManagerFactory =
@@ -888,7 +888,7 @@ class URLConnectionTest {
     client =
       client
         .newBuilder()
-        .socketFactory(SocketFactory.getDefault())
+        .socketFactory(Platform.get().socketFactory)
         .build()
     val response = getResponse(newRequest("/"))
     assertThat(response.code).isEqualTo(200)
@@ -2948,7 +2948,7 @@ class URLConnectionTest {
   fun httpsWithCustomTrustManager() {
     val hostnameVerifier = RecordingHostnameVerifier()
     val trustManager = RecordingTrustManager(handshakeCertificates.trustManager)
-    val sslContext = get().newSSLContext()
+    val sslContext = Platform.get().newSSLContext()
     sslContext.init(null, arrayOf<TrustManager>(trustManager), null)
     client =
       client
@@ -3541,7 +3541,7 @@ class URLConnectionTest {
           )
         assertContent("B", response)
         break
-      } catch (socketException: IOException) {
+      } catch (_: IOException) {
         // If there's a socket exception, this must have a streamed request body.
         assertThat(j).isEqualTo(0)
         assertThat(transferKind).isIn(TransferKind.CHUNKED, TransferKind.FIXED_LENGTH)
@@ -4257,7 +4257,7 @@ class URLConnectionTest {
     client =
       client
         .newBuilder()
-        .dns { hostname: String? -> throw RuntimeException("boom!") }
+        .dns { throw RuntimeException("boom!") }
         .build()
     server.enqueue(MockResponse())
     assertFailsWith<RuntimeException> {

@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@file:OptIn(OkHttpInternalApi::class)
+
 package okhttp3
 
 import java.net.Proxy
@@ -30,6 +32,7 @@ import javax.net.ssl.X509TrustManager
 import kotlin.time.Duration as KotlinDuration
 import okhttp3.Protocol.HTTP_1_1
 import okhttp3.Protocol.HTTP_2
+import okhttp3.internal.OkHttpInternalApi
 import okhttp3.internal.asFactory
 import okhttp3.internal.checkDuration
 import okhttp3.internal.concurrent.TaskRunner
@@ -597,11 +600,11 @@ open class OkHttpClient internal constructor(
     internal var followSslRedirects = true
     internal var cookieJar: CookieJar = CookieJar.NO_COOKIES
     internal var cache: Cache? = null
-    internal var dns: Dns = Platform.get().platformDns()
+    internal var dns: Dns = Dns.SYSTEM
     internal var proxy: Proxy? = null
     internal var proxySelector: ProxySelector? = null
     internal var proxyAuthenticator: Authenticator = Authenticator.NONE
-    internal var socketFactory: SocketFactory = SocketFactory.getDefault()
+    internal var socketFactory: SocketFactory = Platform.get().socketFactory
     internal var sslSocketFactoryOrNull: SSLSocketFactory? = null
     internal var x509TrustManagerOrNull: X509TrustManager? = null
     internal var connectionSpecs: List<ConnectionSpec> = DEFAULT_CONNECTION_SPECS

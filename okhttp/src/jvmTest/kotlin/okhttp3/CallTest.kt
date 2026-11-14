@@ -45,6 +45,7 @@ import java.net.CookiePolicy
 import java.net.HttpCookie
 import java.net.HttpURLConnection
 import java.net.InetAddress
+import java.net.InetSocketAddress
 import java.net.ProtocolException
 import java.net.Proxy
 import java.net.SocketTimeoutException
@@ -97,6 +98,7 @@ import okhttp3.CallEvent.ResponseFailed
 import okhttp3.CallEvent.ResponseHeadersEnd
 import okhttp3.CallEvent.ResponseHeadersStart
 import okhttp3.CallEvent.RetryDecision
+import okhttp3.CallEvent.SecureConnectStart
 import okhttp3.CertificatePinner.Companion.pin
 import okhttp3.Credentials.basic
 import okhttp3.Headers.Companion.headersOf
@@ -1070,6 +1072,21 @@ open class CallTest {
         hasSize(1)
         index(0).matches(".* Connect timed out".toRegex(RegexOption.IGNORE_CASE))
       }
+  }
+
+  /** https://github.com/lysine-dev/okhttp/issues/9758 */
+  @Test
+  fun malformedProxyHostnameFailsGracefully() {
+    val proxySelector = RecordingProxySelector()
+    proxySelector.proxies.add(
+      Proxy(
+        Proxy.Type.HTTP,
+        InetSocketAddress.createUnresolved("internet ", 8080),
+      ),
+    )
+    client = client.newBuilder().proxySelector(proxySelector).build()
+    executeSynchronously(server.url("/").toString())
+      .assertFailure(UnknownHostException::class.java)
   }
 
   /** https://github.com/lysine-dev/okhttp/issues/4875  */
@@ -2206,6 +2223,54 @@ open class CallTest {
     assertThat(server.takeRequest().exchangeIndex).isEqualTo(1)
     // Connection reused again!
     assertThat(server.takeRequest().exchangeIndex).isEqualTo(2)
+  }
+
+  @Test
+  fun redirectFromHttpToHttpsOnSameHostAndPortDoesNotReusePlaintextConnection() {
+    val httpsUrl =
+      server
+        .url("/second")
+        .newBuilder()
+        .scheme("https")
+        .build()
+    server.enqueue(
+      MockResponse(
+        code = 301,
+        headers = headersOf("Location", httpsUrl.toString()),
+      ),
+    )
+    server.enqueue(MockResponse(body = "second-response"))
+
+    assertFailsWith<IOException> {
+      client.newCall(Request(url = server.url("/first"))).execute()
+    }
+
+    assertThat(server.takeRequest().requestLine).startsWith("GET /first HTTP/")
+    assertThat(eventRecorder.recordedEventTypes()).contains(SecureConnectStart::class)
+  }
+
+  @Test
+  fun redirectFromHttpsToHttpOnSameHostAndPortDoesNotReuseTlsConnection() {
+    enableTls()
+    val httpUrl =
+      server
+        .url("/second")
+        .newBuilder()
+        .scheme("http")
+        .build()
+    server.enqueue(
+      MockResponse(
+        code = 301,
+        headers = headersOf("Location", httpUrl.toString()),
+      ),
+    )
+    server.enqueue(MockResponse(body = "second-response"))
+
+    assertFailsWith<IOException> {
+      client.newCall(Request(url = server.url("/first"))).execute()
+    }
+
+    assertThat(server.takeRequest().requestLine).startsWith("GET /first HTTP/")
   }
 
   @Test

@@ -19,6 +19,7 @@ import java.io.InputStream
 import java.net.InetAddress
 import java.net.Socket
 import javax.net.ssl.SSLSocketFactory
+import javax.net.ssl.X509KeyManager
 import javax.net.ssl.X509TrustManager
 import okhttp3.CipherSuite
 import okhttp3.TlsVersion
@@ -36,7 +37,8 @@ import okhttp3.tls.HandshakeCertificates
  */
 class FakeTls(
   val handshaker: Handshaker,
-  val handshakeCertificates: HandshakeCertificates,
+  val keyManager: X509KeyManager,
+  val trustManager: X509TrustManager,
   val supportedTlsVersions: List<TlsVersion> =
     listOf(
       TlsVersion.TLS_1_3,
@@ -50,8 +52,14 @@ class FakeTls(
     ),
   val defaultCipherSuites: List<CipherSuite> = supportedCipherSuites,
 ) {
-  val trustManager: X509TrustManager
-    get() = handshakeCertificates.trustManager
+  constructor(
+    handshaker: Handshaker,
+    handshakeCertificates: HandshakeCertificates,
+  ) : this(
+    handshaker = handshaker,
+    keyManager = handshakeCertificates.keyManager,
+    trustManager = handshakeCertificates.trustManager,
+  )
 
   val sslSocketFactory =
     object : SSLSocketFactory() {

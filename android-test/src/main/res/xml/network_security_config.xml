@@ -5,7 +5,7 @@
   <domain-config cleartextTrafficPermitted="true">
     <domain includeSubdomains="false">localhost</domain>
   </domain-config>
-  <!-- ECH test servers. EchAwareDns queries the HTTPS record. -->
+  <!-- ECH test servers. AndroidDns queries the HTTPS record. -->
   <domain-config>
     <domain includeSubdomains="true">cloudflare-ech.com</domain>
     <domain includeSubdomains="true">tls-ech.dev</domain>

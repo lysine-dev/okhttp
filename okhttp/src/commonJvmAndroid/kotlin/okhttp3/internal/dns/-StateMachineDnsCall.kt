@@ -68,7 +68,18 @@ class StateMachineDnsCall(
     val questions =
       buildList {
         if (includeServiceMetadata) {
-          add(Question(request.hostname, TYPE_HTTPS))
+          // If this query doesn't use the default port, we need to put that into the query name
+          // using Attrleaf syntax. See RFC 9460 section 2.3.
+          add(
+            Question(
+              name =
+                when (request.port) {
+                  443 -> request.hostname
+                  else -> "_${request.port}._https.${request.hostname}"
+                },
+              type = TYPE_HTTPS,
+            ),
+          )
         }
         if (includeIPv6) {
           add(Question(request.hostname, TYPE_AAAA))
@@ -94,8 +105,8 @@ class StateMachineDnsCall(
         return
       }
 
-      val queries =
-        questions.map { question ->
+      val questionToQuery =
+        questions.associateWith { question ->
           queryFactory.newQuery(question)
         }
 
@@ -103,17 +114,18 @@ class StateMachineDnsCall(
         State.Running(
           canceled = false,
           callback = callback,
-          runningQueries = queries,
+          runningQueries = questionToQuery.values.toList(),
         )
 
       if (!state.compareAndSet(previous, next)) continue // Lost a race, retry.
 
-      for (query in queries) {
+      for ((question, query) in questionToQuery) {
         query.enqueue(
           callback =
             object : DnsQuery.Callback {
               override fun onResponse(dnsResponse: DnsMessage) {
                 updateStateAndCallCallbacks(
+                  question = question,
                   completedQuery = query,
                   dnsResponse = dnsResponse,
                 )
@@ -149,6 +161,7 @@ class StateMachineDnsCall(
   }
 
   private fun updateStateAndCallCallbacks(
+    question: Question,
     completedQuery: DnsQuery,
     dnsResponse: DnsMessage,
   ) {
@@ -166,32 +179,52 @@ class StateMachineDnsCall(
         )
       }
 
-    val dnsRecords =
-      resourceRecords.map { resourceRecord ->
-        when (resourceRecord) {
-          is ResourceRecord.Https -> {
-            Dns.Record.ServiceMetadata(
-              hostname = resourceRecord.targetName.takeIf { it != "" } ?: request.hostname,
-              alpnIds =
-                resourceRecord.alpnIds?.mapNotNull { alpnId ->
-                  try {
-                    Protocol.get(alpnId)
-                  } catch (_: IOException) {
-                    null // Skip unrecognized ALPN ID.
-                  }
-                },
-              port = resourceRecord.port,
-              ipAddressHints = resourceRecord.ipAddressHints,
-              echConfigList = resourceRecord.echConfigList,
-            )
-          }
+    val dnsRecords: List<Dns.Record> =
+      when (question.type) {
+        TYPE_HTTPS -> {
+          resourceRecords
+            .filterIsInstance<ResourceRecord.Https>()
+            .shuffled()
+            .sortedBy { it.priority }
+            .map { resourceRecord ->
+              // OkHttp doesn't yet implement AliasMode resource records. If any AliasMode record is
+              // returned, we must ignore ALL returned resource records.
+              if (resourceRecord.priority == 0) {
+                return updateStateAndCallCallbacks(
+                  completedQuery = completedQuery,
+                )
+              }
 
-          is ResourceRecord.IpAddress -> {
-            Dns.Record.IpAddress(
-              hostname = request.hostname,
-              address = resourceRecord.address,
-            )
-          }
+              Dns.Record.ServiceMetadata(
+                hostname = resourceRecord.targetName.takeIf { it != "" } ?: request.hostname,
+                alpnIds =
+                  resourceRecord.alpnIds?.mapNotNull { alpnId ->
+                    try {
+                      Protocol.get(alpnId)
+                    } catch (_: IOException) {
+                      null // Skip unrecognized ALPN ID.
+                    }
+                  },
+                port = resourceRecord.port,
+                ipAddressHints = resourceRecord.ipAddressHints,
+                echConfigList = resourceRecord.echConfigList,
+              )
+            }
+        }
+
+        TYPE_A, TYPE_AAAA -> {
+          resourceRecords
+            .filterIsInstance<ResourceRecord.IpAddress>()
+            .map { resourceRecord ->
+              Dns.Record.IpAddress(
+                hostname = request.hostname,
+                address = resourceRecord.address,
+              )
+            }
+        }
+
+        else -> {
+          error("unexpected question type")
         }
       }
 

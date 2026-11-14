@@ -27,8 +27,6 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit.MILLISECONDS
-import javax.net.ServerSocketFactory
-import javax.net.SocketFactory
 import kotlin.test.assertFailsWith
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
@@ -56,6 +54,7 @@ import okhttp3.internal.http.CancelTest.CancelMode.INTERRUPT
 import okhttp3.internal.http.CancelTest.ConnectionType.H2
 import okhttp3.internal.http.CancelTest.ConnectionType.HTTP
 import okhttp3.internal.http.CancelTest.ConnectionType.HTTPS
+import okhttp3.internal.platform.Platform
 import okhttp3.sockets.DelegatingServerSocketFactory
 import okhttp3.sockets.DelegatingSocketFactory
 import okhttp3.testing.PlatformRule
@@ -111,7 +110,7 @@ class CancelTest(
     // required. These socket factories explicitly set the buffer sizes on sockets created.
     server = MockWebServer()
     server.serverSocketFactory =
-      object : DelegatingServerSocketFactory(ServerSocketFactory.getDefault()) {
+      object : DelegatingServerSocketFactory(Platform.get().serverSocketFactory) {
         @Throws(IOException::class)
         override fun configureServerSocket(serverSocket: ServerSocket): ServerSocket {
           serverSocket.receiveBufferSize = SOCKET_BUFFER_SIZE
@@ -127,7 +126,7 @@ class CancelTest(
       clientTestRule
         .newClientBuilder()
         .socketFactory(
-          object : DelegatingSocketFactory(SocketFactory.getDefault()) {
+          object : DelegatingSocketFactory(Platform.get().socketFactory) {
             @Throws(IOException::class)
             override fun configureSocket(socket: Socket): Socket {
               socket.sendBufferSize = SOCKET_BUFFER_SIZE

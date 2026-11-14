@@ -42,6 +42,7 @@ dependencies {
     exclude("org.bouncycastle")
   }
   androidTestImplementation("com.squareup.okhttp3:mockwebserver:${okhttpLegacyVersion}")
+  androidTestImplementation(platform(libs.bouncycastle.bom))
   androidTestImplementation(libs.bouncycastle.bcprov)
   androidTestImplementation(libs.bouncycastle.bcutil)
   androidTestImplementation(libs.bouncycastle.bctls)

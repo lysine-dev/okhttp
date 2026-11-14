@@ -1,6 +1,73 @@
 Change Log
 ==========
 
+## Version 5.5.1
+
+_2026_10_22_
+
+*  Fix: [Block 8 compromised eMudhra intermediate certificates][Mozilla_eMudhra]. Note that this
+   update is not necessary for Android devices with Google Play Services as Google has issued an
+   [automatic update][Google_eMudhra]. This change protects JVMs and AOSP devices that are exposed
+   to the compromised certificates.
+
+
+## Version 5.5.0
+
+_2026-08-16_
+
+This release introduces **opt-in** support for [Encrypted Client Hello (ECH)]. This new feature
+improves user privacy by encrypting domain names in transit. With regular TLS, your coffee shop’s
+Wi-Fi router can see that you’re visiting _wikipedia.com_, but it cannot see which page you’re
+looking at. With ECH, the router observes only the IP address. This additional privacy is most
+effective on sites hosted by big CDNs because the IP address doesn’t imply a particular website.
+
+This requires ECH support in the platform’s TLS stack. Today this is only Android 17 (API 37,
+released June 2026). When other TLS stacks add ECH support, we'll integrate them.
+
+ECH took a lot of work to implement because the encryption keys are published over DNS in the
+[HTTPS resource record], and we needed to write new code to fetch these records. This release
+includes a major update to OkHttp’s DNS API: it now supports multiple resource record types (not
+just IP addresses!), asynchronous streaming results, and in-memory caching.
+
+To opt in, you can use `DnsOverHttps`:
+
+```kotlin
+// DnsOverHttps itself uses OkHttpClient. Build both clients upon the
+// same bootstrap client so they share a connection pool and dispatcher.
+val bootstrapClient = OkHttpClient()
+
+// This sample uses Cloudflare's 1.1.1.1 DnsOverHttps service.
+val client = bootstrapClient.newBuilder()
+  .dns(DnsOverHttps.Builder()
+    .client(bootstrapClient)
+    .url("https://1.1.1.1/dns-query".toHttpUrl())
+    .build())
+  .build()
+```
+
+You could also opt in with our new `AndroidDns` API. Unfortunately, the privacy benefits of ECH are
+thwarted because its DNS queries are not encrypted by default.
+
+```kotlin
+// AndroidDns fetches the HTTPS DNS resource records necessary for ECH.
+val client = OkHttpClient.Builder()
+  .dns(AndroidDns())
+  .build()
+```
+
+ *  New: OkHttp artifacts are now signed with our [new signing key]. This project and three sibling
+    projects ([Retrofit], [Okio], and [SQLDelight]) recently joined [the Commonhaus Foundation].
+ *  Fix: MockWebServer’s `@StartStop` annotation now supports `@Nested` JUnit 5 tests.
+ *  Fix: Our default TLS hostname verifier now reject hosts that fail IP canonicalization.
+ *  Fix: Closing a multipart part's sink no longer closes the entire request body.
+ *  Fix: Flush HTTP/1 request bodies before detaching the timeout. We had a bug where timeouts
+    weren’t applied correctly.
+ *  Fix: Follow [RFC 1008]'s requirements for HTTP QUERY redirects.
+ *  Fix: Fall back to no proxy when the system proxy selector throws. Previously this would cause
+    the HTTP call to crash.
+ *  Upgrade: [Okio 3.18.1][okio_3_18_1].
+
+
 ## Version 5.4.0
 
 _2026-06-08_
@@ -167,8 +234,8 @@ migrate.)
 | com.squareup.okhttp3:mockwebserver3-junit5:5.0.0 | mockwebserver3.junit5 | Optional JUnit 5 integration.     |
 | com.squareup.okhttp3:mockwebserver:5.0.0         | okhttp3.mockwebserver | Obsolete. Depends on JUnit 4.     |
 
-**OkHttp now supports Happy Eyeballs ([RFC 8305][rfc_8305]) for IPv4+IPv6 networks.** It attempts
-both IPv6 and IPv4 connections concurrently, keeping whichever connects first.
+**OkHttp now supports Happy Eyeballs ([RFC 8305]) for IPv4+IPv6 networks.** It attempts both IPv6
+and IPv4 connections concurrently, keeping whichever connects first.
 
 **We’ve improved our Kotlin APIs.** You can skip the builder:
 
@@ -769,12 +836,20 @@ release is the version name.
 
 See [4.x Change log](https://lysine.dev/okhttp/changelogs/changelog_4x/) for the legacy version changelogs.
 
+[Encrypted Client Hello (ECH)]: https://www.rfc-editor.org/info/rfc9849/
+[Google_eMudhra]: https://blog.google/security/protecting-chrome-and-android-users-from-compromised-emudhra-intermediate-ca-certificates/
 [GraalVM]: https://www.graalvm.org/
 [Gradle module metadata]: https://docs.gradle.org/current/userguide/publishing_gradle_module_metadata.html
-[HTTP 101]: https://httpwg.org/specs/rfc9110.html#status.101
+[HTTP 101]: https://www.rfc-editor.org/info/rfc9110/#section-15.2.2
+[HTTPS resource record]: https://www.rfc-editor.org/info/rfc9460/
 [JPMS]: https://openjdk.org/projects/jigsaw/spec/
 [Ktor]: https://ktor.io/
+[Mozilla_eMudhra]: https://groups.google.com/a/mozilla.org/g/dev-security-policy/c/0R3XLJL6FuE/m/0XofdebrAAAJ?pli=1
+[Okio]: https://lysine.dev/okio/
+[RFC 1008]: https://www.rfc-editor.org/info/rfc10008/
+[RFC 8305]: https://www.rfc-editor.org/info/rfc8305/
 [Retrofit]: https://lysine.dev/retrofit/
+[SQLDelight]: https://sqldelight.github.io/sqldelight/
 [ZSTD-KMP]: https://github.com/square/zstd-kmp
 [androidx_startup]: https://developer.android.com/jetpack/androidx/releases/startup
 [annotation_1_9_1]: https://developer.android.com/jetpack/androidx/releases/annotation#annotation-1.9.1
@@ -800,6 +875,7 @@ See [4.x Change log](https://lysine.dev/okhttp/changelogs/changelog_4x/) for the
 [kotlin_2_2_20]: https://github.com/JetBrains/kotlin/releases/tag/v2.2.20
 [kotlin_2_2_21]: https://github.com/JetBrains/kotlin/releases/tag/v2.2.21
 [loom]: https://docs.oracle.com/en/java/javase/21/core/virtual-threads.html
+[new signing key]: https://keyserver.ubuntu.com/pks/lookup?search=5dd80b0ddccbe005f0a47fd66751e1a6e2001b8d&fingerprint=on&op=index
 [okio_2_9_0]: https://lysine.dev/okio/changelog/#version-290
 [okio_3_0_0]: https://lysine.dev/okio/changelog/#version-300
 [okio_3_12_0]: https://lysine.dev/okio/changelog/#version-3120
@@ -811,12 +887,13 @@ See [4.x Change log](https://lysine.dev/okhttp/changelogs/changelog_4x/) for the
 [okio_3_16_3]: https://lysine.dev/okio/changelog/#version-3163
 [okio_3_16_4]: https://lysine.dev/okio/changelog/#version-3164
 [okio_3_17_0]: https://lysine.dev/okio/changelog/#version-3170
+[okio_3_18_1]: https://lysine.dev/okio/changelog/#version-3181
 [okio_3_1_0]: https://lysine.dev/okio/changelog/#version-310
 [okio_3_2_0]: https://lysine.dev/okio/changelog/#version-320
 [okio_3_7_0]: https://lysine.dev/okio/changelog/#version-370
 [okio_3_9_0]: https://lysine.dev/okio/changelog/#version-390
-[rfc_8305]: https://tools.ietf.org/html/rfc8305
 [startup_1_2_0]: https://developer.android.com/jetpack/androidx/releases/startup#1.2.0
+[the Commonhaus Foundation]: https://www.commonhaus.org/activity/315.html
 [uts46]: https://www.unicode.org/reports/tr46
 [zstd]: https://github.com/facebook/zstd
 [zstd_kmp_0_4_0]: https://github.com/square/zstd-kmp/blob/main/CHANGELOG.md#version-040
