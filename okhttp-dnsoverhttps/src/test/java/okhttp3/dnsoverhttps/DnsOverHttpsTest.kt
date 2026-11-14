@@ -241,6 +241,14 @@ class DnsOverHttpsTest(
   }
 
   @Test
+  fun lookupFailsGracefullyForMalformedHostname() {
+    assumeTrue(entryPoint == EntryPoint.Lookup)
+    assertFailsWith<UnknownHostException> {
+      dns.lookup("internet ")
+    }
+  }
+
+  @Test
   fun lookupReturnsNormallyIfIpv4FailsAndIpv6Succeeds() {
     assumeTrue(entryPoint == EntryPoint.Lookup)
 

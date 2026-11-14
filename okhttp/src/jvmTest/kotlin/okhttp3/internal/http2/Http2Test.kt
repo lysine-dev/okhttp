@@ -515,7 +515,9 @@ class Http2Test {
     frame.writeByte(paddingLength)
     frame.write(expectedData)
     frame.write(padding)
-    reader.nextFrame(requireSettings = false, assertData())
+    val paddingBytes = AtomicInteger()
+    reader.nextFrame(requireSettings = false, assertData(paddingBytes))
+    assertThat(paddingBytes.get()).isEqualTo(paddingLength + 1)
     // Padding was skipped.
     assertThat(frame.exhausted()).isTrue()
   }
@@ -530,7 +532,24 @@ class Http2Test {
     frame.writeInt(expectedStreamId and 0x7fffffff)
     frame.writeByte(0)
     frame.write(expectedData)
-    reader.nextFrame(requireSettings = false, assertData())
+    val paddingBytes = AtomicInteger()
+    reader.nextFrame(requireSettings = false, assertData(paddingBytes))
+    assertThat(paddingBytes.get()).isEqualTo(1)
+  }
+
+  @Test fun truncatedDataPaddingIsNotReported() {
+    writeMedium(frame, 1123 + 1 + 39)
+    frame.writeByte(Http2.TYPE_DATA)
+    frame.writeByte(FLAG_PADDED)
+    frame.writeInt(expectedStreamId)
+    frame.writeByte(39)
+    frame.write(ByteArray(1123) { 2 })
+    frame.write(ByteArray(38))
+    val paddingBytes = AtomicInteger()
+    assertFailsWith<IOException> {
+      reader.nextFrame(requireSettings = false, assertData(paddingBytes))
+    }
+    assertThat(paddingBytes.get()).isEqualTo(0)
   }
 
   @Test fun readPaddedHeadersFrame() {
@@ -795,7 +814,7 @@ class Http2Test {
       }
     }
 
-  private fun assertData(): Http2Reader.Handler =
+  private fun assertData(paddingBytes: AtomicInteger = AtomicInteger()): Http2Reader.Handler =
     object : BaseTestHandler() {
       override fun data(
         inFinished: Boolean,
@@ -810,6 +829,14 @@ class Http2Test {
         for (b in data.toByteArray()) {
           assertThat(b).isEqualTo(2.toByte())
         }
+      }
+
+      override fun dataPadding(
+        streamId: Int,
+        length: Int,
+      ) {
+        assertThat(streamId).isEqualTo(expectedStreamId)
+        paddingBytes.addAndGet(length)
       }
     }
 
