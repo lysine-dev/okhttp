@@ -29,6 +29,13 @@ internal open class BaseTestHandler : Http2Reader.Handler {
     fail("")
   }
 
+  override fun dataPadding(
+    streamId: Int,
+    length: Int,
+  ) {
+    fail("")
+  }
+
   override fun headers(
     inFinished: Boolean,
     streamId: Int,

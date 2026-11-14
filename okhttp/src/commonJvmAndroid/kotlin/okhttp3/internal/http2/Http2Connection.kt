@@ -664,6 +664,14 @@ class Http2Connection internal constructor(
       }
     }
 
+    override fun dataPadding(
+      streamId: Int,
+      length: Int,
+    ) {
+      updateConnectionFlowControl(length.toLong())
+      getStream(streamId)?.source?.receivePadding(length.toLong())
+    }
+
     override fun headers(
       inFinished: Boolean,
       streamId: Int,
