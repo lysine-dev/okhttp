@@ -44,6 +44,7 @@ import okhttp3.internal.ech.EchUntrustedException
 import okhttp3.internal.http.ExchangeCodec
 import okhttp3.internal.http1.Http1ExchangeCodec
 import okhttp3.internal.platform.Platform
+import okhttp3.internal.tls.CertificateBlocklist
 import okhttp3.internal.tls.OkHostnameVerifier
 import okhttp3.internal.toHostHeader
 
@@ -384,6 +385,10 @@ class ConnectPlan internal constructor(
             "Hostname ${address.url.host} not verified (no certificates)",
           )
         }
+      } else if (CertificateBlocklist.isBlocklisted(unverifiedHandshake)) {
+        throw SSLPeerUnverifiedException(
+          "Hostname ${address.url.host} not verified (blocklisted by OkHttp)",
+        )
       }
 
       val certificatePinner = address.certificatePinner!!

@@ -103,6 +103,7 @@ kotlin {
 
     commonTest {
       dependencies {
+        implementation(projects.mockwebserver3Junit5)
         implementation(projects.okhttpTestingSupport)
         implementation(libs.assertk)
         implementation(libs.kotlin.test.annotations)
@@ -167,7 +168,6 @@ kotlin {
         implementation(projects.mockwebserver)
         implementation(projects.mockwebserver3)
         implementation(projects.mockwebserver3Junit4)
-        implementation(projects.mockwebserver3Junit5)
         implementation(projects.okhttpBrotli)
         implementation(projects.okhttpCoroutines)
         implementation(projects.okhttpDnsoverhttps)

@@ -67,7 +67,6 @@ include(":samples:slack")
 include(":samples:static-server")
 include(":samples:tlssurvey")
 include(":samples:unixdomainsockets")
-include(":container-tests")
 val okhttpModuleTests: String by settings
 if (okhttpModuleTests.toBoolean()) {
   include(":module-tests")
