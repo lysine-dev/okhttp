@@ -50,6 +50,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.RegisterExtension
 
 @Burst
@@ -477,6 +478,20 @@ class RouteSelectorTest(
     assertRoute(selection3.next(), address, proxyA, dns[PROXY_A_HOST][0], PROXY_A_PORT)
     assertThat(selection3.hasNext()).isFalse()
     assertThat(routeSelector.hasNext()).isFalse()
+  }
+
+  @Test fun failedRouteWithInvalidProxy() {
+    val address =
+      factory.newAddress(
+        proxy =
+          Proxy(
+            Proxy.Type.HTTP,
+            InetSocketAddress.createUnresolved("a b", 8080),
+          ),
+      )
+    val routeSelector = newRouteSelector(address)
+
+    assertThrows<UnknownHostException> { routeSelector.next() }
   }
 
   @Test fun queryForAllSelectedRoutes() {
