@@ -35,6 +35,7 @@ import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
+import okhttp3.internal.OkHttpInternalApi
 import okhttp3.internal.assertLockNotHeld
 import okhttp3.internal.cache.CacheInterceptor
 import okhttp3.internal.closeQuietly
@@ -61,6 +62,7 @@ import okio.Timeout
  * the other streams sharing its connection. But if the TLS handshake is still in progress then
  * canceling may break the entire connection.
  */
+@OkHttpInternalApi
 class RealCall(
   val client: OkHttpClient,
   /** The application's original request unadulterated by redirects or auth headers. */

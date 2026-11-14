@@ -45,6 +45,7 @@ import java.net.CookiePolicy
 import java.net.HttpCookie
 import java.net.HttpURLConnection
 import java.net.InetAddress
+import java.net.InetSocketAddress
 import java.net.ProtocolException
 import java.net.Proxy
 import java.net.SocketTimeoutException
@@ -97,6 +98,7 @@ import okhttp3.CallEvent.ResponseFailed
 import okhttp3.CallEvent.ResponseHeadersEnd
 import okhttp3.CallEvent.ResponseHeadersStart
 import okhttp3.CallEvent.RetryDecision
+import okhttp3.CallEvent.SecureConnectStart
 import okhttp3.CertificatePinner.Companion.pin
 import okhttp3.Credentials.basic
 import okhttp3.Headers.Companion.headersOf
@@ -116,6 +118,7 @@ import okhttp3.internal.http.HTTP_PROCESSING
 import okhttp3.internal.http.RecordingProxySelector
 import okhttp3.java.net.cookiejar.JavaNetCookieJar
 import okhttp3.okio.LoggingFilesystem
+import okhttp3.sockets.DelegatingSSLSocketFactory
 import okhttp3.testing.Flaky
 import okhttp3.testing.PlatformRule
 import okhttp3.tls.HandshakeCertificates
@@ -469,7 +472,7 @@ open class CallTest {
     postBodyRetransmittedAfterAuthorizationFail("abc")
   }
 
-  /** Don't explode when resending an empty post. https://github.com/square/okhttp/issues/1131  */
+  /** Don't explode when resending an empty post. https://github.com/lysine-dev/okhttp/issues/1131  */
   @Test
   fun postEmptyBodyRetransmittedAfterAuthorizationFail() {
     postBodyRetransmittedAfterAuthorizationFail("")
@@ -552,7 +555,7 @@ open class CallTest {
 
   /**
    * We had a bug where we were passing a null route to the authenticator.
-   * https://github.com/square/okhttp/issues/3809
+   * https://github.com/lysine-dev/okhttp/issues/3809
    */
   @Test
   fun authenticateWithNoConnection() {
@@ -877,7 +880,7 @@ open class CallTest {
    * Each OkHttpClient used to get its own instance of NullProxySelector, and because these weren't
    * equal their connections weren't pooled. That's a nasty performance bug!
    *
-   * https://github.com/square/okhttp/issues/5519
+   * https://github.com/lysine-dev/okhttp/issues/5519
    */
   @Test
   fun connectionPoolingWithFreshClientSamePool() {
@@ -1024,7 +1027,7 @@ open class CallTest {
     }
   }
 
-  /** https://github.com/square/okhttp/issues/442  */
+  /** https://github.com/lysine-dev/okhttp/issues/442  */
   @Test
   fun tlsTimeoutsNotRetried() {
     enableTls()
@@ -1071,7 +1074,22 @@ open class CallTest {
       }
   }
 
-  /** https://github.com/square/okhttp/issues/4875  */
+  /** https://github.com/lysine-dev/okhttp/issues/9758 */
+  @Test
+  fun malformedProxyHostnameFailsGracefully() {
+    val proxySelector = RecordingProxySelector()
+    proxySelector.proxies.add(
+      Proxy(
+        Proxy.Type.HTTP,
+        InetSocketAddress.createUnresolved("internet ", 8080),
+      ),
+    )
+    client = client.newBuilder().proxySelector(proxySelector).build()
+    executeSynchronously(server.url("/").toString())
+      .assertFailure(UnknownHostException::class.java)
+  }
+
+  /** https://github.com/lysine-dev/okhttp/issues/4875  */
   @Test
   fun interceptorRecoversWhenRoutesExhausted() {
     server.enqueue(MockResponse.Builder().onRequestStart(CloseSocket()).build())
@@ -1094,7 +1112,7 @@ open class CallTest {
       .assertCode(200)
   }
 
-  /** https://github.com/square/okhttp/issues/4761  */
+  /** https://github.com/lysine-dev/okhttp/issues/4761  */
   @Test
   fun interceptorCallsProceedWithoutClosingPriorResponse() {
     server.enqueue(
@@ -1148,7 +1166,7 @@ open class CallTest {
       .assertBody("success!")
   }
 
-  /** https://github.com/square/okhttp/issues/1801  */
+  /** https://github.com/lysine-dev/okhttp/issues/1801  */
   @Test
   fun asyncCallEngineInitialized() {
     val c =
@@ -1622,7 +1640,7 @@ open class CallTest {
 
   @Test
   fun matchingPinnedCertificate() {
-    // Fails on 11.0.1 https://github.com/square/okhttp/issues/4703
+    // Fails on 11.0.1 https://github.com/lysine-dev/okhttp/issues/4703
     enableTls()
     server.enqueue(MockResponse())
     server.enqueue(MockResponse())
@@ -2208,6 +2226,54 @@ open class CallTest {
   }
 
   @Test
+  fun redirectFromHttpToHttpsOnSameHostAndPortDoesNotReusePlaintextConnection() {
+    val httpsUrl =
+      server
+        .url("/second")
+        .newBuilder()
+        .scheme("https")
+        .build()
+    server.enqueue(
+      MockResponse(
+        code = 301,
+        headers = headersOf("Location", httpsUrl.toString()),
+      ),
+    )
+    server.enqueue(MockResponse(body = "second-response"))
+
+    assertFailsWith<IOException> {
+      client.newCall(Request(url = server.url("/first"))).execute()
+    }
+
+    assertThat(server.takeRequest().requestLine).startsWith("GET /first HTTP/")
+    assertThat(eventRecorder.recordedEventTypes()).contains(SecureConnectStart::class)
+  }
+
+  @Test
+  fun redirectFromHttpsToHttpOnSameHostAndPortDoesNotReuseTlsConnection() {
+    enableTls()
+    val httpUrl =
+      server
+        .url("/second")
+        .newBuilder()
+        .scheme("http")
+        .build()
+    server.enqueue(
+      MockResponse(
+        code = 301,
+        headers = headersOf("Location", httpUrl.toString()),
+      ),
+    )
+    server.enqueue(MockResponse(body = "second-response"))
+
+    assertFailsWith<IOException> {
+      client.newCall(Request(url = server.url("/first"))).execute()
+    }
+
+    assertThat(server.takeRequest().requestLine).startsWith("GET /first HTTP/")
+  }
+
+  @Test
   fun postRedirectsToGet() {
     server.enqueue(
       MockResponse(
@@ -2488,6 +2554,96 @@ open class CallTest {
     val page2 = server.takeRequest()
     assertThat(page2.requestLine).isEqualTo("PROPFIND /page2 HTTP/1.1")
     assertThat(page2.body?.utf8()).isEqualTo("Request Body")
+  }
+
+  @Test
+  fun queryRedirectsToQueryAndMaintainsRequestBodyOnMovedTemp() {
+    server.enqueue(
+      MockResponse(
+        code = HttpURLConnection.HTTP_MOVED_TEMP,
+        headers = headersOf("Location", "/page2"),
+        body = "This page has moved!",
+      ),
+    )
+    server.enqueue(MockResponse(body = "Page 2"))
+
+    val response =
+      client
+        .newCall(
+          Request
+            .Builder()
+            .url(server.url("/page1"))
+            .query("Query Body".toRequestBody("text/plain".toMediaType()))
+            .build(),
+        ).execute()
+
+    assertThat(response.body.string()).isEqualTo("Page 2")
+    val page1 = server.takeRequest()
+    assertThat(page1.requestLine).isEqualTo("QUERY /page1 HTTP/1.1")
+    assertThat(page1.body?.utf8()).isEqualTo("Query Body")
+    val page2 = server.takeRequest()
+    assertThat(page2.requestLine).isEqualTo("QUERY /page2 HTTP/1.1")
+    assertThat(page2.body?.utf8()).isEqualTo("Query Body")
+  }
+
+  @Test
+  fun queryRedirectsToQueryAndMaintainsRequestBodyOnMovedPerm() {
+    server.enqueue(
+      MockResponse(
+        code = HttpURLConnection.HTTP_MOVED_PERM,
+        headers = headersOf("Location", "/page2"),
+        body = "This page has moved!",
+      ),
+    )
+    server.enqueue(MockResponse(body = "Page 2"))
+
+    val response =
+      client
+        .newCall(
+          Request
+            .Builder()
+            .url(server.url("/page1"))
+            .query("Query Body".toRequestBody("text/plain".toMediaType()))
+            .build(),
+        ).execute()
+
+    assertThat(response.body.string()).isEqualTo("Page 2")
+    val page1 = server.takeRequest()
+    assertThat(page1.requestLine).isEqualTo("QUERY /page1 HTTP/1.1")
+    assertThat(page1.body?.utf8()).isEqualTo("Query Body")
+    val page2 = server.takeRequest()
+    assertThat(page2.requestLine).isEqualTo("QUERY /page2 HTTP/1.1")
+    assertThat(page2.body?.utf8()).isEqualTo("Query Body")
+  }
+
+  @Test
+  fun queryRedirectsToGetAndDropsRequestBodyOnSeeOther() {
+    server.enqueue(
+      MockResponse(
+        code = HttpURLConnection.HTTP_SEE_OTHER,
+        headers = headersOf("Location", "/page2"),
+        body = "See other page!",
+      ),
+    )
+    server.enqueue(MockResponse(body = "Page 2"))
+
+    val response =
+      client
+        .newCall(
+          Request
+            .Builder()
+            .url(server.url("/page1"))
+            .query("Query Body".toRequestBody("text/plain".toMediaType()))
+            .build(),
+        ).execute()
+
+    assertThat(response.body.string()).isEqualTo("Page 2")
+    val page1 = server.takeRequest()
+    assertThat(page1.requestLine).isEqualTo("QUERY /page1 HTTP/1.1")
+    assertThat(page1.body?.utf8()).isEqualTo("Query Body")
+    val page2 = server.takeRequest()
+    assertThat(page2.requestLine).isEqualTo("GET /page2 HTTP/1.1")
+    assertThat(page2.body).isNull()
   }
 
   @Test
@@ -3092,7 +3248,7 @@ open class CallTest {
       .assertRequestHeader("Accept-Encoding", "gzip")
   }
 
-  /** https://github.com/square/okhttp/issues/1927  */
+  /** https://github.com/lysine-dev/okhttp/issues/1927  */
   @Test
   fun gzipResponseAfterAuthenticationChallenge() {
     server.enqueue(MockResponse(code = 401))
@@ -3587,7 +3743,7 @@ open class CallTest {
           .host("android.com")
           .build(),
       )
-    executeSynchronously(request).assertFailure("$dns returned no addresses for android.com")
+    executeSynchronously(request).assertFailure("DNS returned no addresses for android.com")
     dns.assertRequests("android.com")
   }
 
@@ -3678,7 +3834,7 @@ open class CallTest {
 
   /**
    * We had a bug where OkHttp would crash if HTTP proxies returned a truncated response.
-   * https://github.com/square/okhttp/issues/5727
+   * https://github.com/lysine-dev/okhttp/issues/5727
    */
   @Test
   fun proxyUpgradeFailsWithTruncatedResponse() {
@@ -3784,7 +3940,7 @@ open class CallTest {
 
   /**
    * OkHttp has a bug where a `Connection: close` response header is not honored when establishing a
-   * TLS tunnel. https://github.com/square/okhttp/issues/2426
+   * TLS tunnel. https://github.com/lysine-dev/okhttp/issues/2426
    */
   @Test
   fun proxyAuthenticateOnConnectWithConnectionClose() {
@@ -3870,7 +4026,85 @@ open class CallTest {
     val request = Request("https://android.com/foo".toHttpUrl())
     assertFailsWith<ProtocolException> {
       client.newCall(request).execute()
+    }.also { expected ->
+      assertThat(expected).hasMessage("Too many tunnel connections attempted: 21")
     }
+  }
+
+  /**
+   * A proxy that keeps the connection open and always returns 407 must not trap OkHttp in an
+   * infinite loop. https://github.com/square/okhttp/issues/9477
+   */
+  @Test
+  fun tooManyProxyAuthFailuresWithoutConnectionClose() {
+    server.useHttps(handshakeCertificates.sslSocketFactory())
+    server.protocols = listOf(Protocol.HTTP_1_1)
+    for (i in 0..20) {
+      server.enqueue(
+        MockResponse
+          .Builder()
+          .code(407)
+          .headers(headersOf("Proxy-Authenticate", "Basic realm=\"localhost\""))
+          .inTunnel()
+          .build(),
+      )
+    }
+    val authenticator = RecordingOkAuthenticator("password", "Basic")
+    client =
+      client
+        .newBuilder()
+        .sslSocketFactory(
+          handshakeCertificates.sslSocketFactory(),
+          handshakeCertificates.trustManager,
+        ).proxy(server.proxyAddress)
+        .proxyAuthenticator(authenticator)
+        .hostnameVerifier(RecordingHostnameVerifier())
+        .build()
+    val request = Request("https://android.com/foo".toHttpUrl())
+    assertFailsWith<ProtocolException> {
+      client.newCall(request).execute()
+    }.also { expected ->
+      assertThat(expected).hasMessage("Too many tunnel connections attempted: 21")
+    }
+    // Preemptive challenge + 21 reactive 407s, but only 21 CONNECT attempts are allowed.
+    assertThat(authenticator.responses.size).isEqualTo(22)
+  }
+
+  /** Confirm we still succeed after several keep-alive proxy auth challenges (under the limit). */
+  @Test
+  fun proxyAuthenticateOnConnectSucceedsAfterManyChallenges() {
+    server.useHttps(handshakeCertificates.sslSocketFactory())
+    server.protocols = listOf(Protocol.HTTP_1_1)
+    for (i in 0..19) {
+      server.enqueue(
+        MockResponse
+          .Builder()
+          .code(407)
+          .headers(headersOf("Proxy-Authenticate", "Basic realm=\"localhost\""))
+          .inTunnel()
+          .build(),
+      )
+    }
+    server.enqueue(
+      MockResponse
+        .Builder()
+        .inTunnel()
+        .build(),
+    )
+    server.enqueue(MockResponse(body = "response body"))
+    client =
+      client
+        .newBuilder()
+        .sslSocketFactory(
+          handshakeCertificates.sslSocketFactory(),
+          handshakeCertificates.trustManager,
+        ).proxy(server.proxyAddress)
+        .proxyAuthenticator(RecordingOkAuthenticator("password", "Basic"))
+        .hostnameVerifier(RecordingHostnameVerifier())
+        .build()
+    val request = Request("https://android.com/foo".toHttpUrl())
+    val response = client.newCall(request).execute()
+    assertThat(response.body.string()).isEqualTo("response body")
   }
 
   /**
@@ -4002,7 +4236,7 @@ open class CallTest {
     assertThat(challengeSchemes).containsExactly("OkHttp-Preemptive", "Basic")
   }
 
-  /** https://github.com/square/okhttp/issues/4915  */
+  /** https://github.com/lysine-dev/okhttp/issues/4915  */
   @Test
   @Disabled
   fun proxyDisconnectsAfterRequest() {
@@ -4240,7 +4474,7 @@ open class CallTest {
     )
   }
 
-  /** https://github.com/square/okhttp/issues/2344  */
+  /** https://github.com/lysine-dev/okhttp/issues/2344  */
   @Test
   fun ipv6HostHasSquareBracesHttp1() {
     configureClientAndServerProxies(http2 = false)
@@ -4775,7 +5009,7 @@ open class CallTest {
     executeSynchronously("/").assertCode(200)
   }
 
-  /** https://github.com/square/okhttp/issues/4583  */
+  /** https://github.com/lysine-dev/okhttp/issues/4583  */
   @Test
   fun lateCancelCallsOnFailure() {
     server.enqueue(

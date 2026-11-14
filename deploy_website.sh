@@ -6,7 +6,7 @@
 
 set -ex
 
-REPO="git@github.com:square/okhttp.git"
+REPO="git@github.com:lysine-dev/okhttp.git"
 DIR=temp-clone
 
 # Delete any existing temporary website clone

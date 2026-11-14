@@ -17,6 +17,7 @@ package okhttp3.internal.platform.android
 
 import javax.net.ssl.SSLSocket
 import okhttp3.Protocol
+import okio.ByteString
 
 /**
  * Deferred implementation of SocketAdapter that works by observing the socket
@@ -39,8 +40,9 @@ class DeferredSocketAdapter(
     sslSocket: SSLSocket,
     hostname: String?,
     protocols: List<Protocol>,
+    echConfigList: ByteString?,
   ) {
-    getDelegate(sslSocket)?.configureTlsExtensions(sslSocket, hostname, protocols)
+    getDelegate(sslSocket)?.configureTlsExtensions(sslSocket, hostname, protocols, echConfigList)
   }
 
   override fun getSelectedProtocol(sslSocket: SSLSocket): String? = getDelegate(sslSocket)?.getSelectedProtocol(sslSocket)

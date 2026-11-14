@@ -1117,7 +1117,7 @@ stuck on the old version.
  [conscrypt]: https://github.com/google/conscrypt/
  [conscrypt_dependency]: https://github.com/google/conscrypt/#download
  [grpc_http2]: https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md
- [https_server_sample]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/HttpsServer.java
+ [https_server_sample]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/HttpsServer.java
  [jetty_8_252]: https://webtide.com/jetty-alpn-java-8u252/
  [junit_5_rules]: https://junit.org/junit5/docs/current/user-guide/#migrating-from-junit4-rulesupport
  [major_versions]: https://jakewharton.com/java-interoperability-policy-for-major-version-updates/
@@ -1129,5 +1129,5 @@ stuck on the old version.
  [public_suffix]: https://publicsuffix.org/
  [remove_cbc_ecdsa]: https://developers.google.com/web/updates/2016/12/chrome-56-deprecations#remove_cbc-mode_ecdsa_ciphers_in_tls
  [require_android_5]: https://code.cash.app/okhttp-3-13-requires-android-5
- [tls_configuration_history]: https://square.github.io/okhttp/tls_configuration_history/
- [upgrading_to_okhttp_4]: https://square.github.io/okhttp/upgrading_to_okhttp_4/
+ [tls_configuration_history]: https://lysine.dev/okhttp/tls_configuration_history/
+ [upgrading_to_okhttp_4]: https://lysine.dev/okhttp/upgrading_to_okhttp_4/

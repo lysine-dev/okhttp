@@ -18,6 +18,8 @@ package okhttp3
 import javax.net.ssl.SSLSocket
 import javax.net.ssl.SSLSocketFactory
 import okhttp3.FallbackTestClientSocketFactory.Companion.TLS_FALLBACK_SCSV
+import okhttp3.sockets.DelegatingSSLSocket
+import okhttp3.sockets.DelegatingSSLSocketFactory
 
 /**
  * An SSLSocketFactory that delegates calls. Sockets created by the delegate are wrapped with ones
