@@ -82,7 +82,12 @@ class Http2Server(
         true,
       ) as SSLSocket
     sslSocket.useClientMode = false
-    Platform.get().configureTlsExtensions(sslSocket, null, listOf(Protocol.HTTP_2))
+    Platform.get().configureTlsExtensions(
+      sslSocket = sslSocket,
+      hostname = null,
+      protocols = listOf(Protocol.HTTP_2),
+      echConfigList = null,
+    )
     sslSocket.startHandshake()
     return sslSocket
   }

@@ -21,6 +21,7 @@ import java.lang.reflect.Method
 import java.lang.reflect.Proxy
 import javax.net.ssl.SSLSocket
 import okhttp3.Protocol
+import okio.ByteString
 
 /** OpenJDK 8 with `org.mortbay.jetty.alpn:alpn-boot` in the boot class path. */
 class Jdk8WithJettyBootPlatform(
@@ -34,6 +35,7 @@ class Jdk8WithJettyBootPlatform(
     sslSocket: SSLSocket,
     hostname: String?,
     protocols: List<Protocol>,
+    echConfigList: ByteString?,
   ) {
     val names = alpnProtocolNames(protocols)
 

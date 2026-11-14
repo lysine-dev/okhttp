@@ -18,8 +18,6 @@ package okhttp.android.test
 import java.security.Provider
 import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLSocket
-import okhttp3.DelegatingSSLSocket
-import okhttp3.DelegatingSSLSocketFactory
 import okhttp3.Protocol.HTTP_1_1
 import okhttp3.Protocol.HTTP_2
 import okhttp3.internal.platform.android.AndroidSocketAdapter
@@ -27,6 +25,8 @@ import okhttp3.internal.platform.android.ConscryptSocketAdapter
 import okhttp3.internal.platform.android.DeferredSocketAdapter
 import okhttp3.internal.platform.android.SocketAdapter
 import okhttp3.internal.platform.android.StandardAndroidSocketAdapter
+import okhttp3.sockets.DelegatingSSLSocket
+import okhttp3.sockets.DelegatingSSLSocketFactory
 import org.conscrypt.Conscrypt
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -58,7 +58,7 @@ class AndroidSocketAdapterTest(
     val sslSocket = socketFactory.createSocket() as SSLSocket
     assertTrue(adapter.matchesSocket(sslSocket))
 
-    adapter.configureTlsExtensions(sslSocket, null, listOf(HTTP_2, HTTP_1_1))
+    adapter.configureTlsExtensions(sslSocket, null, listOf(HTTP_2, HTTP_1_1), null)
     // not connected
     assertNull(adapter.getSelectedProtocol(sslSocket))
   }
@@ -89,7 +89,7 @@ class AndroidSocketAdapterTest(
       object : DelegatingSSLSocket(context.socketFactory.createSocket() as SSLSocket) {}
     assertFalse(adapter.matchesSocket(sslSocket))
 
-    adapter.configureTlsExtensions(sslSocket, null, listOf(HTTP_2, HTTP_1_1))
+    adapter.configureTlsExtensions(sslSocket, null, listOf(HTTP_2, HTTP_1_1), null)
     // not connected
     assertNull(adapter.getSelectedProtocol(sslSocket))
   }

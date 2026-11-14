@@ -50,7 +50,7 @@ dependencies {
   testImplementation(projects.mockwebserver3Junit5)
   testImplementation(libs.junit)
   testImplementation(libs.assertk)
-  testImplementation(kotlin("test"))
+  testImplementation(libs.kotlin.junit5)
 }
 
 val jvmSignature = configurations.getByName("jvmSignature")
@@ -96,7 +96,8 @@ configure<GraalVMExtension> {
       javaLauncher.set(
         javaToolchains.launcherFor {
           languageVersion.set(JavaLanguageVersion.of(25))
-          vendor.set(JvmVendorSpec.GRAAL_VM)
+          // Match any native-image capable JDK rather than JvmVendorSpec.GRAAL_VM
+          nativeImageCapable.set(true)
         },
       )
     }

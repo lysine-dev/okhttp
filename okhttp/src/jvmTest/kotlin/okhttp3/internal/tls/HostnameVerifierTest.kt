@@ -793,6 +793,48 @@ class HostnameVerifierTest {
     assertThat(verifier.verify("℡.com", session)).isFalse()
   }
 
+  @Test fun malformedIpAddressAndMalformedSubjectAltName() {
+    // $ cat ./cert.cnf
+    // [req]
+    // distinguished_name=distinguished_name
+    // x509_extensions=x509_extensions
+    // [distinguished_name]
+    // [x509_extensions]
+    // # An iPAddress holding an address and a netmask. Java reads it back as
+    // # '1.2.3.4/255.255.255.0', which is not a host name.
+    // subjectAltName=DER:30:0a:87:08:01:02:03:04:ff:ff:ff:00
+    //
+    // $ openssl req -x509 -nodes -days 36500 -subj '/CN=foo.com' -config ./cert.cnf \
+    //     -newkey rsa:2048 -out cert.pem
+    val session =
+      session(
+        """
+        -----BEGIN CERTIFICATE-----
+        MIIC6jCCAdKgAwIBAgIUOs0TfFZ8c478WBRA5JhYDmCY27kwDQYJKoZIhvcNAQEL
+        BQAwEjEQMA4GA1UEAwwHZm9vLmNvbTAgFw0yNjA3MjkxNzQzMzZaGA8yMTI2MDcw
+        NTE3NDMzNlowEjEQMA4GA1UEAwwHZm9vLmNvbTCCASIwDQYJKoZIhvcNAQEBBQAD
+        ggEPADCCAQoCggEBAKRuEQYMeSBJkGt4Xah86p1TthHyTrQDqp2n2UMUFAbx6zSq
+        LXJ/VMRMevKectFkgu2i+blMDvQcgiy3Mu1CNvGdJtWqCiUThZgvZVxAfliU5YNi
+        K7X7V9EK+FqF1SB2mpzxhY2+a+tPBFTUxMFqOHl8JMZ1ZVTtmbRn+N1l9DojjqM5
+        R0DZcxC/p5Fu6+EmFRc5ORK7J2s1NBYsEm5Arr64Vy/h9XUiz38uX+umQb8tUWtf
+        KjneRhiGWehqzpOpKzsk8KQ7TDFbT3++jltyzoTaeJ1S1wO3ORjGgQ1JPgmHXw17
+        4LymfT36hs1KY30h6Pq9hQWeRPk47n5SVpDvK8kCAwEAAaM2MDQwEwYDVR0RBAww
+        CocIAQIDBP///wAwHQYDVR0OBBYEFMxmf4cFN9j8mIzwq4OJFwTOev1BMA0GCSqG
+        SIb3DQEBCwUAA4IBAQCTS5DRJjNMxGfc1w8wSoiAWM+ZNQk/Pdi7iysLVLSjlE9w
+        RmOd6oB3bsukBfUYTidM5m0Jq2hFXSQ7pb5pghh+E8IKnqYighFiFBlroQABswQ2
+        BCCftWj0P9cGSp27Uq9yjvjNUDXHIDxS6qgCcsnNOpFF8NWGJ3YQPvPXkxC3C1rX
+        rCu5cpLiayY5CdZcuqxqE68l3zaMh3Vd8YCaIwJupkMVRJ0emNnv92/7t86rsGDO
+        P4laLm0p2pMeNrcZular1zvxzcVIv5uKq5ND+EBHp/rsT+Qy9n/NlRsspLTkQKsA
+        Lu6ozoYr25wr3VMYnoba4P/fiCJOXhO7f/pxbUao
+        -----END CERTIFICATE-----
+        """.trimIndent(),
+      )
+
+    // Both of these have two '::' and are not addresses.
+    assertThat(verifier.verify("1::2::3", session)).isFalse()
+    assertThat(verifier.verify("::1::", session)).isFalse()
+  }
+
   @Test fun thatCatchesErrorsWithBadSession() {
     val localVerifier = OkHttpClient().hostnameVerifier
 

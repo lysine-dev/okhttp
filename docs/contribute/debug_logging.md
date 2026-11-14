@@ -38,7 +38,7 @@ This logs inbound (`<<`) and outbound (`>>`) frames for HTTP/2 connections.
 [2020-01-01 00:00:05] << 0x00000000     8 GOAWAY
 ```
 
-### Task Runner Logging 
+### Task Runner Logging
 
 This logs task enqueues, starts, and finishes.
 
@@ -59,4 +59,4 @@ This logs task enqueues, starts, and finishes.
 [2020-01-01 00:00:00] Q10000 finished run in 739 µs: OkHttp ConnectionPool
 ```
 
-[OkHttpDebugLogging.kt]: https://github.com/square/okhttp/blob/master/okhttp-testing-support/src/main/kotlin/okhttp3/OkHttpDebugLogging.kt
+[OkHttpDebugLogging.kt]: https://github.com/lysine-dev/okhttp/blob/master/okhttp-testing-support/src/main/kotlin/okhttp3/OkHttpDebugLogging.kt

@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 
 class HeadersChallengesTest {
-  /** See https://github.com/square/okhttp/issues/2780.  */
+  /** See https://github.com/lysine-dev/okhttp/issues/2780.  */
   @Test fun testDigestChallengeWithStrictRfc2617Header() {
     val headers =
       Headers
