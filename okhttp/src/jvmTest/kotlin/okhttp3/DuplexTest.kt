@@ -395,21 +395,18 @@ class DuplexTest {
   fun duplexWithRedirect() {
     enableProtocol(Protocol.HTTP_2)
     val duplexResponseSent = CountDownLatch(1)
-    val requestHeadersEndListener =
+    val requestBodyStartListener =
       object : EventListener() {
-        override fun requestHeadersEnd(
-          call: Call,
-          request: Request,
-        ) {
-          // Wait for the server to send the duplex response before acting on the 301 response
-          // and resetting the stream.
+        override fun requestBodyStart(call: Call) {
+          // For duplex requests, headers have been flushed before this callback.
+          // Wait for the response before following the redirect and resetting the stream.
           duplexResponseSent.await()
         }
       }
     client =
       client
         .newBuilder()
-        .eventListener(eventRecorder.eventListener + requestHeadersEndListener)
+        .eventListener(eventRecorder.eventListener + requestBodyStartListener)
         .build()
     val body =
       MockSocketHandler()
@@ -495,15 +492,27 @@ class DuplexTest {
   @Test
   fun duplexWithAuthChallenge() {
     enableProtocol(Protocol.HTTP_2)
+    val duplexResponseSent = CountDownLatch(1)
+    val responseHeadersEndListener =
+      object : EventListener() {
+        override fun responseHeadersEnd(
+          call: Call,
+          response: Response,
+        ) {
+          // Finish sending the challenge body before the client cancels this exchange for auth.
+          assertTrue(duplexResponseSent.await(5, TimeUnit.SECONDS))
+        }
+      }
     val credential = basic("jesse", "secret")
     client =
       client
         .newBuilder()
         .authenticator(RecordingOkAuthenticator(credential, null))
+        .eventListener(eventRecorder.eventListener + responseHeadersEndListener)
         .build()
     val body1 =
       MockSocketHandler()
-        .sendResponse("please authenticate!\n")
+        .sendResponse("please authenticate!\n", duplexResponseSent)
         .requestIOException()
         .exhaustResponse()
     server.enqueue(

@@ -1,7 +1,7 @@
+import com.gradleup.tapmoc.TapmocExtension
+import com.gradleup.tapmoc.configureKotlinCompatibility
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import tapmoc.TapmocExtension
-import tapmoc.configureKotlinCompatibility
 
 plugins {
   id("okhttp.base-conventions")

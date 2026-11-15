@@ -37,7 +37,7 @@ Download
 --------
 
 ```kotlin
-implementation("com.squareup.okhttp3:logging-interceptor:5.5.0")
+implementation("com.squareup.okhttp3:logging-interceptor:5.5.1")
 ```
 
 

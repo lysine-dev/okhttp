@@ -323,6 +323,17 @@ class CookieTest {
     assertThat(parse(punycode, "a=b; domain=xn--8ltr62k.jp")).isNull()
   }
 
+  @Test fun domainEqualToRequestHostThatIsPublicSuffixIsHostOnly() {
+    val url = "https://github.io/".toHttpUrl()
+    val cookie = parse(url, "a=b; domain=github.io")
+    assertThat(cookie).isNotNull()
+    assertThat(cookie!!.hostOnly).isTrue()
+    assertThat(cookie.domain).isEqualTo("github.io")
+    // The cookie stays with the request host and doesn't leak to other hosts under the suffix.
+    assertThat(cookie.matches("https://victim.github.io/".toHttpUrl())).isFalse()
+    assertThat(cookie.matches(url)).isTrue()
+  }
+
   @Test fun hostOnly() {
     assertThat(parse(url, "a=b")!!.hostOnly).isTrue()
     assertThat(
