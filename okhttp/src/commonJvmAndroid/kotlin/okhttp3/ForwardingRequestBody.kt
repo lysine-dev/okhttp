@@ -19,10 +19,8 @@ import java.io.IOException
 import okio.BufferedSink
 
 open class ForwardingRequestBody(
-  delegate: RequestBody?,
+  private val delegate: RequestBody,
 ) : RequestBody() {
-  private val delegate: RequestBody
-
   fun delegate(): RequestBody = delegate
 
   override fun contentType(): MediaType? = delegate.contentType()
@@ -37,10 +35,7 @@ open class ForwardingRequestBody(
 
   override fun isDuplex(): Boolean = delegate.isDuplex()
 
-  override fun toString(): String = javaClass.simpleName + "(" + delegate.toString() + ")"
+  override fun isOneShot(): Boolean = delegate.isOneShot()
 
-  init {
-    requireNotNull(delegate) { "delegate == null" }
-    this.delegate = delegate
-  }
+  override fun toString(): String = javaClass.simpleName + "(" + delegate.toString() + ")"
 }
