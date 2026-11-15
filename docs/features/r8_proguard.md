@@ -9,5 +9,5 @@ interpreted by R8 automatically.
 If you, however, don't use R8 you have to apply the rules from [this file][okhttp3_pro]. You might
 also need rules from [Okio][okio] which is a dependency of this library.
 
- [okhttp3_pro]: https://raw.githubusercontent.com/square/okhttp/master/okhttp/okhttp3.pro
- [okio]: https://square.github.io/okio/
+ [okhttp3_pro]: https://raw.githubusercontent.com/lysine-dev/okhttp/master/okhttp/okhttp3.pro
+ [okio]: https://lysine.dev/okio/

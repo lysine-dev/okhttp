@@ -22,6 +22,7 @@ import javax.net.ssl.SSLSocketFactory
 import javax.net.ssl.X509TrustManager
 import okhttp3.Protocol
 import okhttp3.internal.SuppressSignatureCheck
+import okio.ByteString
 
 /**
  * OpenJDK 9+ and JDK8 build 252+.
@@ -35,6 +36,7 @@ open class Jdk9Platform : Platform() {
     sslSocket: SSLSocket,
     hostname: String?,
     protocols: List<@JvmSuppressWildcards Protocol>,
+    echConfigList: ByteString?,
   ) {
     val sslParameters = sslSocket.sslParameters
 

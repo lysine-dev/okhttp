@@ -328,7 +328,7 @@ public class MockWebServer : Closeable {
     try {
       val serverSocketFactory =
         serverSocketFactory_
-          ?: (ServerSocketFactory.getDefault()!!.also { this.serverSocketFactory_ = it })
+          ?: (Platform.get().serverSocketFactory.also { this.serverSocketFactory_ = it })
 
       val serverSocket =
         serverSocketFactory
@@ -473,7 +473,12 @@ public class MockWebServer : Closeable {
           openClientSockets.add(sslSocket)
 
           if (protocolNegotiationEnabled) {
-            Platform.get().configureTlsExtensions(sslSocket, null, protocols)
+            Platform.get().configureTlsExtensions(
+              sslSocket = sslSocket,
+              hostname = null,
+              protocols = protocols,
+              echConfigList = null,
+            )
           }
 
           sslSocket.startHandshake()
@@ -875,7 +880,7 @@ public class MockWebServer : Closeable {
           socket = socket,
         ).buffer()
     body.writeTo(responseBodySink)
-    responseBodySink.emit()
+    responseBodySink.flush()
 
     socket.sleepWhileOpen(response.trailersDelayNanos)
     if ("chunked".equals(response.headers["Transfer-Encoding"], ignoreCase = true)) {

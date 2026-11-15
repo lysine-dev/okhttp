@@ -16,12 +16,13 @@
 package okhttp3
 
 import assertk.assertThat
+import assertk.assertions.containsExactly
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNotEqualTo
 import assertk.assertions.isSameInstanceAs
 import okhttp3.CipherSuite.Companion.forJavaName
 import okhttp3.internal.applyConnectionSpec
-import org.junit.jupiter.api.Assertions.assertArrayEquals
+import okhttp3.sockets.DelegatingSSLSocket
 import org.junit.jupiter.api.Test
 
 class CipherSuiteTest {
@@ -117,10 +118,12 @@ class CipherSuiteTest {
 
   @Test
   fun applyIntersectionRetainsTlsPrefixes() {
-    val socket = FakeSslSocket()
-    socket.enabledProtocols = arrayOf("TLSv1")
-    socket.supportedCipherSuites = arrayOf("SSL_A", "SSL_B", "SSL_C", "SSL_D", "SSL_E")
-    socket.enabledCipherSuites = arrayOf("SSL_A", "SSL_B", "SSL_C")
+    val socket =
+      FakeSslSocket(
+        enabledProtocols = listOf("TLSv1"),
+        supportedCipherSuites = listOf("SSL_A", "SSL_B", "SSL_C", "SSL_D", "SSL_E"),
+        enabledCipherSuites = listOf("SSL_A", "SSL_B", "SSL_C"),
+      )
     val connectionSpec =
       ConnectionSpec
         .Builder(true)
@@ -128,16 +131,17 @@ class CipherSuiteTest {
         .cipherSuites("TLS_A", "TLS_C", "TLS_E")
         .build()
     applyConnectionSpec(connectionSpec, socket, false)
-    assertArrayEquals(arrayOf("TLS_A", "TLS_C"), socket.enabledCipherSuites)
+    assertThat(socket.enabledCipherSuites).containsExactly("TLS_A", "TLS_C")
   }
 
   @Test
   fun applyIntersectionRetainsSslPrefixes() {
-    val socket = FakeSslSocket()
-    socket.enabledProtocols = arrayOf("TLSv1")
-    socket.supportedCipherSuites =
-      arrayOf("TLS_A", "TLS_B", "TLS_C", "TLS_D", "TLS_E")
-    socket.enabledCipherSuites = arrayOf("TLS_A", "TLS_B", "TLS_C")
+    val socket =
+      FakeSslSocket(
+        enabledProtocols = listOf("TLSv1"),
+        supportedCipherSuites = listOf("TLS_A", "TLS_B", "TLS_C", "TLS_D", "TLS_E"),
+        enabledCipherSuites = listOf("TLS_A", "TLS_B", "TLS_C"),
+      )
     val connectionSpec =
       ConnectionSpec
         .Builder(true)
@@ -145,15 +149,17 @@ class CipherSuiteTest {
         .cipherSuites("SSL_A", "SSL_C", "SSL_E")
         .build()
     applyConnectionSpec(connectionSpec, socket, false)
-    assertArrayEquals(arrayOf("SSL_A", "SSL_C"), socket.enabledCipherSuites)
+    assertThat(socket.enabledCipherSuites).containsExactly("SSL_A", "SSL_C")
   }
 
   @Test
   fun applyIntersectionAddsSslScsvForFallback() {
-    val socket = FakeSslSocket()
-    socket.enabledProtocols = arrayOf("TLSv1")
-    socket.supportedCipherSuites = arrayOf("SSL_A", "SSL_FALLBACK_SCSV")
-    socket.enabledCipherSuites = arrayOf("SSL_A")
+    val socket =
+      FakeSslSocket(
+        enabledProtocols = listOf("TLSv1"),
+        supportedCipherSuites = listOf("SSL_A", "SSL_FALLBACK_SCSV"),
+        enabledCipherSuites = listOf("SSL_A"),
+      )
     val connectionSpec =
       ConnectionSpec
         .Builder(true)
@@ -161,18 +167,17 @@ class CipherSuiteTest {
         .cipherSuites("SSL_A")
         .build()
     applyConnectionSpec(connectionSpec, socket, true)
-    assertArrayEquals(
-      arrayOf("SSL_A", "SSL_FALLBACK_SCSV"),
-      socket.enabledCipherSuites,
-    )
+    assertThat(socket.enabledCipherSuites).containsExactly("SSL_A", "SSL_FALLBACK_SCSV")
   }
 
   @Test
   fun applyIntersectionAddsTlsScsvForFallback() {
-    val socket = FakeSslSocket()
-    socket.enabledProtocols = arrayOf("TLSv1")
-    socket.supportedCipherSuites = arrayOf("TLS_A", "TLS_FALLBACK_SCSV")
-    socket.enabledCipherSuites = arrayOf("TLS_A")
+    val socket =
+      FakeSslSocket(
+        enabledProtocols = listOf("TLSv1"),
+        supportedCipherSuites = listOf("TLS_A", "TLS_FALLBACK_SCSV"),
+        enabledCipherSuites = listOf("TLS_A"),
+      )
     val connectionSpec =
       ConnectionSpec
         .Builder(true)
@@ -180,18 +185,17 @@ class CipherSuiteTest {
         .cipherSuites("TLS_A")
         .build()
     applyConnectionSpec(connectionSpec, socket, true)
-    assertArrayEquals(
-      arrayOf("TLS_A", "TLS_FALLBACK_SCSV"),
-      socket.enabledCipherSuites,
-    )
+    assertThat(socket.enabledCipherSuites).containsExactly("TLS_A", "TLS_FALLBACK_SCSV")
   }
 
   @Test
   fun applyIntersectionToProtocolVersion() {
-    val socket = FakeSslSocket()
-    socket.enabledProtocols = arrayOf("TLSv1", "TLSv1.1", "TLSv1.2")
-    socket.supportedCipherSuites = arrayOf("TLS_A")
-    socket.enabledCipherSuites = arrayOf("TLS_A")
+    val socket =
+      FakeSslSocket(
+        enabledProtocols = listOf("TLSv1", "TLSv1.1", "TLSv1.2"),
+        supportedCipherSuites = listOf("TLS_A"),
+        enabledCipherSuites = listOf("TLS_A"),
+      )
     val connectionSpec =
       ConnectionSpec
         .Builder(true)
@@ -199,30 +203,31 @@ class CipherSuiteTest {
         .cipherSuites("TLS_A")
         .build()
     applyConnectionSpec(connectionSpec, socket, false)
-    assertArrayEquals(arrayOf("TLSv1.1", "TLSv1.2"), socket.enabledProtocols)
+    assertThat(socket.enabledProtocols).containsExactly("TLSv1.1", "TLSv1.2")
   }
 
-  internal class FakeSslSocket : DelegatingSSLSocket(null) {
-    private lateinit var enabledProtocols: Array<String>
-    private lateinit var supportedCipherSuites: Array<String>
-    private lateinit var enabledCipherSuites: Array<String>
-
-    override fun getEnabledProtocols(): Array<String> = enabledProtocols
+  class FakeSslSocket(
+    var enabledProtocols: List<String> = listOf(TlsVersion.TLS_1_3.javaName),
+    var supportedCipherSuites: List<String> =
+      listOf(
+        CipherSuite.TLS_AES_128_GCM_SHA256.javaName,
+        CipherSuite.TLS_AES_256_GCM_SHA384.javaName,
+        CipherSuite.TLS_CHACHA20_POLY1305_SHA256.javaName,
+      ),
+    var enabledCipherSuites: List<String> = supportedCipherSuites,
+  ) : DelegatingSSLSocket(null) {
+    override fun getEnabledProtocols() = enabledProtocols.toTypedArray()
 
     override fun setEnabledProtocols(protocols: Array<String>) {
-      this.enabledProtocols = protocols
+      this.enabledProtocols = protocols.toList()
     }
 
-    override fun getSupportedCipherSuites(): Array<String> = supportedCipherSuites
+    override fun getSupportedCipherSuites() = supportedCipherSuites.toTypedArray()
 
-    fun setSupportedCipherSuites(supportedCipherSuites: Array<String>) {
-      this.supportedCipherSuites = supportedCipherSuites
-    }
-
-    override fun getEnabledCipherSuites(): Array<String> = enabledCipherSuites
+    override fun getEnabledCipherSuites() = enabledCipherSuites.toTypedArray()
 
     override fun setEnabledCipherSuites(suites: Array<String>) {
-      this.enabledCipherSuites = suites
+      this.enabledCipherSuites = suites.toList()
     }
   }
 }

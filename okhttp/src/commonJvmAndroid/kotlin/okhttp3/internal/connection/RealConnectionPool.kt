@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit
 import okhttp3.Address
 import okhttp3.ConnectionPool
 import okhttp3.Route
+import okhttp3.internal.OkHttpInternalApi
 import okhttp3.internal.closeQuietly
 import okhttp3.internal.concurrent.Task
 import okhttp3.internal.concurrent.TaskQueue
@@ -32,6 +33,7 @@ import okhttp3.internal.connection.RealCall.CallReference
 import okhttp3.internal.okHttpName
 import okhttp3.internal.platform.Platform
 
+@OkHttpInternalApi
 class RealConnectionPool internal constructor(
   taskRunner: TaskRunner,
   /** The maximum number of idle connections across all addresses. */
@@ -310,6 +312,12 @@ class RealConnectionPool internal constructor(
       Platform.get().logCloseableLeak(message, callReference.callStackTrace)
 
       references.removeAt(i)
+
+      // A leaked connection may still hold the abandoned response's unread bytes on its socket, so it
+      // must not be handed to a new exchange. Retire it here rather than relying on eviction: a single
+      // cleanup pass prunes every connection but evicts at most one, so any leaked connection that
+      // isn't the one evicted would otherwise stay eligible for reuse and corrupt the next exchange.
+      connection.noNewExchanges = true
 
       // If this was the last allocation, the connection is eligible for immediate eviction.
       if (references.isEmpty()) {

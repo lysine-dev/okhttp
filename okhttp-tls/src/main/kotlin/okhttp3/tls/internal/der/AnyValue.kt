@@ -27,15 +27,4 @@ internal data class AnyValue(
   var constructed: Boolean = false,
   var length: Long = -1L,
   val bytes: ByteString,
-) {
-  // Avoid Long.hashCode(long) which isn't available on Android 5.
-  override fun hashCode(): Int {
-    var result = 0
-    result = 31 * result + tagClass
-    result = 31 * result + tag.toInt()
-    result = 31 * result + (if (constructed) 0 else 1)
-    result = 31 * result + length.toInt()
-    result = 31 * result + bytes.hashCode()
-    return result
-  }
-}
+)

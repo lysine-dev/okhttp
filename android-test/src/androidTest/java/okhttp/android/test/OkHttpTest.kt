@@ -38,6 +38,7 @@ import java.util.logging.Level
 import java.util.logging.LogRecord
 import java.util.logging.Logger
 import javax.net.ssl.HostnameVerifier
+import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLPeerUnverifiedException
 import javax.net.ssl.SSLSocket
 import javax.net.ssl.TrustManagerFactory
@@ -47,9 +48,11 @@ import mockwebserver3.MockWebServer
 import mockwebserver3.junit5.StartStop
 import okhttp3.Cache
 import okhttp3.Call
+import okhttp3.CallEvent
 import okhttp3.CallEvent.CallEnd
 import okhttp3.CallEvent.CallStart
 import okhttp3.CallEvent.ConnectEnd
+import okhttp3.CallEvent.ConnectFailed
 import okhttp3.CallEvent.ConnectStart
 import okhttp3.CallEvent.ConnectionAcquired
 import okhttp3.CallEvent.ConnectionReleased
@@ -69,8 +72,6 @@ import okhttp3.CallEvent.SecureConnectStart
 import okhttp3.CertificatePinner
 import okhttp3.CompressionInterceptor
 import okhttp3.Connection
-import okhttp3.DelegatingSSLSocket
-import okhttp3.DelegatingSSLSocketFactory
 import okhttp3.EventListener
 import okhttp3.EventRecorder
 import okhttp3.Gzip
@@ -90,6 +91,8 @@ import okhttp3.internal.platform.AndroidPlatform
 import okhttp3.internal.platform.Platform
 import okhttp3.internal.platform.PlatformRegistry
 import okhttp3.logging.LoggingEventListener
+import okhttp3.sockets.DelegatingSSLSocket
+import okhttp3.sockets.DelegatingSSLSocketFactory
 import okhttp3.testing.PlatformRule
 import okhttp3.tls.HandshakeCertificates
 import okhttp3.tls.internal.TlsUtil.localhost
@@ -301,6 +304,11 @@ class OkHttpTest {
         throw TestAbortedException("Google Play Services not available", gpsnae)
       }
 
+      assertEquals(
+        ProviderInstaller.PROVIDER_NAME,
+        SSLContext.getInstance("TLS").provider.name,
+      )
+
       val request = Request.Builder().url("https://facebook.com/robots.txt").build()
 
       var socketClass: String? = null
@@ -327,11 +335,25 @@ class OkHttpTest {
       response.use {
         assertEquals(Protocol.HTTP_2, response.protocol)
         assertEquals(200, response.code)
-        assertEquals("com.google.android.gms.org.conscrypt.Java8FileDescriptorSocket", socketClass)
-        assertEquals(TlsVersion.TLS_1_2, response.handshake?.tlsVersion)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+          // ProviderInstaller likely to use Android's Mainline Conscrypt.
+          assertTrue(
+            socketClass?.startsWith("com.google.android.gms.org.conscrypt.") == true ||
+              socketClass?.startsWith("com.android.org.conscrypt.") == true,
+            "Unexpected socket class: $socketClass",
+          )
+          val tlsVersion = response.handshake?.tlsVersion
+          assertTrue(
+            tlsVersion == TlsVersion.TLS_1_2 || tlsVersion == TlsVersion.TLS_1_3,
+            "Unexpected TLS version: $tlsVersion",
+          )
+        } else {
+          assertEquals("com.google.android.gms.org.conscrypt.Java8FileDescriptorSocket", socketClass)
+          assertEquals(TlsVersion.TLS_1_2, response.handshake?.tlsVersion)
+        }
       }
     } finally {
-      Security.removeProvider("GmsCore_OpenSSL")
+      Security.removeProvider(ProviderInstaller.PROVIDER_NAME)
       client.close()
     }
   }
@@ -361,7 +383,7 @@ class OkHttpTest {
 
       localhostInsecureRequest()
     } finally {
-      Security.removeProvider("GmsCore_OpenSSL")
+      Security.removeProvider(ProviderInstaller.PROVIDER_NAME)
       client.close()
     }
   }
@@ -546,7 +568,15 @@ class OkHttpTest {
     try {
       client.newCall(request).execute()
       fail<Any>("")
-    } catch (_: SSLPeerUnverifiedException) {
+    } catch (e: Exception) {
+      // The API 37 emulator can surface the verification failure wrapped (as a cause or a
+      // suppressed exception) rather than thrown directly, so accept any of those shapes.
+      val hasPeerUnverified = e is SSLPeerUnverifiedException ||
+          e.suppressedExceptions.any { it is SSLPeerUnverifiedException } ||
+          e.cause is SSLPeerUnverifiedException
+      if (!hasPeerUnverified) {
+        throw e
+      }
     }
   }
 
@@ -617,7 +647,7 @@ class OkHttpTest {
         ConnectionReleased::class,
         CallEnd::class,
       ),
-      eventRecorder.recordedEventTypes(),
+      eventRecorder.eventSequence.toList().withoutFailedConnectAttempts().map { it::class },
     )
 
     eventRecorder.clearAllEvents()
@@ -643,6 +673,23 @@ class OkHttpTest {
       eventRecorder.recordedEventTypes(),
     )
   }
+
+  /**
+   * Returns these events with failed connection attempts removed. On a dual-stack loopback the
+   * address MockWebServer isn't bound to is tried first, producing a [ConnectStart]/[ConnectFailed]
+   * pair before the successful [ConnectStart] (seen on the API 37 emulator). Dropping those pairs
+   * keeps the event assertion stable across single- and dual-stack environments.
+   */
+  private fun List<CallEvent>.withoutFailedConnectAttempts(): List<CallEvent> =
+    fold(mutableListOf<CallEvent>()) { events, event ->
+      if (event is ConnectFailed) {
+        // Drop the ConnectFailed and the ConnectStart that opened the failed attempt.
+        if (events.lastOrNull() is ConnectStart) events.removeAt(events.lastIndex)
+      } else {
+        events += event
+      }
+      events
+    }
 
   @Test
   fun testSessionReuse() {
@@ -853,7 +900,7 @@ class OkHttpTest {
       client.newCall(request).execute().close()
       // Hopefully this passes
     } catch (ioe: IOException) {
-      // https://github.com/square/okhttp/issues/5840
+      // https://github.com/lysine-dev/okhttp/issues/5840
       when (ioe.cause) {
         is IllegalArgumentException -> {
           assertEquals("Android internal error", ioe.message)
