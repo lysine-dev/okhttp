@@ -13,7 +13,7 @@ dependencies {
   testImplementation(libs.junit.jupiter.api)
   testImplementation(libs.junit.jupiter.params)
 
-  testImplementation(rootProject.libs.junit.jupiter.engine)
+  testImplementation(libs.junit.jupiter.engine)
 }
 
 animalsniffer {

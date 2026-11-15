@@ -27,7 +27,7 @@ Releasing
     git tag -a parent-$RELEASE_VERSION -m "Version $RELEASE_VERSION"
     git push && git push --tags
 
-   sed -i "" \
+    sed -i "" \
       "s/version = \".*\"/version = \"$NEXT_VERSION\"/g" \
       build-logic/src/main/kotlin/okhttp.base-conventions.gradle.kts
     git commit -am "Prepare next development version."

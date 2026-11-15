@@ -50,7 +50,7 @@ dependencies {
   testImplementation(projects.mockwebserver3Junit5)
   testImplementation(libs.junit)
   testImplementation(libs.assertk)
-  testImplementation(kotlin("test"))
+  testImplementation(libs.kotlin.junit5)
 }
 
 val jvmSignature = configurations.getByName("jvmSignature")

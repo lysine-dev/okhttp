@@ -39,6 +39,36 @@ open class MediaTypeTest {
     assertNull(string.toMediaTypeOrNull(), exceptionMessage)
   }
 
+  @Test fun testCarriageReturnInQuotedParameter() {
+    val parameter = "a=\"x\ry\""
+    val input = "text/plain; $parameter"
+
+    assertInvalid(
+      input,
+      "Parameter is not formatted correctly: \"$parameter\" for: \"$input\"",
+    )
+  }
+
+  @Test fun testLineFeedInQuotedParameter() {
+    val parameter = "a=\"x\ny\""
+    val input = "text/plain; $parameter"
+
+    assertInvalid(
+      input,
+      "Parameter is not formatted correctly: \"$parameter\" for: \"$input\"",
+    )
+  }
+
+  @Test fun testCRLFInQuotedParameter() {
+    val parameter = "a=\"x\r\ny\""
+    val input = "text/plain; $parameter"
+
+    assertInvalid(
+      input,
+      "Parameter is not formatted correctly: \"$parameter\" for: \"$input\"",
+    )
+  }
+
   @Test fun testParse() {
     val mediaType = parse("text/plain;boundary=foo;charset=utf-8")
     assertEquals("text", mediaType.type)
