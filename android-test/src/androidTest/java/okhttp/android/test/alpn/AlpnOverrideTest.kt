@@ -24,10 +24,10 @@ import javax.net.ssl.SSLSocketFactory
 import okhttp3.Call
 import okhttp3.Connection
 import okhttp3.ConnectionSpec
-import okhttp3.DelegatingSSLSocketFactory
 import okhttp3.EventListener
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.sockets.DelegatingSSLSocketFactory
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 

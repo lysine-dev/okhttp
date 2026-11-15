@@ -1,9 +1,12 @@
 public final class okhttp3/dnsoverhttps/DnsOverHttps : okhttp3/Dns {
 	public static final field Companion Lokhttp3/dnsoverhttps/DnsOverHttps$Companion;
 	public static final field MAX_RESPONSE_SIZE I
+	public final fun cache ()Lokhttp3/DnsCache;
 	public final fun client ()Lokhttp3/OkHttpClient;
 	public final fun includeIPv6 ()Z
+	public final fun includeServiceMetadata ()Z
 	public fun lookup (Ljava/lang/String;)Ljava/util/List;
+	public fun newCall (Lokhttp3/Dns$Request;)Lokhttp3/Dns$Call;
 	public final fun post ()Z
 	public final fun resolvePrivateAddresses ()Z
 	public final fun resolvePublicAddresses ()Z
@@ -15,8 +18,10 @@ public final class okhttp3/dnsoverhttps/DnsOverHttps$Builder {
 	public final fun bootstrapDnsHosts (Ljava/util/List;)Lokhttp3/dnsoverhttps/DnsOverHttps$Builder;
 	public final fun bootstrapDnsHosts ([Ljava/net/InetAddress;)Lokhttp3/dnsoverhttps/DnsOverHttps$Builder;
 	public final fun build ()Lokhttp3/dnsoverhttps/DnsOverHttps;
+	public final fun cache (Lokhttp3/DnsCache;)Lokhttp3/dnsoverhttps/DnsOverHttps$Builder;
 	public final fun client (Lokhttp3/OkHttpClient;)Lokhttp3/dnsoverhttps/DnsOverHttps$Builder;
 	public final fun includeIPv6 (Z)Lokhttp3/dnsoverhttps/DnsOverHttps$Builder;
+	public final fun includeServiceMetadata (Z)Lokhttp3/dnsoverhttps/DnsOverHttps$Builder;
 	public final fun post (Z)Lokhttp3/dnsoverhttps/DnsOverHttps$Builder;
 	public final fun resolvePrivateAddresses (Z)Lokhttp3/dnsoverhttps/DnsOverHttps$Builder;
 	public final fun resolvePublicAddresses (Z)Lokhttp3/dnsoverhttps/DnsOverHttps$Builder;

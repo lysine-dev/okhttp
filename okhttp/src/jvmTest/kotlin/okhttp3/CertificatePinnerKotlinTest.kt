@@ -142,7 +142,7 @@ class CertificatePinnerKotlinTest {
     assertThat(certificatePinner.findMatchingPins("xn--khttp-fde.com")).isEqualTo(expectedPin)
   }
 
-  /** https://github.com/square/okhttp/issues/3324  */
+  /** https://github.com/lysine-dev/okhttp/issues/3324  */
   @Test
   fun checkSubstringMatch() {
     val certificatePinner =
@@ -178,6 +178,24 @@ class CertificatePinnerKotlinTest {
     assertTrue(pin.matchesHostname("www.example.co.uk"))
     assertTrue(pin.matchesHostname("gopher.example.co.uk"))
     assertFalse(pin.matchesHostname("www.example.com"))
+  }
+
+  @Test fun testMatchesHostnameWithTrailingDot() {
+    // https://github.com/lysine-dev/okhttp/issues/9724
+    val exactPin = Pin("example.com", certA1Sha256Pin)
+    assertTrue(exactPin.matchesHostname("example.com"))
+    assertTrue(exactPin.matchesHostname("example.com."))
+
+    val wildcardPin = Pin("*.example.com", certA1Sha256Pin)
+    assertTrue(wildcardPin.matchesHostname("a.example.com"))
+    assertTrue(wildcardPin.matchesHostname("a.example.com."))
+
+    val certificatePinner =
+      CertificatePinner
+        .Builder()
+        .add("example.com", certA1Sha256Pin)
+        .build()
+    assertThat(certificatePinner.findMatchingPins("example.com.")).containsExactly(exactPin)
   }
 
   @Test fun testMatchesSha256() {
