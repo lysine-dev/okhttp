@@ -24,7 +24,6 @@ import javax.net.ssl.SSLException
 import javax.net.ssl.SSLSession
 import okhttp3.internal.canParseAsIpAddress
 import okhttp3.internal.toCanonicalHost
-import okio.utf8Size
 
 /**
  * A HostnameVerifier consistent with [RFC 2818][rfc_2818].
@@ -64,7 +63,7 @@ object OkHostnameVerifier : HostnameVerifier {
     ipAddress: String,
     certificate: X509Certificate,
   ): Boolean {
-    val canonicalIpAddress = ipAddress.toCanonicalHost()
+    val canonicalIpAddress = ipAddress.toCanonicalHost() ?: return false
 
     return getSubjectAltNames(certificate, ALT_IPA_NAME).any {
       canonicalIpAddress == it.toCanonicalHost()
@@ -96,7 +95,13 @@ object OkHostnameVerifier : HostnameVerifier {
     }
 
   /** Returns true if the [String] is ASCII encoded (0-127). */
-  private fun String.isAscii() = length == utf8Size().toInt()
+  private fun String.isAscii(): Boolean {
+    for (i in 0 until length) {
+      val c = this[i]
+      if (c >= '\u0080') return false
+    }
+    return true
+  }
 
   /**
    * Returns true if [hostname] matches the domain name [pattern].

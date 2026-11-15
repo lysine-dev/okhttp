@@ -791,7 +791,7 @@ internal class FastFallbackExchangeFinderTest {
    *  3. plan 0 connects
    *  4. finish taking plan 1
    *
-   * https://github.com/square/okhttp/issues/7152
+   * https://github.com/lysine-dev/okhttp/issues/7152
    */
   @Test
   fun reusePlanAndNewConnectRace() {

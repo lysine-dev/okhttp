@@ -18,6 +18,7 @@ package okhttp3.internal.connection
 import java.io.IOException
 import okhttp3.Address
 import okhttp3.HttpUrl
+import okhttp3.internal.OkHttpInternalApi
 
 /**
  * Policy on choosing which connection to use for an exchange and any retries that follow. This uses
@@ -46,6 +47,7 @@ import okhttp3.HttpUrl
  * Implementations of this interface are not thread-safe. Each instance is thread-confined to the
  * thread executing the call.
  */
+@OkHttpInternalApi
 interface RoutePlanner {
   val address: Address
 
@@ -67,9 +69,9 @@ interface RoutePlanner {
   fun hasNext(failedConnection: RealConnection? = null): Boolean
 
   /**
-   * Returns true if the host and port are unchanged from when this was created. This is used to
-   * detect if followups need to do a full connection-finding process including DNS resolution, and
-   * certificate pin checks.
+   * Returns true if the host, port, and scheme are unchanged from when this was created. This is
+   * used to detect if followups need to do a full connection-finding process including DNS
+   * resolution, and certificate pin checks.
    */
   fun sameHostAndPort(url: HttpUrl): Boolean
 
