@@ -59,7 +59,7 @@ class StatusLineTest {
     assertThat(statusLine.code).isEqualTo(code)
   }
 
-  // https://github.com/square/okhttp/issues/386
+  // https://github.com/lysine-dev/okhttp/issues/386
   @Test
   fun shoutcast() {
     val statusLine = parse("ICY 200 OK")
@@ -97,6 +97,16 @@ class StatusLineTest {
     assertInvalid("HTTP/1.1 2")
     assertInvalid("HTTP/1.1 2000")
     assertInvalid("HTTP/1.1 two")
+  }
+
+  @Test
+  fun nonAsciiDigitCode() {
+    // toIntOrNull() honors a sign prefix and any Unicode decimal digit, so a status code such
+    // as "+99", "-12" or the Arabic-Indic "٢٠٠" would otherwise be accepted even though
+    // RFC 9112 defines status-code as three ASCII DIGIT.
+    assertInvalid("HTTP/1.1 +99 OK")
+    assertInvalid("HTTP/1.1 -12 OK")
+    assertInvalid("HTTP/1.1 ٢٠٠ OK")
   }
 
   @Test

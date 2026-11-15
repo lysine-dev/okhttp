@@ -20,17 +20,24 @@ import assertk.assertThat
 import assertk.assertions.isEqualTo
 import java.net.Inet4Address
 import java.net.Inet6Address
+import java.net.InetAddress
+import java.net.InetSocketAddress
+import okhttp3.Route
+import okhttp3.TestValueFactory
 import org.junit.jupiter.api.Test
 
 @Suppress("ktlint:standard:property-naming")
 class InetAddressOrderTest {
-  val ipv4_10_0_0_6 = Inet4Address.getByName("10.0.0.6")
-  val ipv4_10_0_0_1 = Inet4Address.getByName("10.0.0.1")
-  val ipv4_10_0_0_4 = Inet4Address.getByName("10.0.0.4")
-  val ipv6_ab = Inet6Address.getByName("::ac")
-  val ipv6_fc = Inet6Address.getByName("::fc")
+  private val factory = TestValueFactory()
 
-  @Test fun prioritiseIpv6Example() {
+  private val ipv4_10_0_0_6 = route(Inet4Address.getByName("10.0.0.6"))
+  private val ipv4_10_0_0_1 = route(Inet4Address.getByName("10.0.0.1"))
+  private val ipv4_10_0_0_4 = route(Inet4Address.getByName("10.0.0.4"))
+  private val ipv6_ab = route(Inet6Address.getByName("::ac"))
+  private val ipv6_fc = route(Inet6Address.getByName("::fc"))
+
+  @Test
+  fun prioritiseIpv6Example() {
     val result =
       reorderForHappyEyeballs(
         listOf(
@@ -47,7 +54,8 @@ class InetAddressOrderTest {
     )
   }
 
-  @Test fun ipv6Only() {
+  @Test
+  fun ipv6Only() {
     val result = reorderForHappyEyeballs(listOf(ipv6_ab, ipv6_fc))
 
     assertThat(result).isEqualTo(
@@ -55,7 +63,8 @@ class InetAddressOrderTest {
     )
   }
 
-  @Test fun ipv4Only() {
+  @Test
+  fun ipv4Only() {
     val result =
       reorderForHappyEyeballs(
         listOf(
@@ -70,7 +79,8 @@ class InetAddressOrderTest {
     )
   }
 
-  @Test fun singleIpv6() {
+  @Test
+  fun singleIpv6() {
     val result = reorderForHappyEyeballs(listOf(ipv6_ab))
 
     assertThat(result).isEqualTo(
@@ -78,7 +88,8 @@ class InetAddressOrderTest {
     )
   }
 
-  @Test fun singleIpv4() {
+  @Test
+  fun singleIpv4() {
     val result = reorderForHappyEyeballs(listOf(ipv4_10_0_0_6))
 
     assertThat(result).isEqualTo(
@@ -86,11 +97,17 @@ class InetAddressOrderTest {
     )
   }
 
-  @Test fun prioritiseIpv6() {
+  @Test
+  fun prioritiseIpv6() {
     val result = reorderForHappyEyeballs(listOf(ipv4_10_0_0_6, ipv6_ab))
 
     assertThat(result).isEqualTo(
       listOf(ipv6_ab, ipv4_10_0_0_6),
     )
   }
+
+  private fun route(inetAddress: InetAddress): Route =
+    factory.newRoute(
+      socketAddress = InetSocketAddress(inetAddress, 443),
+    )
 }
