@@ -294,5 +294,24 @@ fun interface Interceptor {
     fun withConnectionPool(connectionPool: ConnectionPool): Chain
 
     val eventListener: EventListener
+
+    /**
+     * Returns an immutable list of the application interceptors that follow this interceptor in the
+     * chain.
+     *
+     * Returns an empty list if this is the last application interceptor or if this is a network
+     * interceptor.
+     */
+    val interceptors: List<Interceptor>
+
+    /**
+     * Returns an immutable list of the network interceptors that follow this interceptor in the
+     * chain.
+     *
+     * For an application interceptor, this returns all network interceptors configured for the call
+     * (or an empty list for WebSocket calls). Returns an empty list if this is the last network
+     * interceptor.
+     */
+    val networkInterceptors: List<Interceptor>
   }
 }

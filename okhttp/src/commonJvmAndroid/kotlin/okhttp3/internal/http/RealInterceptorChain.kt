@@ -52,7 +52,7 @@ import okhttp3.internal.tls.CertificateChainCleaner
  */
 class RealInterceptorChain(
   internal val call: RealCall,
-  private val interceptors: List<Interceptor>,
+  private val chainInterceptors: List<Interceptor>,
   private val index: Int,
   internal val exchange: Exchange?,
   internal val request: Request,
@@ -74,6 +74,7 @@ class RealInterceptorChain(
   override val sslSocketFactoryOrNull: SSLSocketFactory?,
   override val x509TrustManagerOrNull: X509TrustManager?,
   val certificateChainCleaner: CertificateChainCleaner?,
+  private val networkInterceptorsStart: Int = 0,
 ) : Interceptor.Chain {
   internal constructor(
     call: RealCall,
@@ -82,9 +83,10 @@ class RealInterceptorChain(
     exchange: Nothing?,
     request: Request,
     client: OkHttpClient = call.client,
+    networkInterceptorsStart: Int = 0,
   ) : this(
     call = call,
-    interceptors = interceptors,
+    chainInterceptors = interceptors,
     index = index,
     exchange = exchange,
     request = request,
@@ -106,6 +108,7 @@ class RealInterceptorChain(
     sslSocketFactoryOrNull = client.sslSocketFactoryOrNull,
     x509TrustManagerOrNull = client.x509TrustManager,
     certificateChainCleaner = client.certificateChainCleaner,
+    networkInterceptorsStart = networkInterceptorsStart,
   )
 
   private var calls: Int = 0
@@ -134,7 +137,7 @@ class RealInterceptorChain(
     certificateChainCleaner: CertificateChainCleaner? = this.certificateChainCleaner,
   ) = RealInterceptorChain(
     call = call,
-    interceptors = interceptors,
+    chainInterceptors = chainInterceptors,
     index = index,
     exchange = exchange,
     request = request,
@@ -156,6 +159,7 @@ class RealInterceptorChain(
     sslSocketFactoryOrNull = sslSocketFactory,
     x509TrustManagerOrNull = x509TrustManager,
     certificateChainCleaner = certificateChainCleaner,
+    networkInterceptorsStart = networkInterceptorsStart,
   )
 
   override val eventListener: EventListener
@@ -166,6 +170,24 @@ class RealInterceptorChain(
 
   override val followRedirects: Boolean
     get() = call.client.followRedirects
+
+  override val interceptors: List<Interceptor>
+    get() {
+      if (exchange != null || chainInterceptors.isEmpty()) return emptyList()
+      val clientInterceptors = call.client.interceptors
+      if (index >= clientInterceptors.size) return emptyList()
+      return clientInterceptors.subList(index, clientInterceptors.size)
+    }
+
+  override val networkInterceptors: List<Interceptor>
+    get() {
+      if (call.forWebSocket || chainInterceptors.isEmpty()) return emptyList()
+      val clientNetworkInterceptors = call.client.networkInterceptors
+      if (exchange == null) return clientNetworkInterceptors
+      val networkIndex = index - networkInterceptorsStart
+      if (networkIndex >= clientNetworkInterceptors.size) return emptyList()
+      return clientNetworkInterceptors.subList(maxOf(0, networkIndex), clientNetworkInterceptors.size)
+    }
 
   override fun connection(): Connection? = exchange?.connection
 
@@ -310,22 +332,22 @@ class RealInterceptorChain(
 
   @Throws(IOException::class)
   override fun proceed(request: Request): Response {
-    check(index < interceptors.size)
+    check(index < chainInterceptors.size)
 
     calls++
 
     if (exchange != null) {
       check(exchange.finder.routePlanner.sameHostAndPort(request.url)) {
-        "network interceptor ${interceptors[index - 1]} must retain the same host and port"
+        "network interceptor ${chainInterceptors[index - 1]} must retain the same host and port"
       }
       check(calls == 1) {
-        "network interceptor ${interceptors[index - 1]} must call proceed() exactly once"
+        "network interceptor ${chainInterceptors[index - 1]} must call proceed() exactly once"
       }
     }
 
     // Call the next interceptor in the chain.
     val next = copy(index = index + 1, request = request)
-    val interceptor = interceptors[index]
+    val interceptor = chainInterceptors[index]
 
     @Suppress("USELESS_ELVIS")
     val response =
@@ -334,7 +356,7 @@ class RealInterceptorChain(
       )
 
     if (exchange != null) {
-      check(index + 1 >= interceptors.size || next.calls == 1) {
+      check(index + 1 >= chainInterceptors.size || next.calls == 1) {
         "network interceptor $interceptor must call proceed() exactly once"
       }
     }
