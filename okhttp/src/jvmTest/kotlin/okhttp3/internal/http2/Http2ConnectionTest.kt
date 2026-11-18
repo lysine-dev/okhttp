@@ -542,6 +542,32 @@ class Http2ConnectionTest {
       }
     assertThat(expected).isNotInstanceOf(StreamResetException::class.java)
   }
+  /**
+   * When the connection fails because the peer never answers a ping, the peer is told with a
+   * `GOAWAY` frame, as long as the socket can still carry it.
+   */
+  @Test fun missingPongSendsGoAwayToPeer() {
+    peer.sendFrame().settings(Settings())
+    peer.acceptFrame() // ACK
+    peer.acceptFrame() // PING
+    peer.acceptFrame() // GOAWAY
+    peer.play()
+    val connection =
+      Http2Connection
+        .Builder(true, TaskRunner.INSTANCE)
+        .socket(peer.openSocket().asBufferedSocket(), "peer")
+        .pushObserver(IGNORE)
+        .pingIntervalMillis(50)
+        .build()
+    connection.start(sendConnectionPreface = false)
+    assertThat(peer.takeFrame().type).isEqualTo(Http2.TYPE_SETTINGS)
+    assertThat(peer.takeFrame().type).isEqualTo(Http2.TYPE_PING)
+
+    // The peer never answers the ping, so the next interval fails the connection.
+    val goAway = peer.takeFrame()
+    assertThat(goAway.type).isEqualTo(Http2.TYPE_GOAWAY)
+    assertThat(goAway.errorCode).isEqualTo(ErrorCode.PROTOCOL_ERROR)
+  }
 
   @Test fun clientCreatesStreamAndServerReplies() {
     // Write the mocking script.
