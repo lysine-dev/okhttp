@@ -123,10 +123,10 @@ Releases
 
 Our [change log][changelog] has release history.
 
-The latest release is available on [Maven Central](https://search.maven.org/artifact/com.squareup.okhttp3/okhttp/5.5.0/jar).
+The latest release is available on [Maven Central](https://search.maven.org/artifact/com.squareup.okhttp3/okhttp/5.5.1/jar).
 
 ```kotlin
-implementation("com.squareup.okhttp3:okhttp:5.5.0")
+implementation("com.squareup.okhttp3:okhttp:5.5.1")
 ```
 
 Snapshot builds are [available][snap]. [R8 and ProGuard][r8_proguard] rules are available.
@@ -136,7 +136,7 @@ Also, we have a [bill of materials (BOM)][bom] available to help you keep OkHttp
 ```kotlin
     dependencies {
        // define a BOM and its version
-       implementation(platform("com.squareup.okhttp3:okhttp-bom:5.5.0"))
+       implementation(platform("com.squareup.okhttp3:okhttp-bom:5.5.1"))
 
        // define any required OkHttp artifacts without version
        implementation("com.squareup.okhttp3:okhttp")
@@ -191,10 +191,10 @@ MockWebServer
 
 OkHttp includes a library for testing HTTP, HTTPS, and HTTP/2 clients.
 
-The latest release is available on [Maven Central](https://search.maven.org/artifact/com.squareup.okhttp3/mockwebserver/5.5.0/jar).
+The latest release is available on [Maven Central](https://search.maven.org/artifact/com.squareup.okhttp3/mockwebserver/5.5.1/jar).
 
 ```kotlin
-testImplementation("com.squareup.okhttp3:mockwebserver3:5.5.0")
+testImplementation("com.squareup.okhttp3:mockwebserver3:5.5.1")
 ```
 
 MockWebServer is used for firstly for internal testing, and for basic testing of apps using OkHttp client.

@@ -1,6 +1,16 @@
 Change Log
 ==========
 
+## Version 5.5.1
+
+_2026_10_22_
+
+*  Fix: [Block 8 compromised eMudhra intermediate certificates][Mozilla_eMudhra]. Note that this
+   update is not necessary for Android devices with Google Play Services as Google has issued an
+   [automatic update][Google_eMudhra]. This change protects JVMs and AOSP devices that are exposed
+   to the compromised certificates.
+
+
 ## Version 5.5.0
 
 _2026-08-16_
@@ -827,12 +837,14 @@ release is the version name.
 See [4.x Change log](https://lysine.dev/okhttp/changelogs/changelog_4x/) for the legacy version changelogs.
 
 [Encrypted Client Hello (ECH)]: https://www.rfc-editor.org/info/rfc9849/
+[Google_eMudhra]: https://blog.google/security/protecting-chrome-and-android-users-from-compromised-emudhra-intermediate-ca-certificates/
 [GraalVM]: https://www.graalvm.org/
 [Gradle module metadata]: https://docs.gradle.org/current/userguide/publishing_gradle_module_metadata.html
 [HTTP 101]: https://www.rfc-editor.org/info/rfc9110/#section-15.2.2
 [HTTPS resource record]: https://www.rfc-editor.org/info/rfc9460/
 [JPMS]: https://openjdk.org/projects/jigsaw/spec/
 [Ktor]: https://ktor.io/
+[Mozilla_eMudhra]: https://groups.google.com/a/mozilla.org/g/dev-security-policy/c/0R3XLJL6FuE/m/0XofdebrAAAJ?pli=1
 [Okio]: https://lysine.dev/okio/
 [RFC 1008]: https://www.rfc-editor.org/info/rfc10008/
 [RFC 8305]: https://www.rfc-editor.org/info/rfc8305/
