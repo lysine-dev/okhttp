@@ -31,6 +31,7 @@ import java.io.IOException
 import java.io.InterruptedIOException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.assertFailsWith
 import okhttp3.Headers
@@ -44,10 +45,12 @@ import okhttp3.internal.concurrent.TaskRunner
 import okhttp3.internal.concurrent.notifyAll
 import okhttp3.internal.concurrent.wait
 import okhttp3.internal.concurrent.withLock
+import okhttp3.internal.connection.BufferedSocket
 import okhttp3.internal.connection.asBufferedSocket
 import okio.AsyncTimeout
 import okio.Buffer
 import okio.BufferedSource
+import okio.ForwardingSink
 import okio.Source
 import okio.buffer
 import org.junit.jupiter.api.AfterEach
@@ -511,6 +514,7 @@ class Http2ConnectionTest {
       connection.newStream(headerEntries("b", longString), false)
     }
   }
+
   /**
    * When a write fails with an IOException, a stream that is waiting on the connection must
    * surface that very exception. A StreamResetException would hide the actual cause of the
@@ -542,6 +546,7 @@ class Http2ConnectionTest {
       }
     assertThat(expected).isNotInstanceOf(StreamResetException::class.java)
   }
+
   /**
    * When the connection fails because the peer never answers a ping, the peer is told with a
    * `GOAWAY` frame, as long as the socket can still carry it.
@@ -567,6 +572,57 @@ class Http2ConnectionTest {
     val goAway = peer.takeFrame()
     assertThat(goAway.type).isEqualTo(Http2.TYPE_GOAWAY)
     assertThat(goAway.errorCode).isEqualTo(ErrorCode.PROTOCOL_ERROR)
+  }
+
+  /**
+   * A frame write that blocks on a half-open socket holds the writer lock. The ping interval must
+   * still notice the missing pong and fail the connection, which SHOULD unblock the stuck write.
+   */
+  @Test fun missingPongUnblocksWriteStuckOnHalfOpenSocket() {
+    peer.sendFrame().settings(Settings())
+    peer.acceptFrame() // ACK
+    peer.play()
+    val realSocket = peer.openSocket().asBufferedSocket()
+    val halfOpen = AtomicBoolean()
+    val cancelled = CountDownLatch(1)
+    val socket =
+      object : BufferedSocket {
+        override val source = realSocket.source
+        override val sink =
+          object : ForwardingSink(realSocket.sink) {
+            override fun write(
+              source: Buffer,
+              byteCount: Long,
+            ) {
+              if (halfOpen.get()) {
+                cancelled.await()
+                throw IOException("socket cancelled")
+              }
+              super.write(source, byteCount)
+            }
+          }.buffer()
+
+        override fun cancel() {
+          realSocket.cancel()
+          cancelled.countDown()
+        }
+      }
+    val connection =
+      Http2Connection
+        .Builder(true, TaskRunner.INSTANCE)
+        .socket(socket, "peer")
+        .pushObserver(IGNORE)
+        .pingIntervalMillis(50)
+        .build()
+    connection.start(sendConnectionPreface = false)
+    assertThat(peer.takeFrame().type).isEqualTo(Http2.TYPE_SETTINGS)
+
+    // The socket accepts no more bytes and never answers, so this write blocks forever, unless the
+    // connection is failed.
+    halfOpen.set(true)
+    assertFailsWith<IOException> {
+      connection.newStream(headerEntries("b", "banana"), false)
+    }
   }
 
   @Test fun clientCreatesStreamAndServerReplies() {
