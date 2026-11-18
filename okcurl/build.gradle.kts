@@ -16,13 +16,13 @@ plugins {
   id("com.gradleup.shadow")
 }
 
-tasks.withType<KotlinCompile> {
+tasks.withType<KotlinCompile>().configureEach {
   compilerOptions {
     jvmTarget.set(JvmTarget.JVM_17)
   }
 }
 
-tasks.withType<JavaCompile> {
+tasks.withType<JavaCompile>().configureEach {
   sourceCompatibility = JvmTarget.JVM_17.target
   targetCompatibility = JvmTarget.JVM_17.target
 }
@@ -73,7 +73,7 @@ tasks.shadowJar {
   mergeServiceFiles()
 }
 
-tasks.withType<Test> {
+tasks.withType<Test>().configureEach {
   val javaVersion = project.testJavaVersion
   onlyIf("native build requires Java 17") {
     javaVersion > 17

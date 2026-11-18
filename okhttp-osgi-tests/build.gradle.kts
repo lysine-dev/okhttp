@@ -66,7 +66,7 @@ dependencies {
   osgiTestDeploy(libs.kotlin.stdlib.osgi)
 }
 
-tasks.withType<Test> {
+tasks.withType<Test>().configureEach {
   dependsOn(copyOsgiTestDeployment)
   val javaVersion = project.testJavaVersion
   onlyIf("Tests require JDK 17") {

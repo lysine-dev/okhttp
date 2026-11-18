@@ -58,7 +58,7 @@ tasks.register("downloadDependencies") {
   }
 }
 
-tasks.withType<KotlinCompile> {
+tasks.withType<KotlinCompile>().configureEach {
   compilerOptions {
     optIn.add("okhttp3.internal.OkHttpInternalApi")
   }
