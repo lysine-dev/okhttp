@@ -512,7 +512,7 @@ class Http2Connection internal constructor(
         if (streams.isNotEmpty()) streams.values.toTypedArray() else null
       }
     streamsToClose?.forEach { stream ->
-      stream.closeLater(ErrorCode.PROTOCOL_ERROR)
+      stream.closeLater(ErrorCode.PROTOCOL_ERROR, e)
     }
     ignoreIoExceptions {
       socket.cancel()

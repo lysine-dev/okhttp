@@ -256,9 +256,13 @@ class Http2Stream internal constructor(
 
   /**
    * Abnormally terminate this stream. This enqueues a `RST_STREAM` frame and returns immediately.
+   * When not null, [errorException] is what callers blocked on this stream will throw.
    */
-  fun closeLater(errorCode: ErrorCode) {
-    if (!closeInternal(errorCode, null)) {
+  fun closeLater(
+    errorCode: ErrorCode,
+    errorException: IOException? = null,
+  ) {
+    if (!closeInternal(errorCode, errorException)) {
       return // Already closed.
     }
     connection.writeSynResetLater(id, errorCode)

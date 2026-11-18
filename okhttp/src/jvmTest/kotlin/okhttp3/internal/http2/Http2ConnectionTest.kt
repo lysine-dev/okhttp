@@ -23,6 +23,7 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
 import assertk.assertions.isGreaterThan
 import assertk.assertions.isLessThan
+import assertk.assertions.isNotInstanceOf
 import assertk.assertions.isNull
 import assertk.assertions.isTrue
 import java.io.EOFException
@@ -509,6 +510,37 @@ class Http2ConnectionTest {
     assertFailsWith<IOException> {
       connection.newStream(headerEntries("b", longString), false)
     }
+  }
+  /**
+   * When a write fails with an IOException, a stream that is waiting on the connection must
+   * surface that very exception. A StreamResetException would hide the actual cause of the
+   * failure.
+   */
+  @Test fun failedWriteSurfacesCauseToWaitingStream() {
+    peer.sendFrame().settings(Settings())
+    peer.acceptFrame() // ACK
+    peer.acceptFrame() // SYN_STREAM
+    peer.play()
+    val socket = peer.openSocket()
+    val connection =
+      Http2Connection
+        .Builder(true, TaskRunner.INSTANCE)
+        .socket(socket.asBufferedSocket(), "peer")
+        .pushObserver(IGNORE)
+        .build()
+    connection.start(sendConnectionPreface = false)
+    assertThat(peer.takeFrame().type).isEqualTo(Http2.TYPE_SETTINGS)
+    val stream = connection.newStream(headerEntries("b", "banana"), false)
+
+    // The next write fails with an IOException, which then fails the connection.
+    socket.shutdownOutput()
+    connection.writePing(false, 1, 2)
+
+    val expected =
+      assertFailsWith<IOException> {
+        stream.takeHeaders()
+      }
+    assertThat(expected).isNotInstanceOf(StreamResetException::class.java)
   }
 
   @Test fun clientCreatesStreamAndServerReplies() {
