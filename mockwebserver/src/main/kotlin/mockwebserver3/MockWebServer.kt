@@ -427,8 +427,13 @@ public class MockWebServer : Closeable {
         SocketHandler(connectionIndex, raw, firstExchangePeek).handle()
       } catch (e: IOException) {
         logger.fine("$this connection from ${raw.inetAddress} failed: $e")
+        raw.closeQuietly()
       } catch (e: Exception) {
         logger.log(Level.SEVERE, "$this connection from ${raw.inetAddress} crashed", e)
+        raw.closeQuietly()
+      } catch (e: Error) {
+        raw.closeQuietly()
+        throw e
       }
     }
   }

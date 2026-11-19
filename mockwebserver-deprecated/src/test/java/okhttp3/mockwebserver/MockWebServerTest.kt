@@ -24,8 +24,8 @@ import assertk.assertions.isCloseTo
 import assertk.assertions.isEqualTo
 import assertk.assertions.isGreaterThan
 import assertk.assertions.isGreaterThanOrEqualTo
-import assertk.assertions.isInstanceOf
 import assertk.assertions.isNotEqualTo
+import assertk.assertions.isNotInstanceOf
 import assertk.assertions.isNotNull
 import assertk.assertions.isNull
 import assertk.assertions.isTrue
@@ -692,9 +692,8 @@ class MockWebServerTest {
 
     val connection = server.url("/").toUrl().openConnection() as HttpURLConnection
     connection.readTimeout = 5_000
-    // FIXME: This should not fail with a SocketTimeoutException
     assertFailure { connection.responseCode }
-      .isInstanceOf<SocketTimeoutException>()
+      .isNotInstanceOf<SocketTimeoutException>()
   }
 
   @Test
@@ -706,8 +705,7 @@ class MockWebServerTest {
 
     val connection = server.url("/").toUrl().openConnection() as HttpURLConnection
     connection.readTimeout = 5_000
-    // FIXME: This should not fail with a SocketTimeoutException
     assertFailure { connection.responseCode }
-      .isInstanceOf<SocketTimeoutException>()
+      .isNotInstanceOf<SocketTimeoutException>()
   }
 }
