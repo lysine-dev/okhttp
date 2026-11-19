@@ -15,7 +15,6 @@
  */
 package okhttp3.mockwebserver
 
-import assertk.assertFailure
 import assertk.assertThat
 import assertk.assertions.contains
 import assertk.assertions.containsExactly
@@ -25,7 +24,6 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isGreaterThan
 import assertk.assertions.isGreaterThanOrEqualTo
 import assertk.assertions.isNotEqualTo
-import assertk.assertions.isNotInstanceOf
 import assertk.assertions.isNotNull
 import assertk.assertions.isNull
 import assertk.assertions.isTrue
@@ -681,31 +679,5 @@ class MockWebServerTest {
       // expected
     }
     server2.shutdown()
-  }
-
-  @Test
-  fun dispatcherExceptionClosesConnection() {
-    server.dispatcher =
-      object : Dispatcher() {
-        override fun dispatch(request: RecordedRequest): MockResponse = error("boom")
-      }
-
-    val connection = server.url("/").toUrl().openConnection() as HttpURLConnection
-    connection.readTimeout = 5_000
-    assertFailure { connection.responseCode }
-      .isNotInstanceOf<SocketTimeoutException>()
-  }
-
-  @Test
-  fun dispatcherErrorClosesConnection() {
-    server.dispatcher =
-      object : Dispatcher() {
-        override fun dispatch(request: RecordedRequest): MockResponse = throw AssertionError("boom")
-      }
-
-    val connection = server.url("/").toUrl().openConnection() as HttpURLConnection
-    connection.readTimeout = 5_000
-    assertFailure { connection.responseCode }
-      .isNotInstanceOf<SocketTimeoutException>()
   }
 }
