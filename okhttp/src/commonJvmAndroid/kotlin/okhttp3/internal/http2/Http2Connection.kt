@@ -85,6 +85,19 @@ class Http2Connection internal constructor(
   /** Asynchronously writes frames to the outgoing socket. */
   private val writerQueue = taskRunner.newQueue()
 
+  /**
+   * Runs the periodic pingInterval watchdog. Separate from [writerQueue] so missing-pong detection
+   * still fires when the writer is wedged on a frame write to a half-open connection.
+   */
+  private val pingQueue = taskRunner.newQueue()
+
+  /**
+   * Runs the fallback that cancels the socket when a failed connection could not be closed
+   * gracefully. Separate from [pingQueue] and [writerQueue] because the thread that fails the
+   * connection can be one of their threads, and it blocks while it waits for the writer.
+   */
+  private val cancelQueue = taskRunner.newQueue()
+
   /** Ensures push promise callbacks events are sent in order per stream. */
   private val pushQueue = taskRunner.newQueue()
 
@@ -147,7 +160,7 @@ class Http2Connection internal constructor(
   init {
     if (builder.pingIntervalMillis != 0) {
       val pingIntervalNanos = TimeUnit.MILLISECONDS.toNanos(builder.pingIntervalMillis.toLong())
-      writerQueue.schedule("$connectionName ping", pingIntervalNanos) {
+      pingQueue.schedule("$connectionName ping", pingIntervalNanos) {
         val failDueToMissingPong =
           withLock {
             if (intervalPongsReceived < intervalPingsSent) {
@@ -161,7 +174,12 @@ class Http2Connection internal constructor(
           failConnection(null)
           return@schedule -1L
         } else {
-          writePing(false, INTERVAL_PING, 0)
+          // Fire-and-forget the ping write so the watchdog returns promptly. If writer.lock is
+          // held by a wedged frame write, the ping queues behind it; the next tick sees
+          // pongs < pings and fails the connection, which cancels the socket and unblocks the writer.
+          writerQueue.execute("$connectionName ping write") {
+            writePing(false, INTERVAL_PING, 0)
+          }
           return@schedule pingIntervalNanos
         }
       }
@@ -481,11 +499,41 @@ class Http2Connection internal constructor(
 
     // Release the threads.
     writerQueue.shutdown()
+    pingQueue.shutdown()
+    cancelQueue.shutdown()
     pushQueue.shutdown()
     settingsListenerQueue.shutdown()
   }
 
   private fun failConnection(e: IOException?) {
+    // Mark active streams with PROTOCOL_ERROR before the socket is cancelled so the caller surfaces
+    // StreamResetException(PROTOCOL_ERROR), or [e], on its waiting read or write.
+    //
+    // Note that if we cancel first: the reader thread's blocked socket read returns SocketException,
+    // which can reach the caller before close() -> stream.close() sets errorCode in Http2Stream.closeInternal.
+    //
+    // We use closeLater() (which enqueues RST_STREAM via writerQueue) rather than close(): the latter
+    // writes RST_STREAM synchronously under writer.lock, and that lock is already held by the
+    // frame write that's blocked on the half-open socket. See pingQueue.
+    val streamsToClose: Array<Http2Stream>? =
+      withLock {
+        if (streams.isNotEmpty()) streams.values.toTypedArray() else null
+      }
+    streamsToClose?.forEach { stream ->
+      stream.closeLater(ErrorCode.PROTOCOL_ERROR, e)
+    }
+
+    // close() sends the peer a GOAWAY frame, and it does so while holding writer.lock. If another
+    // thread is blocked writing to a half-open socket, that thread holds the lock and the GOAWAY
+    // cannot be sent. So arrange for the socket to be cancelled after a short delay: the blocked
+    // write then fails and releases the lock. If close() finishes first, it shuts down cancelQueue
+    // and the cancel never runs.
+    cancelQueue.schedule("$connectionName cancel socket", FAIL_CONNECTION_CANCEL_DELAY_NS) {
+      ignoreIoExceptions {
+        socket.cancel()
+      }
+      return@schedule -1L
+    }
     close(ErrorCode.PROTOCOL_ERROR, ErrorCode.PROTOCOL_ERROR, e)
   }
 
@@ -1050,5 +1098,6 @@ class Http2Connection internal constructor(
     const val DEGRADED_PING = 2
     const val AWAIT_PING = 3
     const val DEGRADED_PONG_TIMEOUT_NS = 1_000_000_000 // 1 second.
+    const val FAIL_CONNECTION_CANCEL_DELAY_NS = 500_000_000L // 0.5 seconds.
   }
 }
