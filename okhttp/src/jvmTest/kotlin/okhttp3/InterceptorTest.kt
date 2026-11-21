@@ -18,6 +18,7 @@ package okhttp3
 import assertk.assertThat
 import assertk.assertions.contains
 import assertk.assertions.containsExactly
+import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
 import assertk.assertions.isNotNull
@@ -28,6 +29,7 @@ import java.io.IOException
 import java.net.SocketTimeoutException
 import java.time.Duration
 import java.util.concurrent.BlockingQueue
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.SynchronousQueue
 import java.util.concurrent.ThreadPoolExecutor
@@ -910,6 +912,256 @@ class InterceptorTest {
     sink.writeUtf8(data)
     sink.close()
     return result
+  }
+
+  @Test
+  fun chainInterceptorsAccessorsInApplicationInterceptors() {
+    server.enqueue(MockResponse.Builder().body("ok").build())
+
+    lateinit var app1: Interceptor
+    lateinit var app2: Interceptor
+    lateinit var app3: Interceptor
+    lateinit var net1: Interceptor
+    lateinit var net2: Interceptor
+
+    app1 =
+      Interceptor { chain ->
+        assertThat(chain.interceptors).containsExactly(app2, app3)
+        assertThat(chain.networkInterceptors).containsExactly(net1, net2)
+        val response = chain.proceed(chain.request())
+        assertThat(chain.interceptors).containsExactly(app2, app3)
+        assertThat(chain.networkInterceptors).containsExactly(net1, net2)
+        response
+      }
+    app2 =
+      Interceptor { chain ->
+        assertThat(chain.interceptors).containsExactly(app3)
+        assertThat(chain.networkInterceptors).containsExactly(net1, net2)
+        chain.proceed(chain.request())
+      }
+    app3 =
+      Interceptor { chain ->
+        assertThat(chain.interceptors).isEmpty()
+        assertThat(chain.networkInterceptors).containsExactly(net1, net2)
+        chain.proceed(chain.request())
+      }
+    net1 =
+      Interceptor { chain ->
+        chain.proceed(chain.request())
+      }
+    net2 =
+      Interceptor { chain ->
+        chain.proceed(chain.request())
+      }
+
+    client =
+      client
+        .newBuilder()
+        .addInterceptor(app1)
+        .addInterceptor(app2)
+        .addInterceptor(app3)
+        .addNetworkInterceptor(net1)
+        .addNetworkInterceptor(net2)
+        .build()
+
+    val response = client.newCall(Request.Builder().url(server.url("/")).build()).execute()
+    assertThat(response.body.string()).isEqualTo("ok")
+  }
+
+  @Test
+  fun chainInterceptorsAccessorsInNetworkInterceptors() {
+    server.enqueue(MockResponse.Builder().body("ok").build())
+
+    lateinit var app: Interceptor
+    lateinit var net1: Interceptor
+    lateinit var net2: Interceptor
+    lateinit var net3: Interceptor
+
+    app =
+      Interceptor { chain ->
+        chain.proceed(chain.request())
+      }
+    net1 =
+      Interceptor { chain ->
+        assertThat(chain.interceptors).isEmpty()
+        assertThat(chain.networkInterceptors).containsExactly(net2, net3)
+        chain.proceed(chain.request())
+      }
+    net2 =
+      Interceptor { chain ->
+        assertThat(chain.interceptors).isEmpty()
+        assertThat(chain.networkInterceptors).containsExactly(net3)
+        chain.proceed(chain.request())
+      }
+    net3 =
+      Interceptor { chain ->
+        assertThat(chain.interceptors).isEmpty()
+        assertThat(chain.networkInterceptors).isEmpty()
+        chain.proceed(chain.request())
+      }
+
+    client =
+      client
+        .newBuilder()
+        .addInterceptor(app)
+        .addNetworkInterceptor(net1)
+        .addNetworkInterceptor(net2)
+        .addNetworkInterceptor(net3)
+        .build()
+
+    val response = client.newCall(Request.Builder().url(server.url("/")).build()).execute()
+    assertThat(response.body.string()).isEqualTo("ok")
+  }
+
+  @Test
+  fun chainInterceptorsAccessorsWithNoConfiguredInterceptors() {
+    server.enqueue(MockResponse.Builder().body("ok").build())
+
+    val netInterceptor =
+      Interceptor { chain ->
+        assertThat(chain.interceptors).isEmpty()
+        assertThat(chain.networkInterceptors).isEmpty()
+        chain.proceed(chain.request())
+      }
+
+    client =
+      client
+        .newBuilder()
+        .addNetworkInterceptor(netInterceptor)
+        .build()
+
+    val response = client.newCall(Request.Builder().url(server.url("/")).build()).execute()
+    assertThat(response.body.string()).isEqualTo("ok")
+  }
+
+  @Test
+  fun internalInterceptorsAreNeverExposed() {
+    server.enqueue(MockResponse.Builder().body("ok").build())
+
+    val appInterceptor =
+      Interceptor { chain ->
+        for (i in chain.interceptors) {
+          assertThat(i.javaClass.name.startsWith("okhttp3.internal.")).isFalse()
+        }
+        for (i in chain.networkInterceptors) {
+          assertThat(i.javaClass.name.startsWith("okhttp3.internal.")).isFalse()
+        }
+        chain.proceed(chain.request())
+      }
+
+    val netInterceptor =
+      Interceptor { chain ->
+        for (i in chain.interceptors) {
+          assertThat(i.javaClass.name.startsWith("okhttp3.internal.")).isFalse()
+        }
+        for (i in chain.networkInterceptors) {
+          assertThat(i.javaClass.name.startsWith("okhttp3.internal.")).isFalse()
+        }
+        chain.proceed(chain.request())
+      }
+
+    client =
+      client
+        .newBuilder()
+        .addInterceptor(appInterceptor)
+        .addNetworkInterceptor(netInterceptor)
+        .build()
+
+    val response = client.newCall(Request.Builder().url(server.url("/")).build()).execute()
+    assertThat(response.body.string()).isEqualTo("ok")
+  }
+
+  @Test
+  fun chainInterceptorsAccessorsInWebSocket() {
+    val latch = CountDownLatch(1)
+    var appInterceptorsSeen: List<Interceptor>? = null
+    var networkInterceptorsSeen: List<Interceptor>? = null
+
+    lateinit var app1: Interceptor
+    lateinit var app2: Interceptor
+
+    app1 =
+      Interceptor { chain ->
+        appInterceptorsSeen = chain.interceptors
+        networkInterceptorsSeen = chain.networkInterceptors
+        latch.countDown()
+        chain.proceed(chain.request())
+      }
+    app2 =
+      Interceptor { chain ->
+        chain.proceed(chain.request())
+      }
+    val net =
+      Interceptor { chain ->
+        chain.proceed(chain.request())
+      }
+
+    client =
+      client
+        .newBuilder()
+        .addInterceptor(app1)
+        .addInterceptor(app2)
+        .addNetworkInterceptor(net)
+        .build()
+
+    server.enqueue(
+      MockResponse
+        .Builder()
+        .code(101)
+        .setHeader("Upgrade", "websocket")
+        .setHeader("Connection", "Upgrade")
+        .setHeader("Sec-WebSocket-Accept", "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=")
+        .build(),
+    )
+
+    val listener = object : WebSocketListener() {}
+    val webSocket = client.newWebSocket(Request.Builder().url(server.url("/")).build(), listener)
+    try {
+      assertThat(latch.await(10, TimeUnit.SECONDS)).isTrue()
+      assertThat(appInterceptorsSeen).isNotNull().containsExactly(app2)
+      assertThat(networkInterceptorsSeen).isNotNull().isEmpty()
+    } finally {
+      webSocket.cancel()
+    }
+  }
+
+  @Test
+  fun chainInterceptorsListsAreImmutable() {
+    server.enqueue(MockResponse.Builder().body("ok").build())
+
+    val app1 =
+      Interceptor { chain ->
+        val dummyInterceptor = Interceptor { c -> c.proceed(c.request()) }
+        assertFailsWith<UnsupportedOperationException> {
+          (chain.interceptors as MutableList<Interceptor>).add(dummyInterceptor)
+        }
+        assertFailsWith<UnsupportedOperationException> {
+          (chain.networkInterceptors as MutableList<Interceptor>).add(dummyInterceptor)
+        }
+        chain.proceed(chain.request())
+      }
+    val net1 =
+      Interceptor { chain ->
+        val dummyInterceptor = Interceptor { c -> c.proceed(c.request()) }
+        assertFailsWith<UnsupportedOperationException> {
+          (chain.networkInterceptors as MutableList<Interceptor>).add(dummyInterceptor)
+        }
+        chain.proceed(chain.request())
+      }
+
+    client =
+      client
+        .newBuilder()
+        .addInterceptor(app1)
+        .addInterceptor(Interceptor { chain -> chain.proceed(chain.request()) })
+        .addInterceptor(Interceptor { chain -> chain.proceed(chain.request()) })
+        .addNetworkInterceptor(net1)
+        .addNetworkInterceptor(Interceptor { chain -> chain.proceed(chain.request()) })
+        .addNetworkInterceptor(Interceptor { chain -> chain.proceed(chain.request()) })
+        .build()
+
+    val response = client.newCall(Request.Builder().url(server.url("/")).build()).execute()
+    assertThat(response.body.string()).isEqualTo("ok")
   }
 
   private fun addInterceptor(
