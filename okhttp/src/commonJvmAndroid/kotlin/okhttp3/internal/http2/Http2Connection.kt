@@ -444,6 +444,10 @@ class Http2Connection internal constructor(
     close(ErrorCode.NO_ERROR, ErrorCode.CANCEL, null)
   }
 
+  internal fun cancel() {
+    socket.cancel()
+  }
+
   internal fun close(
     connectionCode: ErrorCode,
     streamCode: ErrorCode,
