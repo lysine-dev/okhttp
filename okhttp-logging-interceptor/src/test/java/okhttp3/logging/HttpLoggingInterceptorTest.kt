@@ -661,7 +661,7 @@ class HttpLoggingInterceptorTest {
     server.enqueue(
       MockResponse
         .Builder() // It's invalid to return this if not requested, but the server might anyway
-        .setHeader("Content-Encoding", "br")
+        .setHeader("Content-Encoding", "xyz")
         .setHeader("Content-Type", PLAIN)
         .body(Buffer().write("iwmASGVsbG8sIEhlbGxvLCBIZWxsbwoD".decodeBase64()!!))
         .build(),
@@ -676,7 +676,7 @@ class HttpLoggingInterceptorTest {
       .assertLogMatch(Regex("""User-Agent: okhttp/.+"""))
       .assertLogEqual("--> END GET")
       .assertLogMatch(Regex("""<-- 200 OK $url \(\d+ms\)"""))
-      .assertLogEqual("Content-Encoding: br")
+      .assertLogEqual("Content-Encoding: xyz")
       .assertLogEqual("Content-Type: text/plain; charset=utf-8")
       .assertLogMatch(Regex("""Content-Length: \d+"""))
       .assertLogEqual("<-- END HTTP (encoded body omitted)")
@@ -685,7 +685,7 @@ class HttpLoggingInterceptorTest {
       .assertLogEqual("--> GET $url")
       .assertLogEqual("--> END GET")
       .assertLogMatch(Regex("""<-- 200 OK $url \(\d+ms\)"""))
-      .assertLogEqual("Content-Encoding: br")
+      .assertLogEqual("Content-Encoding: xyz")
       .assertLogEqual("Content-Type: text/plain; charset=utf-8")
       .assertLogMatch(Regex("""Content-Length: \d+"""))
       .assertLogEqual("<-- END HTTP (encoded body omitted)")
