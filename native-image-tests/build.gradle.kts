@@ -9,13 +9,13 @@ plugins {
   id("okhttp.testing-conventions")
 }
 
-tasks.withType<KotlinCompile> {
+tasks.withType<KotlinCompile>().configureEach {
   compilerOptions {
     jvmTarget.set(JvmTarget.JVM_17)
   }
 }
 
-tasks.withType<JavaCompile> {
+tasks.withType<JavaCompile>().configureEach {
   sourceCompatibility = JvmTarget.JVM_17.target
   targetCompatibility = JvmTarget.JVM_17.target
 }
