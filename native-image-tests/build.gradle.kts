@@ -9,19 +9,19 @@ plugins {
   id("okhttp.testing-conventions")
 }
 
-tasks.withType<KotlinCompile> {
+tasks.withType<KotlinCompile>().configureEach {
   compilerOptions {
     jvmTarget.set(JvmTarget.JVM_17)
   }
 }
 
-tasks.withType<JavaCompile> {
+tasks.withType<JavaCompile>().configureEach {
   sourceCompatibility = JvmTarget.JVM_17.target
   targetCompatibility = JvmTarget.JVM_17.target
 }
 
 // TODO reenable other tests
-// https://github.com/square/okhttp/issues/8901
+// https://github.com/lysine-dev/okhttp/issues/8901
 // sourceSets {
 //  test {
 //    java.srcDirs(

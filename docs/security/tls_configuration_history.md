@@ -250,13 +250,13 @@ Cipher suites that are only available with TLSv1.3.
 
 Cipher suites that are [discouraged for use][http2_denylist] with HTTP/2. OkHttp includes them because better suites are not commonly available. For example, none of the better cipher suites listed above shipped with Android 4.4 or Java 7.
 
-[OkHttp30]: https://square.github.io/okhttp/changelog_3x/#version-300
-[OkHttp310]: https://square.github.io/okhttp/changelog_3x/#version-310
-[OkHttp311]: https://square.github.io/okhttp/changelog_3x/#version-320
-[OkHttp312]: https://square.github.io/okhttp/changelog_3x/#version-330
-[OkHttp313]: https://square.github.io/okhttp/changelog_3x/#version-340
-[OkHttp314]: https://square.github.io/okhttp/changelog_3x/#version-310
-[OkHttp35]: https://square.github.io/okhttp/changelog_3x/#version-350
+[OkHttp30]: https://lysine.dev/okhttp/changelog_3x/#version-300
+[OkHttp310]: https://lysine.dev/okhttp/changelog_3x/#version-310
+[OkHttp311]: https://lysine.dev/okhttp/changelog_3x/#version-320
+[OkHttp312]: https://lysine.dev/okhttp/changelog_3x/#version-330
+[OkHttp313]: https://lysine.dev/okhttp/changelog_3x/#version-340
+[OkHttp314]: https://lysine.dev/okhttp/changelog_3x/#version-310
+[OkHttp35]: https://lysine.dev/okhttp/changelog_3x/#version-350
 [chromium_change]: https://developers.google.com/web/updates/2016/12/chrome-56-deprecations#remove_cbc-mode_ecdsa_ciphers_in_tls
 [googlecloud_ssl_policy]: https://cloud.google.com/load-balancing/docs/ssl-policies-concepts
 [http2_denylist]: https://tools.ietf.org/html/rfc7540#appendix-A

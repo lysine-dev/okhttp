@@ -134,7 +134,7 @@ To visit all headers, use the `Headers` class which supports access by index.
 
       fun run() {
         val request = Request.Builder()
-            .url("https://api.github.com/repos/square/okhttp/issues")
+            .url("https://api.github.com/repos/lysine-dev/okhttp/issues")
             .header("User-Agent", "OkHttp Headers.java")
             .addHeader("Accept", "application/json; q=0.5")
             .addHeader("Accept", "application/vnd.github.v3+json")
@@ -156,7 +156,7 @@ To visit all headers, use the `Headers` class which supports access by index.
 
       public void run() throws Exception {
         Request request = new Request.Builder()
-            .url("https://api.github.com/repos/square/okhttp/issues")
+            .url("https://api.github.com/repos/lysine-dev/okhttp/issues")
             .header("User-Agent", "OkHttp Headers.java")
             .addHeader("Accept", "application/json; q=0.5")
             .addHeader("Accept", "application/vnd.github.v3+json")
@@ -237,7 +237,7 @@ Use an HTTP POST to send a request body to a service. This example posts a markd
 
 ### Post Streaming ([.kt][PostStreamingKotlin], [.java][PostStreamingJava])
 
-Here we `POST` a request body as a stream. The content of this request body is being generated as it's being written. This example streams directly into the [Okio](https://github.com/square/okio) buffered sink. Your programs may prefer an `OutputStream`, which you can get from `BufferedSink.outputStream()`.
+Here we `POST` a request body as a stream. The content of this request body is being generated as it's being written. This example streams directly into the [Okio](https://github.com/lysine-dev/okio) buffered sink. Your programs may prefer an `OutputStream`, which you can get from `BufferedSink.outputStream()`.
 
 === ":material-language-kotlin: Kotlin"
     ```kotlin
@@ -641,7 +641,7 @@ Response caching uses HTTP headers for all configuration. You can add request he
       }
     ```
 
-To prevent a response from using the cache, use [`CacheControl.FORCE_NETWORK`](https://square.github.io/okhttp/5.x/okhttp/okhttp3/-cache-control/-companion/-f-o-r-c-e_-n-e-t-w-o-r-k). To prevent it from using the network, use [`CacheControl.FORCE_CACHE`](https://square.github.io/okhttp/5.x/okhttp/okhttp3/-cache-control/-companion/-f-o-r-c-e_-c-a-c-h-e). Be warned: if you use `FORCE_CACHE` and the response requires the network, OkHttp will return a `504 Unsatisfiable Request` response.
+To prevent a response from using the cache, use [`CacheControl.FORCE_NETWORK`](https://lysine.dev/okhttp/5.x/okhttp/okhttp3/-cache-control/-companion/-f-o-r-c-e_-n-e-t-w-o-r-k). To prevent it from using the network, use [`CacheControl.FORCE_CACHE`](https://lysine.dev/okhttp/5.x/okhttp/okhttp3/-cache-control/-companion/-f-o-r-c-e_-c-a-c-h-e). Be warned: if you use `FORCE_CACHE` and the response requires the network, OkHttp will return a `504 Unsatisfiable Request` response.
 
 
 ### Canceling a Call ([.kt][CancelCallKotlin], [.java][CancelCallJava])
@@ -1151,33 +1151,33 @@ Upload a file to a server (for example, Imgur) and report progress as the reques
       }
     ```
 
- [SynchronousGetJava]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/SynchronousGet.java
- [SynchronousGetKotlin]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/SynchronousGet.kt
- [AsynchronousGetJava]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/AsynchronousGet.java
- [AsynchronousGetKotlin]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/AsynchronousGet.kt
- [AccessHeadersJava]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/AccessHeaders.java
- [AccessHeadersKotlin]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/AccessHeaders.kt
- [PostStringJava]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/PostString.java
- [PostStringKotlin]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/PostString.kt
- [PostStreamingJava]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/PostStreaming.java
- [PostStreamingKotlin]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/PostStreaming.kt
- [PostFileJava]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/PostFile.java
- [PostFileKotlin]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/PostFile.kt
- [PostFormJava]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/PostForm.java
- [PostFormKotlin]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/PostForm.kt
- [PostMultipartJava]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/PostMultipart.java
- [PostMultipartKotlin]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/PostMultipart.kt
- [ParseResponseWithMoshiJava]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/ParseResponseWithMoshi.java
- [ParseResponseWithMoshiKotlin]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/ParseResponseWithMoshi.kt
- [CacheResponseJava]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/CacheResponse.java
- [CacheResponseKotlin]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/CacheResponse.kt
- [CancelCallJava]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/CancelCall.java
- [CancelCallKotlin]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/CancelCall.kt
- [ConfigureTimeoutsJava]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/ConfigureTimeouts.java
- [ConfigureTimeoutsKotlin]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/ConfigureTimeouts.kt
- [PerCallSettingsJava]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/PerCallSettings.java
- [PerCallSettingsKotlin]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/PerCallSettings.kt
- [AuthenticateJava]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/Authenticate.java
- [AuthenticateKotlin]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/Authenticate.kt
- [UploadProgressJava]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/UploadProgress.java
- [UploadProgressKotlin]: https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/UploadProgress.kt
+ [SynchronousGetJava]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/SynchronousGet.java
+ [SynchronousGetKotlin]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/SynchronousGet.kt
+ [AsynchronousGetJava]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/AsynchronousGet.java
+ [AsynchronousGetKotlin]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/AsynchronousGet.kt
+ [AccessHeadersJava]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/AccessHeaders.java
+ [AccessHeadersKotlin]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/AccessHeaders.kt
+ [PostStringJava]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/PostString.java
+ [PostStringKotlin]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/PostString.kt
+ [PostStreamingJava]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/PostStreaming.java
+ [PostStreamingKotlin]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/PostStreaming.kt
+ [PostFileJava]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/PostFile.java
+ [PostFileKotlin]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/PostFile.kt
+ [PostFormJava]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/PostForm.java
+ [PostFormKotlin]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/PostForm.kt
+ [PostMultipartJava]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/PostMultipart.java
+ [PostMultipartKotlin]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/PostMultipart.kt
+ [ParseResponseWithMoshiJava]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/ParseResponseWithMoshi.java
+ [ParseResponseWithMoshiKotlin]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/ParseResponseWithMoshi.kt
+ [CacheResponseJava]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/CacheResponse.java
+ [CacheResponseKotlin]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/CacheResponse.kt
+ [CancelCallJava]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/CancelCall.java
+ [CancelCallKotlin]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/CancelCall.kt
+ [ConfigureTimeoutsJava]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/ConfigureTimeouts.java
+ [ConfigureTimeoutsKotlin]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/ConfigureTimeouts.kt
+ [PerCallSettingsJava]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/PerCallSettings.java
+ [PerCallSettingsKotlin]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/PerCallSettings.kt
+ [AuthenticateJava]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/Authenticate.java
+ [AuthenticateKotlin]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/Authenticate.kt
+ [UploadProgressJava]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/UploadProgress.java
+ [UploadProgressKotlin]: https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/kt/UploadProgress.kt

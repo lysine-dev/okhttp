@@ -36,6 +36,24 @@ class HpackTest {
   private val bytesOut = Buffer()
   private var hpackWriter: Hpack.Writer? = null
 
+  /**
+   * Each header list entry must account for the RFC 9113 section 6.5.2 per-entry overhead,
+   * including headers whose name and value are both empty. Otherwise a peer could flood
+   * zero-length literal header fields and grow the header list without ever exceeding
+   * [HEADER_LIMIT].
+   */
+  @Test
+  fun manyEmptyHeadersExceedByteLimit() {
+    repeat(8193) {
+      bytesIn.writeByte(0x00) // Literal Header Field without Indexing, new name.
+      bytesIn.writeByte(0x00) // Name length 0.
+      bytesIn.writeByte(0x00) // Value length 0.
+    }
+    assertFailsWith<IOException> {
+      hpackReader!!.readHeaders()
+    }
+  }
+
   @BeforeEach
   fun reset() {
     hpackReader = newReader(bytesIn)
@@ -375,7 +393,7 @@ class HpackTest {
     assertFailsWith<IOException> {
       hpackReader!!.readHeaders()
     }.also { expected ->
-      assertThat(expected.message).isEqualTo("Header index too large -2147483521")
+      assertThat(expected.message).isEqualTo("HPACK integer overflow")
     }
   }
 
@@ -413,8 +431,18 @@ class HpackTest {
     assertFailsWith<IOException> {
       hpackReader!!.readHeaders()
     }.also { expected ->
-      assertThat(expected.message)
-        .isEqualTo("Invalid dynamic table size update -2147483648")
+      assertThat(expected.message).isEqualTo("HPACK integer overflow")
+    }
+  }
+
+  @Test
+  fun dynamicTableSizeUpdateRejectsWrappedSmallPositive() {
+    bytesIn.writeByte(0x3f)
+    bytesIn.write("ffffffff8f00".decodeHex())
+    assertFailsWith<IOException> {
+      hpackReader!!.readHeaders()
+    }.also { expected ->
+      assertThat(expected.message).isEqualTo("HPACK integer overflow")
     }
   }
 
@@ -821,6 +849,38 @@ class HpackTest {
     assertBytes(31, 224, 255, 255, 255, 7)
     assertThat(newReader(byteStream(224, 255, 255, 255, 7)).readInt(31, 31))
       .isEqualTo(0x7fffffff)
+  }
+
+  @Test
+  fun overflowingValueRejected() {
+    assertFailsWith<IOException> {
+      newReader(Buffer().write("8080808008".decodeHex())).readInt(0xff, 0x7f)
+    }.also { expected ->
+      assertThat(expected.message).isEqualTo("HPACK integer overflow")
+    }
+  }
+
+  @Test
+  fun tooManyContinuationBytesRejected() {
+    assertFailsWith<IOException> {
+      newReader(Buffer().write("808080808001".decodeHex())).readInt(0x1f, 0x1f)
+    }.also { expected ->
+      assertThat(expected.message).isEqualTo("HPACK integer overflow")
+    }
+  }
+
+  @Test
+  fun stringLengthOverflowRejected() {
+    val source = Buffer()
+    source.writeByte(0x00)
+    source.writeByte(0x7f)
+    source.write("8080808008".decodeHex())
+
+    assertFailsWith<IOException> {
+      newReader(source).readHeaders()
+    }.also { expected ->
+      assertThat(expected.message).isEqualTo("HPACK integer overflow")
+    }
   }
 
   @Test
