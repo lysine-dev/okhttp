@@ -28,5 +28,5 @@ dependencies {
 
 animalsniffer {
   // InsecureExtendedTrustManager (API 24+)
-  ignore = listOf("javax.net.ssl.X509ExtendedTrustManager")
+  ignore("javax.net.ssl.X509ExtendedTrustManager")
 }

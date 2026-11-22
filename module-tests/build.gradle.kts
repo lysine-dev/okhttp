@@ -51,14 +51,14 @@ extraJavaModuleInfo {
 
 // Exclude dokka from all configurations
 // to attempt to avoid https://github.com/gradlex-org/extra-java-module-info/issues/221
-configurations.all {
+configurations.configureEach {
   exclude(group = "org.jetbrains.dokka")
 }
 
 
 val testJavaVersion = project.testJavaVersion
 
-tasks.withType<Test> {
+tasks.withType<Test>().configureEach {
   useJUnitPlatform()
 
   enabled = testJavaVersion > 8
