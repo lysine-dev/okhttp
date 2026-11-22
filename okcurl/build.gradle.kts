@@ -16,13 +16,13 @@ plugins {
   id("com.gradleup.shadow")
 }
 
-tasks.withType<KotlinCompile> {
+tasks.withType<KotlinCompile>().configureEach {
   compilerOptions {
     jvmTarget.set(JvmTarget.JVM_17)
   }
 }
 
-tasks.withType<JavaCompile> {
+tasks.withType<JavaCompile>().configureEach {
   sourceCompatibility = JvmTarget.JVM_17.target
   targetCompatibility = JvmTarget.JVM_17.target
 }
@@ -50,7 +50,7 @@ dependencies {
   testImplementation(projects.mockwebserver3Junit5)
   testImplementation(libs.junit)
   testImplementation(libs.assertk)
-  testImplementation(kotlin("test"))
+  testImplementation(libs.kotlin.junit5)
 }
 
 val jvmSignature = configurations.getByName("jvmSignature")
@@ -73,7 +73,7 @@ tasks.shadowJar {
   mergeServiceFiles()
 }
 
-tasks.withType<Test> {
+tasks.withType<Test>().configureEach {
   val javaVersion = project.testJavaVersion
   onlyIf("native build requires Java 17") {
     javaVersion > 17
@@ -96,7 +96,8 @@ configure<GraalVMExtension> {
       javaLauncher.set(
         javaToolchains.launcherFor {
           languageVersion.set(JavaLanguageVersion.of(25))
-          vendor.set(JvmVendorSpec.GRAAL_VM)
+          // Match any native-image capable JDK rather than JvmVendorSpec.GRAAL_VM
+          nativeImageCapable.set(true)
         },
       )
     }

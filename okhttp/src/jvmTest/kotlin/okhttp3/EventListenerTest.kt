@@ -1760,7 +1760,7 @@ class EventListenerTest(
    * the same delays make it back into the events.
    *
    * We've had bugs where we report an event when we request data rather than when the data actually
-   * arrives. https://github.com/square/okhttp/issues/5578
+   * arrives. https://github.com/lysine-dev/okhttp/issues/5578
    */
   private fun timeToFirstByte() {
     val applicationInterceptorDelay = 250L

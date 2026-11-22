@@ -1,7 +1,7 @@
+import com.gradleup.tapmoc.TapmocExtension
+import com.gradleup.tapmoc.configureKotlinCompatibility
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import tapmoc.TapmocExtension
-import tapmoc.configureKotlinCompatibility
 
 plugins {
   id("okhttp.base-conventions")
@@ -37,7 +37,7 @@ tasks.withType<JavaCompile> {
   }
 }
 
-tasks.withType<KotlinCompile> {
+tasks.withType<KotlinCompile>().configureEach {
   compilerOptions {
     jvmTarget.set(JvmTarget.JVM_1_8)
     freeCompilerArgs.addAll(

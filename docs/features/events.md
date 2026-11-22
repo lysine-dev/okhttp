@@ -8,11 +8,11 @@ Events allow you to capture metrics on your application’s HTTP calls. Use even
 
 ### EventListener
 
-Subclass [EventListener](https://square.github.io/okhttp/5.x/okhttp/okhttp3/-event-listener/) and override methods for the events you are interested in. In a successful HTTP call with no redirects or retries the sequence of events is described by this flow.
+Subclass [EventListener](https://lysine.dev/okhttp/5.x/okhttp/okhttp3/-event-listener/) and override methods for the events you are interested in. In a successful HTTP call with no redirects or retries the sequence of events is described by this flow.
 
 ![Events Diagram](../assets/images/events@2x.png)
 
-Here’s a [sample event listener](https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/PrintEventsNonConcurrent.java) that prints each event with a timestamp.
+Here’s a [sample event listener](https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/PrintEventsNonConcurrent.java) that prints each event with a timestamp.
 
 ```java
 class PrintingEventListener extends EventListener {
@@ -106,7 +106,7 @@ Notice how no connect events are fired for the second call. It reused the connec
 
 In the preceding example we used a field, `callStartNanos`, to track the elapsed time of each event. This is handy, but it won’t work if multiple calls are executing concurrently. To accommodate this, use a `Factory` to create a new `EventListener` instance for each `Call`. This allows each listener to keep call-specific state.
 
-This [sample factory](https://github.com/square/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/PrintEvents.java) creates a unique ID for each call and uses that ID to differentiate calls in log messages.
+This [sample factory](https://github.com/lysine-dev/okhttp/blob/master/samples/guide/src/main/java/okhttp3/recipes/PrintEvents.java) creates a unique ID for each call and uses that ID to differentiate calls in log messages.
 
 ```java
 class PrintingEventListener extends EventListener {

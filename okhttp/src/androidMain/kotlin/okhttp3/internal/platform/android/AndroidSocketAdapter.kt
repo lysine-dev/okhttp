@@ -22,6 +22,7 @@ import javax.net.ssl.SSLSocket
 import okhttp3.Protocol
 import okhttp3.internal.platform.AndroidPlatform
 import okhttp3.internal.platform.Platform
+import okio.ByteString
 
 /**
  * Modern reflection based SocketAdapter for Conscrypt class SSLSockets.
@@ -48,6 +49,7 @@ open class AndroidSocketAdapter(
     sslSocket: SSLSocket,
     hostname: String?,
     protocols: List<Protocol>,
+    echConfigList: ByteString?,
   ) {
     // No TLS extensions if the socket class is custom.
     if (matchesSocket(sslSocket)) {
@@ -86,7 +88,7 @@ open class AndroidSocketAdapter(
     } catch (e: IllegalAccessException) {
       throw AssertionError(e)
     } catch (e: InvocationTargetException) {
-      // https://github.com/square/okhttp/issues/5587
+      // https://github.com/lysine-dev/okhttp/issues/5587
       val cause = e.cause
       when {
         cause is NullPointerException && cause.message == "ssl == null" -> null

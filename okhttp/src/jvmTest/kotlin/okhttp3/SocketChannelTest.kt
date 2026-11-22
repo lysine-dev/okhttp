@@ -39,6 +39,7 @@ import okhttp3.Provider.CONSCRYPT
 import okhttp3.TlsExtensionMode.STANDARD
 import okhttp3.TlsVersion.TLS_1_2
 import okhttp3.TlsVersion.TLS_1_3
+import okhttp3.sockets.DelegatingSSLSocketFactory
 import okhttp3.testing.PlatformRule
 import okhttp3.tls.HandshakeCertificates
 import okhttp3.tls.HeldCertificate
@@ -110,7 +111,7 @@ class SocketChannelTest {
   }
 
   private fun testConnection(socketMode: SocketMode) {
-    // https://github.com/square/okhttp/pull/6554
+    // https://github.com/lysine-dev/okhttp/pull/6554
     assumeFalse(
       socketMode is TlsInstance &&
         socketMode.socketMode == Channel &&

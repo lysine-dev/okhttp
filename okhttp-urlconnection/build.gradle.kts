@@ -7,7 +7,7 @@ plugins {
 }
 
 project.applyOsgi(
-  "Fragment-Host: com.squareup.okhttp3; bundle-version=\"\${range;[==,+);\${version_cleanup;${projects.okhttp.version}}}\"",
+  $$"Fragment-Host: com.squareup.okhttp3; bundle-version=\"${range;[==,+);${version_cleanup;$${project.version}}}\"",
   "Bundle-SymbolicName: com.squareup.okhttp3.urlconnection",
   "-removeheaders: Private-Package",
 )
