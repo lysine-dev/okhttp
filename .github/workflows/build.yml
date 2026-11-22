@@ -140,7 +140,7 @@ jobs:
         uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
           distribution: 'zulu'
-          java-version: 8.0.242
+          java-version: 8.0.232
 
       - name: Configure JDK
         uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
@@ -158,6 +158,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'providers')
     strategy:
+      fail-fast: false
       matrix:
         include:
           - provider: openjsse
