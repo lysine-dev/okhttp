@@ -43,7 +43,7 @@ class InsecureHandshaker : Handshaker {
 
     // For more accuracy, we should pick the key type based on the cipher suite.
     // Also support BC alternative names
-    val keyTypes = listOf("EC", "EC_EC", "EC_RSA")
+    val keyTypes = listOf("EC", "ECDHE_ECDSA")
 
     val clientCertificates =
       when (server.clientAuth) {
