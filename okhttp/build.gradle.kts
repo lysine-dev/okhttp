@@ -103,6 +103,7 @@ kotlin {
 
     commonTest {
       dependencies {
+        implementation(projects.mockwebserver3Junit5)
         implementation(projects.okhttpTestingSupport)
         implementation(libs.assertk)
         implementation(libs.kotlin.test.annotations)
@@ -167,7 +168,6 @@ kotlin {
         implementation(projects.mockwebserver)
         implementation(projects.mockwebserver3)
         implementation(projects.mockwebserver3Junit4)
-        implementation(projects.mockwebserver3Junit5)
         implementation(projects.okhttpBrotli)
         implementation(projects.okhttpCoroutines)
         implementation(projects.okhttpDnsoverhttps)
@@ -211,7 +211,7 @@ if (platform == "jdk8alpn") {
         .detachedConfiguration(
           dependencies.create("org.mortbay.jetty.alpn:alpn-boot:$alpnBootVersion"),
         ).singleFile
-    tasks.withType<Test> {
+    tasks.withType<Test>().configureEach {
       jvmArgs("-Xbootclasspath/p:$alpnBootJar")
     }
   }
@@ -248,7 +248,7 @@ configure<AnimalSnifferExtension> {
   defaultTargets("jvmMain", "debug")
 }
 
-project.tasks.withType<AnimalSniffer> {
+project.tasks.withType<AnimalSniffer>().configureEach {
   if (targetName == "animalsnifferJvmMain") {
     animalsnifferSignatures = jvmSignature
   } else {
@@ -256,28 +256,18 @@ project.tasks.withType<AnimalSniffer> {
   }
 }
 
-afterEvaluate {
-  tasks.withType<Test> {
-    if (javaLauncher
-        .get()
-        .metadata.languageVersion
-        .asInt() < 9
-    ) {
-      // Work around robolectric requirements and limitations
-      // https://cs.android.com/android-studio/platform/tools/base/+/mirror-goog-studio-main:build-system/gradle-core/src/main/java/com/android/build/gradle/tasks/factory/AndroidUnitTest.java;l=339
-      allJvmArgs = allJvmArgs.filter { !it.startsWith("--add-opens") }
-    } else {
-      // Robolectric's FileDescriptor interceptor reaches into jdk.internal.access, which isn't
-      // exported to the unnamed module. Android 17 (API 37) images hit it on startup.
-      jvmArgs("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
-    }
+if (testJavaVersion >= 9) {
+  tasks.withType<Test>().configureEach {
+    // Robolectric's FileDescriptor interceptor reaches into jdk.internal.access, which isn't
+    // exported to the unnamed module. Android 17 (API 37) images hit it on startup.
+    jvmArgs("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
   }
 }
 
 // Work around issue 8826, where the Sentry SDK assumes that OkHttp's internal-visibility symbols
 // will be suffixed '$okhttp' in deployable artifacts. This isn't intended to be a published API,
 // but it's easy enough for us to keep it working. https://github.com/lysine-dev/okhttp/issues/8826
-tasks.withType<KotlinCompile> {
+tasks.withType<KotlinCompile>().configureEach {
   compilerOptions {
     freeCompilerArgs.addAll("-module-name=okhttp", "-Xexpect-actual-classes")
   }

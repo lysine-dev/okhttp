@@ -65,7 +65,7 @@ configure<AnimalSnifferExtension> {
 }
 
 // Default to only published modules
-project.tasks.withType<AnimalSniffer> {
+project.tasks.withType<AnimalSniffer>().configureEach {
   val hasMavenPublish = project.extensions.findByType<MavenPublishBaseExtension>() != null
   onlyIf {
     hasMavenPublish
