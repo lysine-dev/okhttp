@@ -427,8 +427,13 @@ public class MockWebServer : Closeable {
         SocketHandler(connectionIndex, raw, firstExchangePeek).handle()
       } catch (e: IOException) {
         logger.fine("$this connection from ${raw.inetAddress} failed: $e")
+        raw.closeQuietly()
       } catch (e: Exception) {
         logger.log(Level.SEVERE, "$this connection from ${raw.inetAddress} crashed", e)
+        raw.closeQuietly()
+      } catch (e: Error) {
+        raw.closeQuietly()
+        throw e
       }
     }
   }
@@ -1044,13 +1049,14 @@ public class MockWebServer : Closeable {
     @Throws(IOException::class)
     override fun onStream(stream: Http2Stream) {
       val peek = dispatcher.peek()
-      if (handleSocketEffect(peek.onRequestStart, socket, stream)) {
+      if (peek.onRequestStart != null) {
         dispatchBookkeepingRequest(
           connectionIndex = connectionIndex,
           exchangeIndex = nextExchangeIndex.getAndIncrement(),
           socket = socket,
           requestLine = DEFAULT_REQUEST_LINE_HTTP_2,
         )
+        handleSocketEffect(peek.onRequestStart, socket, stream)
         return
       }
 
