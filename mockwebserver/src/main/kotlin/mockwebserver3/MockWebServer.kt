@@ -1049,13 +1049,14 @@ public class MockWebServer : Closeable {
     @Throws(IOException::class)
     override fun onStream(stream: Http2Stream) {
       val peek = dispatcher.peek()
-      if (handleSocketEffect(peek.onRequestStart, socket, stream)) {
+      if (peek.onRequestStart != null) {
         dispatchBookkeepingRequest(
           connectionIndex = connectionIndex,
           exchangeIndex = nextExchangeIndex.getAndIncrement(),
           socket = socket,
           requestLine = DEFAULT_REQUEST_LINE_HTTP_2,
         )
+        handleSocketEffect(peek.onRequestStart, socket, stream)
         return
       }
 
