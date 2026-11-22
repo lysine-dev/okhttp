@@ -9,12 +9,12 @@ Note that zstd is not used for sending requests.
 
 ```java
 OkHttpClient client = new OkHttpClient.Builder()
-  .addInterceptor(ZstdInterceptor.INSTANCE)
+  .addInterceptor(CompressionInterceptor(Zstd, Gzip))
   .build();
 ```
 
 ```kotlin
-implementation("com.squareup.okhttp3:okhttp-zstd:5.3.0")
+implementation("com.squareup.okhttp3:okhttp-zstd:5.5.1")
 ```
 
  [1]: https://github.com/facebook/zstd

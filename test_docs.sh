@@ -14,7 +14,7 @@ set -ex
 # Generate the API docs
 ./gradlew dokkaGeneratePublicationHtml -PokhttpDokka=true
 
-mv ./build/dokka/html docs/4.x
+mv ./build/dokka/html docs/5.x
 
 # Copy in special files that GitHub wants in the project root.
 cat README.md | grep -v 'project website' > docs/index.md

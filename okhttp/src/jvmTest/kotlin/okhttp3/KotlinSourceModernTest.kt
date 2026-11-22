@@ -1351,21 +1351,21 @@ class KotlinSourceModernTest {
       override fun connectTimeoutMillis(): Int = TODO()
 
       override fun withConnectTimeout(
-        timeout: Long,
+        timeout: Int,
         unit: TimeUnit,
       ): Interceptor.Chain = TODO()
 
       override fun readTimeoutMillis(): Int = TODO()
 
       override fun withReadTimeout(
-        timeout: Long,
+        timeout: Int,
         unit: TimeUnit,
       ): Interceptor.Chain = TODO()
 
       override fun writeTimeoutMillis(): Int = TODO()
 
       override fun withWriteTimeout(
-        timeout: Long,
+        timeout: Int,
         unit: TimeUnit,
       ): Interceptor.Chain = TODO()
 

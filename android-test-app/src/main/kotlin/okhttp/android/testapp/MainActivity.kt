@@ -35,7 +35,7 @@ open class MainActivity : ComponentActivity() {
     // Ensure we are compiling against the right variant
     println(AndroidPlatform.isSupported)
 
-    val url = "https://github.com/square/okhttp".toHttpUrl()
+    val url = "https://github.com/lysine-dev/okhttp".toHttpUrl()
     println(url.topPrivateDomain())
 
     client.newCall(Request(url)).enqueue(

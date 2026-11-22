@@ -16,6 +16,7 @@
 package okhttp3.internal.http1
 
 import okhttp3.Headers
+import okhttp3.internal.HEADER_LIMIT
 import okio.BufferedSource
 
 /**
@@ -24,7 +25,7 @@ import okio.BufferedSource
 class HeadersReader(
   val source: BufferedSource,
 ) {
-  private var headerLimit = HEADER_LIMIT.toLong()
+  private var headerLimit = HEADER_LIMIT
 
   /** Read a single line counted against the header size limit. */
   fun readLine(): String {
@@ -42,9 +43,5 @@ class HeadersReader(
       result.addLenient(line)
     }
     return result.build()
-  }
-
-  companion object {
-    private const val HEADER_LIMIT = 256 * 1024
   }
 }

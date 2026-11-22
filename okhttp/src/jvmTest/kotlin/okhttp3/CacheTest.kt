@@ -50,7 +50,7 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.internal.addHeaderLenient
 import okhttp3.internal.cacheGet
-import okhttp3.internal.platform.Platform.Companion.get
+import okhttp3.internal.platform.Platform
 import okhttp3.java.net.cookiejar.JavaNetCookieJar
 import okhttp3.testing.PlatformRule
 import okio.Buffer
@@ -107,7 +107,9 @@ class CacheTest {
   @AfterEach
   fun tearDown() {
     ResponseCache.setDefault(null)
-    cache.delete()
+    if (this::cache.isInitialized) {
+      cache.delete()
+    }
   }
 
   /**
@@ -350,20 +352,20 @@ class CacheTest {
 
     // OpenJDK 6 fails on this line, complaining that the connection isn't open yet
     val cipherSuite = response1.handshake!!.cipherSuite
-    val localCerts = response1.handshake!!.localCertificates
-    val serverCerts = response1.handshake!!.peerCertificates
-    val peerPrincipal = response1.handshake!!.peerPrincipal
-    val localPrincipal = response1.handshake!!.localPrincipal
+    val localCerts = response1.handshake.localCertificates
+    val serverCerts = response1.handshake.peerCertificates
+    val peerPrincipal = response1.handshake.peerPrincipal
+    val localPrincipal = response1.handshake.localPrincipal
     val response2 = client.newCall(request).execute() // Cached!
     assertThat(response2.body.string()).isEqualTo("ABC")
     assertThat(cache.requestCount()).isEqualTo(2)
     assertThat(cache.networkCount()).isEqualTo(1)
     assertThat(cache.hitCount()).isEqualTo(1)
     assertThat(response2.handshake!!.cipherSuite).isEqualTo(cipherSuite)
-    assertThat(response2.handshake!!.localCertificates).isEqualTo(localCerts)
-    assertThat(response2.handshake!!.peerCertificates).isEqualTo(serverCerts)
-    assertThat(response2.handshake!!.peerPrincipal).isEqualTo(peerPrincipal)
-    assertThat(response2.handshake!!.localPrincipal).isEqualTo(localPrincipal)
+    assertThat(response2.handshake.localCertificates).isEqualTo(localCerts)
+    assertThat(response2.handshake.peerCertificates).isEqualTo(serverCerts)
+    assertThat(response2.handshake.peerPrincipal).isEqualTo(peerPrincipal)
+    assertThat(response2.handshake.localPrincipal).isEqualTo(localPrincipal)
   }
 
   @Test
@@ -418,6 +420,134 @@ class CacheTest {
       .buffer()
       .writeUtf8(content)
       .close()
+  }
+
+  /**
+   * A network interceptor strips the handshake from a real HTTPS response before the
+   * CacheInterceptor writes it to disk. This creates the bug condition: url.isHttps=true
+   * but handshake=null. Before the fix, `handshake!!` in writeTo() threw NPE.
+   *
+   * https://github.com/lysine-dev/okhttp/issues/8962
+   */
+  @Test
+  fun httpsResponseWithNullHandshakeDoesNotCrashWriteTo() {
+    server.useHttps(handshakeCertificates.sslSocketFactory())
+    server.enqueue(
+      MockResponse
+        .Builder()
+        .body("secure content")
+        .addHeader("Cache-Control", "max-age=3600")
+        .build(),
+    )
+
+    client =
+      client
+        .newBuilder()
+        .sslSocketFactory(
+          handshakeCertificates.sslSocketFactory(),
+          handshakeCertificates.trustManager,
+        ).hostnameVerifier(NULL_HOSTNAME_VERIFIER)
+        .addNetworkInterceptor { chain ->
+          chain
+            .proceed(chain.request())
+            .newBuilder()
+            .handshake(null)
+            .build()
+        }.build()
+
+    val response = client.newCall(Request(server.url("/"))).execute()
+    assertThat(response.code).isEqualTo(200)
+    assertThat(response.body.string()).isEqualTo("secure content")
+  }
+
+  /**
+   * Verifies the null-handshake fix holds across multiple sequential cache writes, confirming
+   * it is not a one-time race condition.
+   *
+   * https://github.com/lysine-dev/okhttp/issues/8962
+   */
+  @Test
+  fun multipleHttpsRequestsWithNullHandshakeAllSucceed() {
+    server.useHttps(handshakeCertificates.sslSocketFactory())
+    repeat(3) {
+      server.enqueue(
+        MockResponse
+          .Builder()
+          .body("response $it")
+          .addHeader("Cache-Control", "max-age=3600")
+          .build(),
+      )
+    }
+
+    client =
+      client
+        .newBuilder()
+        .sslSocketFactory(
+          handshakeCertificates.sslSocketFactory(),
+          handshakeCertificates.trustManager,
+        ).hostnameVerifier(NULL_HOSTNAME_VERIFIER)
+        .addNetworkInterceptor { chain ->
+          chain
+            .proceed(chain.request())
+            .newBuilder()
+            .handshake(null)
+            .build()
+        }.build()
+
+    repeat(3) { i ->
+      val response = client.newCall(Request(server.url("/path$i"))).execute()
+      assertThat(response.code).isEqualTo(200)
+      assertThat(response.body.string()).isEqualTo("response $i")
+    }
+  }
+
+  /**
+   * When handshake is null for an HTTPS URL, the TLS block is skipped making the entry
+   * unreadable on re-read. The response should still succeed but won't be served from cache
+   * on subsequent requests.
+   *
+   * https://github.com/lysine-dev/okhttp/issues/8962
+   */
+  @Test
+  fun httpsResponseWithNullHandshakeIsNotServedFromCache() {
+    server.useHttps(handshakeCertificates.sslSocketFactory())
+    server.enqueue(
+      MockResponse
+        .Builder()
+        .body("first")
+        .addHeader("Cache-Control", "max-age=3600")
+        .build(),
+    )
+    server.enqueue(
+      MockResponse
+        .Builder()
+        .body("second")
+        .addHeader("Cache-Control", "max-age=3600")
+        .build(),
+    )
+
+    client =
+      client
+        .newBuilder()
+        .sslSocketFactory(
+          handshakeCertificates.sslSocketFactory(),
+          handshakeCertificates.trustManager,
+        ).hostnameVerifier(NULL_HOSTNAME_VERIFIER)
+        .addNetworkInterceptor { chain ->
+          chain
+            .proceed(chain.request())
+            .newBuilder()
+            .handshake(null)
+            .build()
+        }.build()
+
+    val response1 = client.newCall(Request(server.url("/"))).execute()
+    assertThat(response1.body.string()).isEqualTo("first")
+
+    // Second request hits the network again because the first entry was not cacheable
+    val response2 = client.newCall(Request(server.url("/"))).execute()
+    assertThat(response2.body.string()).isEqualTo("second")
+    assertThat(response2.cacheResponse).isNull()
   }
 
   @Test
@@ -668,7 +798,7 @@ class CacheTest {
       override fun contentType(): MediaType? = "application/text-plain".toMediaTypeOrNull()
 
       override fun writeTo(sink: BufferedSink) {
-        internalBody.forEach { item ->
+        internalBody.forEach { _ ->
           sink.writeUtf8(this@toOneShotRequestBody)
         }
       }
@@ -720,8 +850,8 @@ class CacheTest {
     // 2 direct + 2 redirect = 4
     assertThat(cache.requestCount()).isEqualTo(4)
     assertThat(cache.hitCount()).isEqualTo(2)
-    assertThat(response2.handshake!!.cipherSuite).isEqualTo(
-      response1.handshake!!.cipherSuite,
+    assertThat(response2.handshake.cipherSuite).isEqualTo(
+      response1.handshake.cipherSuite,
     )
   }
 
@@ -730,7 +860,7 @@ class CacheTest {
    * to the cache because we incorrectly assumed that HttpsURLConnection was always HTTPS and
    * HttpURLConnection was always HTTP; in practice redirects mean that each can do either.
    *
-   * https://github.com/square/okhttp/issues/214
+   * https://github.com/lysine-dev/okhttp/issues/214
    */
   @Test
   fun secureResponseCachingAndProtocolRedirects() {
@@ -870,7 +1000,7 @@ class CacheTest {
     assertThat(get(url).body.string()).isEqualTo("b")
   }
 
-  /** https://github.com/square/okhttp/issues/2198  */
+  /** https://github.com/lysine-dev/okhttp/issues/2198  */
   @Test
   fun cachedRedirect() {
     server.enqueue(
@@ -1620,7 +1750,7 @@ class CacheTest {
    * its Last-Modified date is. This behavior was different prior to OkHttp 3.5 when we would prefer
    * the response with the later Last-Modified date.
    *
-   * https://github.com/square/okhttp/issues/2886
+   * https://github.com/lysine-dev/okhttp/issues/2886
    */
   @Test
   fun serverReturnsDocumentOlderThanCache() {
@@ -1825,7 +1955,7 @@ class CacheTest {
     assertThat(get(server.url("/")).body.string()).isEqualTo("DEFDEFDEF")
   }
 
-  /** https://github.com/square/okhttp/issues/947  */
+  /** https://github.com/lysine-dev/okhttp/issues/947  */
   @Test
   fun gzipAndVaryOnAcceptEncoding() {
     server.enqueue(
@@ -3008,6 +3138,16 @@ class CacheTest {
 
   @Test
   fun conditionalHitUpdatesCache() {
+    assertConditionalHitUpdatesCache()
+  }
+
+  @Test
+  fun conditionalHitUpdatesCacheOnWindowsFileSystem() {
+    fileSystem.emulateWindows()
+    assertConditionalHitUpdatesCache()
+  }
+
+  private fun assertConditionalHitUpdatesCache() {
     server.enqueue(
       MockResponse
         .Builder()
@@ -3158,7 +3298,7 @@ class CacheTest {
    * broke our cached response parser because it split on the first colon. This regression test
    * exists to help us read these old bad cache entries.
    *
-   * https://github.com/square/okhttp/issues/227
+   * https://github.com/lysine-dev/okhttp/issues/227
    */
   @Test
   fun testGoldenCacheResponse() {
@@ -3225,7 +3365,7 @@ CLEAN $urlKey ${entryMetadata.length} ${entryBody.length}
 
     val url = server.url("/")
     val urlKey = key(url)
-    val prefix = get().getPrefix()
+    val prefix = Platform.get().prefix
     val entryMetadata =
       """
       $url
@@ -3276,7 +3416,7 @@ CLEAN $urlKey ${entryMetadata.length} ${entryBody.length}
 
     val url = server.url("/")
     val urlKey = key(url)
-    val prefix = get().getPrefix()
+    val prefix = Platform.get().prefix
     val entryMetadata =
       """
       |$url
@@ -3331,7 +3471,7 @@ CLEAN $urlKey ${entryMetadata.length} ${entryBody.length}
 
     val url = server.url("/")
     val urlKey = key(url)
-    val prefix = get().getPrefix()
+    val prefix = Platform.get().prefix
     val entryMetadata =
       """
       |$url
@@ -3454,7 +3594,7 @@ CLEAN $urlKey ${entryMetadata.length} ${entryBody.length}
     client =
       client
         .newBuilder()
-        .addNetworkInterceptor(Interceptor { chain: Interceptor.Chain? -> throw AssertionError() })
+        .addNetworkInterceptor(Interceptor { throw AssertionError() })
         .build()
     assertThat(get(url).body.string()).isEqualTo("A")
   }
@@ -3615,7 +3755,7 @@ CLEAN $urlKey ${entryMetadata.length} ${entryBody.length}
     }
   }
 
-  /** Test https://github.com/square/okhttp/issues/1712.  */
+  /** Test https://github.com/lysine-dev/okhttp/issues/1712.  */
   @Test
   fun conditionalMissUpdatesCache() {
     server.enqueue(
@@ -4125,6 +4265,6 @@ CLEAN $urlKey ${entryMetadata.length} ${entryBody.length}
   }
 
   companion object {
-    private val NULL_HOSTNAME_VERIFIER = HostnameVerifier { hostname, session -> true }
+    private val NULL_HOSTNAME_VERIFIER = HostnameVerifier { _, _ -> true }
   }
 }

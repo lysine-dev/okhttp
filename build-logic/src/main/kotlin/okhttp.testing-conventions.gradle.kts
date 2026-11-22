@@ -21,12 +21,17 @@ dependencies {
   testRuntimeOnly(library("junit-platform-launcher"))
 }
 
-tasks.withType<Test> {
+tasks.withType<Test>().configureEach {
   useJUnitPlatform()
   jvmArgs("-Dokhttp.platform=$platform")
 
   if (platform == "loom") {
     jvmArgs("-Djdk.tracePinnedThreads=short")
+  }
+  if (platform == "openjsse") {
+    if (testJavaVersion > 8) {
+      throw GradleException("OpenJSSE is only supported on Java 8")
+    }
   }
 
   val javaToolchains = project.extensions.getByType<JavaToolchainService>()
@@ -41,6 +46,12 @@ tasks.withType<Test> {
 
   systemProperty("okhttp.platform", platform)
   systemProperty("junit.jupiter.extensions.autodetection.enabled", "true")
+
+  if (testJavaVersion < 21) {
+    // Robolectric needs Java 21 to sandbox Android SDK 37. Tests configured only for SDKs
+    // outside this set are skipped rather than failing to create a sandbox.
+    systemProperty("robolectric.enabledSdks", (21..36).joinToString(","))
+  }
 }
 
 tasks.withType<Test>().configureEach {

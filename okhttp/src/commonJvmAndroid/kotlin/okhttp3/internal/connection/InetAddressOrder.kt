@@ -17,7 +17,7 @@
 package okhttp3.internal.connection
 
 import java.net.Inet6Address
-import java.net.InetAddress
+import okhttp3.Route
 import okhttp3.internal.interleave
 
 /**
@@ -30,12 +30,12 @@ import okhttp3.internal.interleave
  *
  * https://datatracker.ietf.org/doc/html/rfc8305#section-4
  */
-internal fun reorderForHappyEyeballs(addresses: List<InetAddress>): List<InetAddress> {
+internal fun reorderForHappyEyeballs(addresses: List<Route>): List<Route> {
   if (addresses.size < 2) {
     return addresses
   }
 
-  val (ipv6, ipv4) = addresses.partition { it is Inet6Address }
+  val (ipv6, ipv4) = addresses.partition { it.socketAddress.address is Inet6Address }
 
   return if (ipv6.isEmpty() || ipv4.isEmpty()) {
     addresses

@@ -405,6 +405,20 @@ internal class DerTest {
     assertThat(derReader.hasNext()).isFalse()
   }
 
+  @Test fun `decode object identifier with overflowing subidentifier`() {
+    val buffer =
+      Buffer()
+        .write("060a81808080808080808000".decodeHex())
+
+    val derReader = DerReader(buffer)
+
+    assertFailsWith<ProtocolException> {
+      derReader.read("test") { derReader.readObjectIdentifier() }
+    }.also { expected ->
+      assertThat(expected.message).isEqualTo("variable length long > Long.MAX_VALUE")
+    }
+  }
+
   @Test fun `encode object identifier without adapter`() {
     val buffer = Buffer()
     val derWriter = DerWriter(buffer)
@@ -688,6 +702,36 @@ internal class DerTest {
       Adapters.GENERALIZED_TIME.fromDer(bytes)
     }.also { expected ->
       assertThat(expected).hasMessage("Failed to parse GeneralizedTime 20191216#30210Z")
+    }
+  }
+
+  @Test fun `cannot decode utc time with out of range field`() {
+    // "191316030210Z" carries month 13.
+    val bytes = "170d3139313331363033303231305a".decodeHex()
+    assertFailsWith<ProtocolException> {
+      Adapters.UTC_TIME.fromDer(bytes)
+    }.also { expected ->
+      assertThat(expected).hasMessage("Failed to parse UTCTime 191316030210Z")
+    }
+  }
+
+  @Test fun `cannot decode utc time with trailing data`() {
+    // A valid "191216030210Z" followed by a stray '0' inside the declared length.
+    val bytes = "170e3139313231363033303231305a30".decodeHex()
+    assertFailsWith<ProtocolException> {
+      Adapters.UTC_TIME.fromDer(bytes)
+    }.also { expected ->
+      assertThat(expected).hasMessage("Failed to parse UTCTime 191216030210Z0")
+    }
+  }
+
+  @Test fun `cannot decode generalized time with out of range field`() {
+    // "20191316030210Z" carries month 13.
+    val bytes = "180f32303139313331363033303231305a".decodeHex()
+    assertFailsWith<ProtocolException> {
+      Adapters.GENERALIZED_TIME.fromDer(bytes)
+    }.also { expected ->
+      assertThat(expected).hasMessage("Failed to parse GeneralizedTime 20191316030210Z")
     }
   }
 
