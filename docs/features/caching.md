@@ -2,7 +2,7 @@ Caching
 =======
 
 OkHttp implements an optional, off by default, Cache. OkHttp aims for RFC correct and
-pragmatic caching behaviour, following common real-world browser like Firefox/Chrome and 
+pragmatic caching behaviour, following common real-world browser like Firefox/Chrome and
 server behaviour when ambiguous.
 
 # Basic Usage
@@ -17,7 +17,7 @@ server behaviour when ambiguous.
       .build()
 ```
 
-## EventListener events 
+## EventListener events
 
 Cache Events are exposed via the EventListener API.  Typical scenarios are below.
 
@@ -26,34 +26,34 @@ Cache Events are exposed via the EventListener API.  Typical scenarios are below
 In the ideal scenario the cache can fulfill the request without any conditional call to the network.
 This will skip the normal events such as DNS, connecting to the network, and downloading the response body.
 
-As recommended by the HTTP RFC the max age of a document is defaulted to 10% of the 
-document's age at the time it was served based on "Last-Modified". Default expiration dates aren't used for URIs 
+As recommended by the HTTP RFC the max age of a document is defaulted to 10% of the
+document's age at the time it was served based on "Last-Modified". Default expiration dates aren't used for URIs
 containing a query.
 
  - CallStart
  - **CacheHit**
  - CallEnd
- 
+
 ### Cache Miss
 
 Under a cache miss the normal request events are seen but an additional event shows the presence of the cache.
-Cache Miss will be typical if the item has not been read from the network, is uncacheable, or is past it's 
+Cache Miss will be typical if the item has not been read from the network, is uncacheable, or is past it's
 lifetime based on Response cache headers.
 
- - CallStart 
+ - CallStart
  - **CacheMiss**
  - ProxySelectStart
  - ... Standard Events ...
  - CallEnd
-        
+
 ### Conditional Cache Hit
- 
+
 When cache flags require checking the cache results are still valid an early cacheConditionalHit event is
 received followed by a cache hit or miss.  Critically in the cache hit scenario the server won’t send the response body.
 
 The response will have non-null `cacheResponse` and `networkResponse`. The cacheResponse will be used as the top level
 response only if the response code is HTTP/1.1 304 Not Modified.
- 
+
  - CallStart
  - **CacheConditionalHit**
  - ConnectionAcquired
@@ -62,7 +62,7 @@ response only if the response code is HTTP/1.1 304 Not Modified.
  - **CacheHit**
  - ConnectionReleased
  - CallEnd
- 
+
 ## Cache directory
 
 The cache directory must be exclusively owned by a single instance.
@@ -73,7 +73,7 @@ which is designed to persist between app restarts.
 ```kotlin
 cache.delete()
 ```
- 
+
 ## Pruning the Cache
 
 Pruning the entire Cache to clear space temporarily can be done using evictAll.
@@ -102,4 +102,4 @@ Make sure you are reading responses fully as unless they are read fully, cancell
 
 ### Overriding normal cache behaviour
 
-See Cache documentation. https://square.github.io/okhttp/4.x/okhttp/okhttp3/-cache/
+See [`Cache`](https://lysine.dev/okhttp/5.x/okhttp/okhttp3/-cache/) documentation.

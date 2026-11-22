@@ -1,11 +1,14 @@
 plugins {
   kotlin("jvm")
+  id("okhttp.jvm-conventions")
+  id("okhttp.quality-conventions")
+  id("okhttp.testing-conventions")
 }
 
 dependencies {
-  testImplementation(libs.squareup.okio)
-  testImplementation(libs.squareup.moshi)
-  testImplementation(libs.squareup.moshi.kotlin)
+  testImplementation(libs.square.okio)
+  testImplementation(libs.square.moshi)
+  testImplementation(libs.square.moshi.kotlin)
   testImplementation(projects.okhttp)
   testImplementation(projects.okhttpTestingSupport)
   testImplementation(projects.mockwebserver)

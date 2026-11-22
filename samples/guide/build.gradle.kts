@@ -1,5 +1,8 @@
 plugins {
   kotlin("jvm")
+  id("okhttp.jvm-conventions")
+  id("okhttp.quality-conventions")
+  id("okhttp.testing-conventions")
   id("com.google.devtools.ksp")
 }
 
@@ -9,15 +12,9 @@ dependencies {
   implementation(projects.okhttpTestingSupport)
   implementation(projects.okhttpTls)
   implementation(libs.animalsniffer.annotations)
-  implementation(libs.squareup.moshi)
-  implementation(libs.squareup.okio.fakefilesystem)
-  ksp(libs.squareup.moshi.compiler)
-}
-
-java {
-  toolchain {
-    languageVersion.set(JavaLanguageVersion.of(17))
-  }
+  implementation(libs.square.moshi)
+  implementation(libs.square.okio.fakefilesystem)
+  ksp(libs.square.moshi.compiler)
 }
 
 tasks.compileJava {

@@ -65,12 +65,12 @@ class LoggingFilesystem(
   }
 
   override fun sink(
-    path: Path,
+    file: Path,
     mustCreate: Boolean,
   ): Sink {
-    log("sink($path)")
+    log("sink($file)")
 
-    return super.sink(path, mustCreate)
+    return super.sink(file, mustCreate)
   }
 
   override fun source(file: Path): Source {

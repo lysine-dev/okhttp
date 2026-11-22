@@ -1,4 +1,5 @@
 plugins {
+  id("okhttp.base-conventions")
   id("okhttp.publish-conventions")
   id("java-platform")
 }

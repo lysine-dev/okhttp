@@ -20,7 +20,7 @@ import assertk.assertions.containsExactly
 import assertk.assertions.containsExactlyInAnyOrder
 import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
-import assertk.assertions.isSameAs
+import assertk.assertions.isSameInstanceAs
 import java.util.concurrent.RejectedExecutionException
 import kotlin.test.assertFailsWith
 import okhttp3.TestLogHandler
@@ -675,7 +675,7 @@ class TaskRunnerTest {
 
     val idleLatch1 = redQueue.idleLatch()
     val idleLatch2 = redQueue.idleLatch()
-    assertThat(idleLatch2).isSameAs(idleLatch1)
+    assertThat(idleLatch2).isSameInstanceAs(idleLatch1)
   }
 
   @Test fun cancelAllWhenEmptyDoesNotStartWorkerThread() {

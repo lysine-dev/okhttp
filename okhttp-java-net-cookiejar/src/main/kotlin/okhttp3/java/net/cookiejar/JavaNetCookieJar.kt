@@ -112,6 +112,9 @@ class JavaNetCookieJar(
         value = value.substring(1, value.length - 1)
       }
 
+      // Minimal normalisation so Cookie.Builder doesn't crash on values like "abc123 ".
+      value = value.trim()
+
       result.add(
         Cookie
           .Builder()

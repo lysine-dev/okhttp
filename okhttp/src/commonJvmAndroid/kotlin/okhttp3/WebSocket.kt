@@ -48,6 +48,17 @@ import okio.ByteString
  * state indicates that a peer has sent all of its outgoing messages and received all of its
  * incoming messages. But it does not guarantee that the other peer will successfully receive all of
  * its incoming messages.
+ *
+ * ## Message Queue
+ *
+ * Messages enqueued with [send] are buffered in an outgoing message queue. This queue has a 16 MiB
+ * limit. If a call to [send] would cause the queue to exceed this limit, the web socket will
+ * initiate a graceful shutdown (close code 1001) and `send()` will return `false`. No exception is
+ * thrown and no [WebSocketListener.onFailure] callback is triggered, so callers should always check
+ * the return value of `send()`.
+ *
+ * Use [queueSize] to monitor backpressure before sending. For large payloads, consider breaking
+ * them into smaller messages or using HTTP requests instead.
  */
 interface WebSocket {
   /** Returns the original request that initiated this web socket. */
@@ -60,6 +71,9 @@ interface WebSocket {
    * system or network intermediaries. This method returns 0 if no messages are waiting in the
    * queue. If may return a nonzero value after the web socket has been canceled; this indicates
    * that enqueued messages were not transmitted.
+   *
+   * Use this to monitor backpressure and avoid exceeding the 16 MiB outgoing message buffer limit.
+   * When that limit is exceeded, the web socket is gracefully shut down.
    */
   fun queueSize(): Long
 
@@ -68,9 +82,9 @@ interface WebSocket {
    * message.
    *
    * This method returns true if the message was enqueued. Messages that would overflow the outgoing
-   * message buffer will be rejected and trigger a [graceful shutdown][close] of this web socket.
-   * This method returns false in that case, and in any other case where this web socket is closing,
-   * closed, or canceled.
+   * message buffer (16 MiB) will be rejected and trigger a [graceful shutdown][close] of this web
+   * socket. This method returns false in that case, and in any other case where this web socket is
+   * closing, closed, or canceled.
    *
    * This method returns immediately.
    */

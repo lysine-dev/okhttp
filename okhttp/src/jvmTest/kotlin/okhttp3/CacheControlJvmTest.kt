@@ -18,7 +18,7 @@ package okhttp3
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
-import assertk.assertions.isSameAs
+import assertk.assertions.isSameInstanceAs
 import assertk.assertions.isTrue
 import java.util.concurrent.TimeUnit
 import kotlin.test.assertFailsWith
@@ -149,7 +149,7 @@ class CacheControlJvmTest {
     val value = "max-age=12"
     val headers = headersOf("Cache-Control", value)
     val cacheControl = parse(headers)
-    assertThat(cacheControl.toString()).isSameAs(value)
+    assertThat(cacheControl.toString()).isSameInstanceAs(value)
   }
 
   @Test
@@ -193,7 +193,7 @@ class CacheControlJvmTest {
         .maxAge(2, TimeUnit.DAYS)
         .build()
     assertThat(cacheControl.toString()).isEqualTo("max-age=172800")
-    assertThat(cacheControl.toString()).isSameAs(cacheControl.toString())
+    assertThat(cacheControl.toString()).isSameInstanceAs(cacheControl.toString())
   }
 
   @Test

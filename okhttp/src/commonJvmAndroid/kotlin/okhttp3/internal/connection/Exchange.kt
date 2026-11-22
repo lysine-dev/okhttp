@@ -17,11 +17,11 @@ package okhttp3.internal.connection
 
 import java.io.IOException
 import java.net.ProtocolException
-import okhttp3.EventListener
 import okhttp3.Headers
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody
+import okhttp3.internal.OkHttpInternalApi
 import okhttp3.internal.http.ExchangeCodec
 import okhttp3.internal.http.RealResponseBody
 import okio.Buffer
@@ -36,6 +36,7 @@ import okio.buffer
  * Transmits a single HTTP request and a response pair. This layers connection management and events
  * on [ExchangeCodec], which handles the actual I/O.
  */
+@OkHttpInternalApi
 class Exchange(
   internal val call: RealCall,
   internal val finder: ExchangeFinder,

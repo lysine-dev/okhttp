@@ -17,6 +17,7 @@ package okhttp3.internal.http2
 
 import java.io.IOException
 import java.util.Arrays
+import okhttp3.internal.HEADER_LIMIT
 import okhttp3.internal.and
 import okhttp3.internal.http2.Header.Companion.RESPONSE_STATUS
 import okhttp3.internal.http2.Header.Companion.TARGET_AUTHORITY
@@ -45,6 +46,11 @@ object Hpack {
   private const val PREFIX_5_BITS = 0x1f
   private const val PREFIX_6_BITS = 0x3f
   private const val PREFIX_7_BITS = 0x7f
+
+  /**
+   * Per-entry overhead of a header list entry, as defined by RFC 9113 section 6.5.2.
+   */
+  private const val HEADER_ENTRY_OVERHEAD = 32
 
   private const val SETTINGS_HEADER_TABLE_SIZE = 4_096
 
@@ -130,6 +136,7 @@ object Hpack {
       private var maxDynamicTableByteCount: Int = headerTableSizeSetting,
     ) {
       private val headerList = mutableListOf<Header>()
+      private var headerListByteCount = 0L
       private val source: BufferedSource = source.buffer()
 
       // Visible for testing.
@@ -145,6 +152,7 @@ object Hpack {
       fun getAndResetHeaderList(): List<Header> {
         val result = headerList.toList()
         headerList.clear()
+        headerListByteCount = 0L
         return result
       }
 
@@ -252,13 +260,13 @@ object Hpack {
       private fun readIndexedHeader(index: Int) {
         if (isStaticHeader(index)) {
           val staticEntry = STATIC_HEADER_TABLE[index]
-          headerList.add(staticEntry)
+          addHeader(staticEntry)
         } else {
           val dynamicTableIndex = dynamicTableIndex(index - STATIC_HEADER_TABLE.size)
           if (dynamicTableIndex < 0 || dynamicTableIndex >= dynamicTable.size) {
             throw IOException("Header index too large ${index + 1}")
           }
-          headerList += dynamicTable[dynamicTableIndex]!!
+          addHeader(dynamicTable[dynamicTableIndex]!!)
         }
       }
 
@@ -269,14 +277,14 @@ object Hpack {
       private fun readLiteralHeaderWithoutIndexingIndexedName(index: Int) {
         val name = getName(index)
         val value = readByteString()
-        headerList.add(Header(name, value))
+        addHeader(Header(name, value))
       }
 
       @Throws(IOException::class)
       private fun readLiteralHeaderWithoutIndexingNewName() {
         val name = checkLowercase(readByteString())
         val value = readByteString()
-        headerList.add(Header(name, value))
+        addHeader(Header(name, value))
       }
 
       @Throws(IOException::class)
@@ -314,7 +322,7 @@ object Hpack {
         entry: Header,
       ) {
         var index = index
-        headerList.add(entry)
+        addHeader(entry)
 
         var delta = entry.hpackSize
         if (index != -1) { // Index -1 == new header.
@@ -362,19 +370,25 @@ object Hpack {
         }
 
         // This is a multibyte value. Read 7 bits at a time.
-        var result = prefixMask
+        var result = prefixMask.toLong()
         var shift = 0
+        var byteCount = 0
         while (true) {
-          val b = readByte()
-          if (b and 0x80 != 0) { // Equivalent to (b >= 128) since b is in [0..255].
-            result += b and 0x7f shl shift
-            shift += 7
-          } else {
-            result += b shl shift // Last byte.
-            break
+          // An Int.MAX_VALUE payload needs at most 5 continuation bytes after the prefix.
+          if (byteCount == 5) {
+            throw IOException("HPACK integer overflow")
           }
+          val b = readByte()
+          byteCount++
+          val increment = (b and 0x7f).toLong() shl shift
+          if (increment > Int.MAX_VALUE.toLong() - result) {
+            throw IOException("HPACK integer overflow")
+          }
+          result += increment
+          if (b and 0x80 == 0) break
+          shift += 7
         }
-        return result
+        return result.toInt()
       }
 
       /** Reads a potentially Huffman encoded byte string. */
@@ -384,12 +398,31 @@ object Hpack {
         val huffmanDecode = firstByte and 0x80 == 0x80 // 1NNNNNNN
         val length = readInt(firstByte, PREFIX_7_BITS).toLong()
 
+        // If the compressed or decompressed length exceeds the limit, don't even bother.
+        if (headerListByteCount + length > HEADER_LIMIT) {
+          throw IOException("header byte count limit of $HEADER_LIMIT exceeded")
+        }
+
         return if (huffmanDecode) {
           val decodeBuffer = Buffer()
           Huffman.decode(source, length, decodeBuffer)
           decodeBuffer.readByteString()
         } else {
           source.readByteString(length)
+        }
+      }
+
+      @Throws(IOException::class)
+      private fun addHeader(header: Header) {
+        headerList.add(header)
+
+        // Include the per-entry overhead of RFC 9113 section 6.5.2, so the accounting
+        // also grows for headers whose name and value are both empty.
+        val headerSize = header.name.size + header.value.size + HEADER_ENTRY_OVERHEAD
+        val newHeaderListSize = headerListByteCount + headerSize
+        headerListByteCount = newHeaderListSize
+        if (newHeaderListSize > HEADER_LIMIT) {
+          throw IOException("header byte count limit of $HEADER_LIMIT exceeded")
         }
       }
     }

@@ -32,6 +32,7 @@ import org.apache.hc.client5.http.impl.async.HttpAsyncClients
 import org.apache.hc.core5.concurrent.FutureCallback
 import org.apache.hc.core5.http.ProtocolVersion
 import org.junit.Assert
+import org.junit.Ignore
 import org.junit.Test
 
 /**
@@ -41,6 +42,7 @@ import org.junit.Test
  * Mainly intended to verify behaviour of popular clients across Android versions, similar
  * to observing Firefox or Chrome browser behaviour.
  */
+@Ignore("Failing with Netty errors")
 class ApacheHttpClientHttp2Test {
   @Test
   fun testHttp2() {

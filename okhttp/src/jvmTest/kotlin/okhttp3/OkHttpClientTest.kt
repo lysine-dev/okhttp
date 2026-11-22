@@ -22,7 +22,7 @@ import assertk.assertions.isInstanceOf
 import assertk.assertions.isNotInstanceOf
 import assertk.assertions.isNotNull
 import assertk.assertions.isNull
-import assertk.assertions.isSameAs
+import assertk.assertions.isSameInstanceAs
 import java.io.IOException
 import java.net.CookieManager
 import java.net.Proxy
@@ -146,10 +146,10 @@ class OkHttpClientTest {
 
     // Multiple clients share the instances.
     val b = client.newBuilder().build()
-    assertThat(b.dispatcher).isSameAs(a.dispatcher)
-    assertThat(b.connectionPool).isSameAs(a.connectionPool)
-    assertThat(b.sslSocketFactory).isSameAs(a.sslSocketFactory)
-    assertThat(b.x509TrustManager).isSameAs(a.x509TrustManager)
+    assertThat(b.dispatcher).isSameInstanceAs(a.dispatcher)
+    assertThat(b.connectionPool).isSameInstanceAs(a.connectionPool)
+    assertThat(b.sslSocketFactory).isSameInstanceAs(a.sslSocketFactory)
+    assertThat(b.x509TrustManager).isSameInstanceAs(a.x509TrustManager)
   }
 
   @Test fun setProtocolsRejectsHttp10() {
@@ -315,7 +315,7 @@ class OkHttpClientTest {
         .Builder()
         .proxy(Proxy.NO_PROXY)
         .build()
-    assertThat(client.proxy).isSameAs(Proxy.NO_PROXY)
+    assertThat(client.proxy).isSameInstanceAs(Proxy.NO_PROXY)
     assertThat(client.proxySelector)
       .isInstanceOf(NullProxySelector::class.java)
     client =

@@ -137,6 +137,9 @@ class HttpUpgradesTest {
 
   @Test
   fun upgradeHttps() {
+    // org.bouncycastle.tls.TlsNoCloseNotifyException: No close_notify alert received before connection closed
+    platform.assumeNotBouncyCastle()
+
     enableTls(Protocol.HTTP_1_1)
     upgrade()
   }

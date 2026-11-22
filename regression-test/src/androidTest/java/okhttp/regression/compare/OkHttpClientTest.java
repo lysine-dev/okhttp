@@ -29,7 +29,7 @@ import org.junit.runner.RunWith;
 /**
  * OkHttp.
  *
- * https://square.github.io/okhttp/
+ * https://lysine.dev/okhttp/
  */
 @RunWith(AndroidJUnit4.class)
 public class OkHttpClientTest {

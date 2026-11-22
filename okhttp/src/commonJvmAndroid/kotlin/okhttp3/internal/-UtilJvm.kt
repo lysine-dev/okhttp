@@ -28,6 +28,7 @@ import java.util.Locale
 import java.util.TimeZone
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.text.Charsets.UTF_16BE
 import kotlin.text.Charsets.UTF_16LE
 import kotlin.text.Charsets.UTF_32BE
@@ -360,3 +361,22 @@ internal val okHttpName: String =
   OkHttpClient::class.java.name
     .removePrefix("okhttp3.")
     .removeSuffix("Client")
+
+/**
+ * Updates this reference to [newValue] if the previous value matches [condition].
+ *
+ * It is possible that a [condition] is invoked multiple times in a single call to this function.
+ * This will occur if this state object is updated between fetching previous value and replacing it.
+ *
+ * Returns the previous value. This will always be the replaced value if the value was updated.
+ */
+@OkHttpInternalApi
+tailrec fun <T> AtomicReference<T>.testAndSet(
+  newValue: T,
+  condition: (T) -> Boolean,
+): T {
+  val previous = get()
+  if (!condition(previous)) return previous
+  if (compareAndSet(previous, newValue)) return previous
+  return testAndSet(newValue, condition) // Lost a race, retry.
+}

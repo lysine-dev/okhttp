@@ -131,7 +131,7 @@ import okhttp3.internal.url.percentDecode
  * ### Path
  *
  * The path identifies a specific resource on the host. Paths have a hierarchical structure like
- * "/square/okhttp/issues/1486" and decompose into a list of segments like `["square", "okhttp",
+ * "/lysine-dev/okhttp/issues/1486" and decompose into a list of segments like `["square", "okhttp",
  * "issues", "1486"]`.
  *
  * This class offers methods to compose and decompose paths by segment. It composes each path

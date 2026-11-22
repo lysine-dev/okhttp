@@ -1,3 +1,18 @@
+/*
+ * Copyright (c) 2025 OkHttp Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package okhttp3
 
 import app.cash.burst.Burst
@@ -24,21 +39,21 @@ import java.util.Locale.getDefault
 import java.util.concurrent.TimeUnit
 import javax.net.SocketFactory
 import javax.net.ssl.HostnameVerifier
-import javax.net.ssl.SSLException
 import javax.net.ssl.SSLSocket
 import javax.net.ssl.SSLSocketFactory
 import javax.net.ssl.X509TrustManager
 import kotlin.time.Duration.Companion.minutes
-import kotlin.time.Duration.Companion.nanoseconds
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import mockwebserver3.junit5.StartStop
 import okhttp3.CertificatePinner.Companion.pin
 import okhttp3.Headers.Companion.headersOf
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.internal.connection.ConnectionListener
 import okhttp3.internal.platform.Platform
+import okhttp3.sockets.DelegatingSSLSocketFactory
+import okhttp3.sockets.DelegatingSocketFactory
 import okhttp3.testing.PlatformRule
-import okio.BufferedSink
 import okio.ForwardingFileSystem
 import okio.IOException
 import okio.Path
@@ -227,23 +242,15 @@ class InterceptorOverridesTest {
 
       OverrideParam.RetryOnConnectionFailure -> {
         enableTls()
-        var first = true
+
+        server.enqueue(MockResponse.Builder().failHandshake().build())
         client =
           client
             .newBuilder()
             .connectionSpecs(listOf(ConnectionSpec.RESTRICTED_TLS, ConnectionSpec.MODERN_TLS))
-            .eventListener(
-              object : EventListener() {
-                override fun secureConnectEnd(
-                  call: Call,
-                  handshake: Handshake?,
-                ) {
-                  if (first) {
-                    first = false
-                    throw SSLException("")
-                  }
-                }
-              },
+            .sslSocketFactory(
+              FallbackTestClientSocketFactory(handshakeCertificates.sslSocketFactory()),
+              handshakeCertificates.trustManager,
             ).build()
 
         overrideBadImplementation(
@@ -278,21 +285,21 @@ class InterceptorOverridesTest {
       }
 
       OverrideParam.WriteTimeout -> {
-        val body =
-          object : RequestBody() {
-            override fun contentType(): MediaType? = null
+        client =
+          client
+            .newBuilder()
+            .socketFactory(
+              DelayingSocketFactory(onWrite = {
+                Thread.sleep(100L)
+              }),
+            ).build()
 
-            override fun writeTo(sink: BufferedSink) {
-              if (sink
-                  .timeout()
-                  .timeoutNanos()
-                  .nanoseconds.inWholeMilliseconds == 10L
-              ) {
-                throw IOException()
-              }
-            }
-          }
-        overrideBadImplementation(override = override.override, testItFails = testItFails, body = body)
+        // Need a body so KnownLengthSink.close() runs (issue 9228).
+        overrideBadImplementation(
+          override = override.override,
+          testItFails = testItFails,
+          body = "test".toRequestBody(),
+        )
       }
 
       OverrideParam.ReadTimeout -> {
@@ -513,7 +520,7 @@ class InterceptorOverridesTest {
           override fun configureSocket(socket: Socket): Socket = TODO()
         }
 
-      override fun isDefaultValue(value: SocketFactory): Boolean = value === SocketFactory.getDefault()
+      override fun isDefaultValue(value: SocketFactory): Boolean = value === Platform.get().socketFactory
     }
 
     object AuthenticatorOverride : Override<Authenticator> {
@@ -587,7 +594,7 @@ class InterceptorOverridesTest {
       override fun isDefaultValue(value: Cache?): Boolean = value == null
     }
 
-    object ProxyOverride : Override<java.net.Proxy?> {
+    object ProxyOverride : Override<Proxy?> {
       override fun Interceptor.Chain.value(): java.net.Proxy? = proxy
 
       override fun Interceptor.Chain.withOverride(value: java.net.Proxy?): Interceptor.Chain = withProxy(value)
@@ -786,7 +793,7 @@ class InterceptorOverridesTest {
     object ConnectTimeoutOverride : Override<Int> {
       override fun Interceptor.Chain.value(): Int = connectTimeoutMillis()
 
-      override fun Interceptor.Chain.withOverride(value: Int): Interceptor.Chain = withConnectTimeout(value.toLong(), TimeUnit.MILLISECONDS)
+      override fun Interceptor.Chain.withOverride(value: Int): Interceptor.Chain = withConnectTimeout(value, TimeUnit.MILLISECONDS)
 
       override fun OkHttpClient.Builder.withOverride(value: Int): OkHttpClient.Builder =
         connectTimeout(value.toLong(), TimeUnit.MILLISECONDS)
@@ -802,7 +809,7 @@ class InterceptorOverridesTest {
     object ReadTimeoutOverride : Override<Int> {
       override fun Interceptor.Chain.value(): Int = readTimeoutMillis()
 
-      override fun Interceptor.Chain.withOverride(value: Int): Interceptor.Chain = withReadTimeout(value.toLong(), TimeUnit.MILLISECONDS)
+      override fun Interceptor.Chain.withOverride(value: Int): Interceptor.Chain = withReadTimeout(value, TimeUnit.MILLISECONDS)
 
       override fun OkHttpClient.Builder.withOverride(value: Int): OkHttpClient.Builder = readTimeout(value.toLong(), TimeUnit.MILLISECONDS)
 
@@ -817,7 +824,7 @@ class InterceptorOverridesTest {
     object WriteTimeoutOverride : Override<Int> {
       override fun Interceptor.Chain.value(): Int = writeTimeoutMillis()
 
-      override fun Interceptor.Chain.withOverride(value: Int): Interceptor.Chain = withWriteTimeout(value.toLong(), TimeUnit.MILLISECONDS)
+      override fun Interceptor.Chain.withOverride(value: Int): Interceptor.Chain = withWriteTimeout(value, TimeUnit.MILLISECONDS)
 
       override fun OkHttpClient.Builder.withOverride(value: Int): OkHttpClient.Builder = writeTimeout(value.toLong(), TimeUnit.MILLISECONDS)
 

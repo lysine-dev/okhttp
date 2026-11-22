@@ -14,6 +14,8 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
+@file:Suppress("DEPRECATION")
+
 package okhttp3
 
 import java.security.Principal
@@ -51,6 +53,7 @@ class FakeSSLSession(
       certificates as Array<Certificate>
     }
 
+  @Suppress("removal", "OVERRIDE_DEPRECATION")
   @Throws(
     SSLPeerUnverifiedException::class,
   )

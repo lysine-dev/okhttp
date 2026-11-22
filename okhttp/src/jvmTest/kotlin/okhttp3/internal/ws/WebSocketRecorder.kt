@@ -20,7 +20,7 @@ import assertk.assertions.contains
 import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNull
-import assertk.assertions.isSameAs
+import assertk.assertions.isSameInstanceAs
 import java.io.IOException
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
@@ -174,7 +174,7 @@ class WebSocketRecorder(
   fun assertFailure(t: Throwable?) {
     val event = nextEvent() as Failure
     assertThat(event.response).isNull()
-    assertThat(event.t).isSameAs(t)
+    assertThat(event.t).isSameInstanceAs(t)
   }
 
   fun assertFailure(

@@ -1,10 +1,9 @@
-import com.vanniktech.maven.publish.JavadocJar
-import com.vanniktech.maven.publish.KotlinJvm
-
 plugins {
   kotlin("jvm")
   id("okhttp.publish-conventions")
-  id("binary-compatibility-validator")
+  id("okhttp.jvm-conventions")
+  id("okhttp.quality-conventions")
+  id("okhttp.testing-conventions")
 }
 
 project.applyJavaModules("mockwebserver3.junit4")
@@ -16,8 +15,4 @@ dependencies {
 
   testImplementation(libs.assertk)
   testImplementation(libs.junit.vintage.engine)
-}
-
-mavenPublishing {
-  configure(KotlinJvm(javadocJar = JavadocJar.Empty()))
 }

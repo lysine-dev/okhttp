@@ -18,6 +18,7 @@ package mockwebserver3.junit5.internal
 import java.lang.reflect.Modifier
 import mockwebserver3.MockWebServer
 import mockwebserver3.junit5.StartStop
+import okhttp3.internal.SuppressSignatureCheck
 import org.junit.jupiter.api.extension.BeforeAllCallback
 import org.junit.jupiter.api.extension.BeforeEachCallback
 import org.junit.jupiter.api.extension.ExtensionContext
@@ -25,6 +26,7 @@ import org.junit.jupiter.api.extension.ExtensionContext.Namespace
 import org.junit.platform.commons.support.AnnotationSupport.findAnnotatedFields
 
 /** Implements the policy specified by [StartStop]. */
+@SuppressSignatureCheck
 internal class StartStopExtension :
   BeforeEachCallback,
   BeforeAllCallback {
@@ -49,23 +51,26 @@ internal class StartStopExtension :
   }
 
   override fun beforeEach(context: ExtensionContext) {
-    val testInstance = context.testInstance.get()
     val store = context.getStore(Namespace.create(StartStop::class.java))
 
-    val instanceFields =
-      findAnnotatedFields(
-        context.requiredTestClass,
-        StartStop::class.java,
-      ) { !Modifier.isStatic(it.modifiers) }
+    // A @Nested test declares its @StartStop fields on an enclosing instance, so walk every
+    // instance in the hierarchy instead of just the innermost one from context.testInstance.
+    for (testInstance in context.requiredTestInstances.allInstances) {
+      val instanceFields =
+        findAnnotatedFields(
+          testInstance.javaClass,
+          StartStop::class.java,
+        ) { !Modifier.isStatic(it.modifiers) }
 
-    for (field in instanceFields) {
-      field.setAccessible(true)
-      val server = field.get(testInstance) as? MockWebServer ?: continue
+      for (field in instanceFields) {
+        field.setAccessible(true)
+        val server = field.get(testInstance) as? MockWebServer ?: continue
 
-      // Put the instance in the store, so JUnit closes it for us in afterEach.
-      store.put(field, server)
+        // Put the instance in the store, so JUnit closes it for us in afterEach.
+        store.put(field, server)
 
-      server.start()
+        server.start()
+      }
     }
   }
 }

@@ -20,7 +20,7 @@ import assertk.assertions.containsExactly
 import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNull
-import assertk.assertions.isSameAs
+import assertk.assertions.isSameInstanceAs
 import assertk.assertions.isTrue
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
@@ -228,13 +228,13 @@ class RequestCommonTest {
         .url("https://square.com")
         .tag(tag as Any)
         .build()
-    assertThat(request.tag<Any>()).isSameAs(tag)
-    assertThat(request.tag(Any::class)).isSameAs(tag)
+    assertThat(request.tag<Any>()).isSameInstanceAs(tag)
+    assertThat(request.tag(Any::class)).isSameInstanceAs(tag)
     assertThat(request.tag(String::class)).isNull()
 
     // Alternate access APIs also work.
-    assertThat(request.tag<Any>()).isSameAs(tag)
-    assertThat(request.tag(Any::class)).isSameAs(tag)
+    assertThat(request.tag<Any>()).isSameInstanceAs(tag)
+    assertThat(request.tag(Any::class)).isSameInstanceAs(tag)
   }
 
   @Test
@@ -269,13 +269,13 @@ class RequestCommonTest {
         .url("https://square.com")
         .tag(Any::class, tag)
         .build()
-    assertThat(request.tag<Any>()).isSameAs(tag)
-    assertThat(request.tag(Any::class)).isSameAs(tag)
+    assertThat(request.tag<Any>()).isSameInstanceAs(tag)
+    assertThat(request.tag(Any::class)).isSameInstanceAs(tag)
     assertThat(request.tag(String::class)).isNull()
 
     // Alternate access APIs also work.
-    assertThat(request.tag(Any::class)).isSameAs(tag)
-    assertThat(request.tag<Any>()).isSameAs(tag)
+    assertThat(request.tag(Any::class)).isSameInstanceAs(tag)
+    assertThat(request.tag<Any>()).isSameInstanceAs(tag)
   }
 
   @Test
@@ -287,11 +287,11 @@ class RequestCommonTest {
         .url("https://square.com")
         .tag<String>(uuidTag) // Use the type parameter.
         .build()
-    assertThat(request.tag<String>()).isSameAs("1234")
+    assertThat(request.tag<String>()).isSameInstanceAs("1234")
     assertThat(request.tag<Any>()).isNull()
 
     // Alternate access APIs also work.
-    assertThat(request.tag(String::class)).isSameAs(uuidTag)
+    assertThat(request.tag(String::class)).isSameInstanceAs(uuidTag)
   }
 
   @Test
@@ -304,11 +304,11 @@ class RequestCommonTest {
         .tag(String::class, uuidTag) // Use the KClass<*> parameter.
         .build()
     assertThat(request.tag(Any::class)).isNull()
-    assertThat(request.tag(String::class)).isSameAs("1234")
+    assertThat(request.tag(String::class)).isSameInstanceAs("1234")
 
     // Alternate access APIs also work.
-    assertThat(request.tag(String::class)).isSameAs(uuidTag)
-    assertThat(request.tag<String>()).isSameAs(uuidTag)
+    assertThat(request.tag(String::class)).isSameInstanceAs(uuidTag)
+    assertThat(request.tag<String>()).isSameInstanceAs(uuidTag)
   }
 
   @Test
@@ -322,7 +322,7 @@ class RequestCommonTest {
         .tag(String::class, uuidTag1)
         .tag(String::class, uuidTag2)
         .build()
-    assertThat(request.tag(String::class)).isSameAs(uuidTag2)
+    assertThat(request.tag(String::class)).isSameInstanceAs(uuidTag2)
   }
 
   @Test
@@ -338,9 +338,9 @@ class RequestCommonTest {
         .tag(String::class, stringTag)
         .tag(Long::class, longTag)
         .build()
-    assertThat(request.tag<Any>()).isSameAs(objectTag)
-    assertThat(request.tag(Any::class)).isSameAs(objectTag)
-    assertThat(request.tag(String::class)).isSameAs(stringTag)
+    assertThat(request.tag<Any>()).isSameInstanceAs(objectTag)
+    assertThat(request.tag(Any::class)).isSameInstanceAs(objectTag)
+    assertThat(request.tag(String::class)).isSameInstanceAs(stringTag)
 
     // TODO check for Jvm or handle Long/long correctly
 //    assertThat(request.tag(Long::class)).isSameAs(longTag)
@@ -356,9 +356,9 @@ class RequestCommonTest {
     val requestA = builder.tag(String::class, "a").build()
     val requestB = builder.tag(String::class, "b").build()
     val requestC = requestA.newBuilder().tag(String::class, "c").build()
-    assertThat(requestA.tag(String::class)).isSameAs("a")
-    assertThat(requestB.tag(String::class)).isSameAs("b")
-    assertThat(requestC.tag(String::class)).isSameAs("c")
+    assertThat(requestA.tag(String::class)).isSameInstanceAs("a")
+    assertThat(requestB.tag(String::class)).isSameInstanceAs("b")
+    assertThat(requestC.tag(String::class)).isSameInstanceAs("c")
   }
 
   @Test

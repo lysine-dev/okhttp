@@ -22,18 +22,21 @@ import javax.net.ssl.SSLSocketFactory
 import javax.net.ssl.X509TrustManager
 import okhttp3.Protocol
 import okhttp3.internal.SuppressSignatureCheck
+import okio.ByteString
 
 /**
  * OpenJDK 9+ and JDK8 build 252+.
  *
  * This may also be used for Android tests with Robolectric.
  */
+@Suppress("NewApi")
 open class Jdk9Platform : Platform() {
   @SuppressSignatureCheck
   override fun configureTlsExtensions(
     sslSocket: SSLSocket,
     hostname: String?,
     protocols: List<@JvmSuppressWildcards Protocol>,
+    echConfigList: ByteString?,
   ) {
     val sslParameters = sslSocket.sslParameters
 

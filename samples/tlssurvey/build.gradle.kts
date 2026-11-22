@@ -1,5 +1,8 @@
 plugins {
   kotlin("jvm")
+  id("okhttp.jvm-conventions")
+  id("okhttp.quality-conventions")
+  id("okhttp.testing-conventions")
   application
   id("com.google.devtools.ksp")
 }
@@ -13,12 +16,12 @@ dependencies {
   implementation(projects.okhttpCoroutines)
   implementation(libs.conscrypt.openjdk)
 
-  implementation(libs.retrofit)
-  implementation(libs.converter.moshi)
-  implementation(libs.squareup.moshi)
-  implementation(libs.squareup.moshi.kotlin)
+  implementation(libs.square.retrofit)
+  implementation(libs.square.retrofit.converter.moshi)
+  implementation(libs.square.moshi)
+  implementation(libs.square.moshi.kotlin)
 
-  ksp(libs.squareup.moshi.compiler)
+  ksp(libs.square.moshi.compiler)
 }
 
 tasks.compileJava {

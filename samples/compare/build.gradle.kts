@@ -1,5 +1,8 @@
 plugins {
   kotlin("jvm")
+  id("okhttp.jvm-conventions")
+  id("okhttp.quality-conventions")
+  id("okhttp.testing-conventions")
 }
 
 dependencies {
@@ -8,8 +11,8 @@ dependencies {
   testImplementation(projects.mockwebserver3Junit5)
   testImplementation(projects.okhttpTls)
   testImplementation(projects.okhttpTestingSupport)
-  testImplementation(libs.httpClient5)
-  testImplementation(libs.jettyClient)
+  testImplementation(libs.http.client5)
+  testImplementation(libs.jetty.client)
   testImplementation(libs.junit)
   testImplementation(libs.assertk)
 }

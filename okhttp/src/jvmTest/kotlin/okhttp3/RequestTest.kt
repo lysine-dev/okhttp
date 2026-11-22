@@ -21,7 +21,7 @@ import assertk.assertions.hasMessage
 import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNull
-import assertk.assertions.isSameAs
+import assertk.assertions.isSameInstanceAs
 import assertk.assertions.isTrue
 import java.io.File
 import java.io.FileWriter
@@ -391,14 +391,14 @@ class RequestTest {
         .url("https://square.com")
         .tag(tag)
         .build()
-    assertThat(request.tag()).isSameAs(tag)
-    assertThat(request.tag(Any::class.java)).isSameAs(tag)
+    assertThat(request.tag()).isSameInstanceAs(tag)
+    assertThat(request.tag(Any::class.java)).isSameInstanceAs(tag)
     assertThat(request.tag(UUID::class.java)).isNull()
     assertThat(request.tag(String::class.java)).isNull()
 
     // Alternate access APIs also work.
-    assertThat(request.tag<Any>()).isSameAs(tag)
-    assertThat(request.tag(Any::class)).isSameAs(tag)
+    assertThat(request.tag<Any>()).isSameInstanceAs(tag)
+    assertThat(request.tag(Any::class)).isSameInstanceAs(tag)
   }
 
   @Test
@@ -433,14 +433,14 @@ class RequestTest {
         .url("https://square.com")
         .tag(Any::class.java, tag)
         .build()
-    assertThat(request.tag()).isSameAs(tag)
-    assertThat(request.tag(Any::class.java)).isSameAs(tag)
+    assertThat(request.tag()).isSameInstanceAs(tag)
+    assertThat(request.tag(Any::class.java)).isSameInstanceAs(tag)
     assertThat(request.tag(UUID::class.java)).isNull()
     assertThat(request.tag(String::class.java)).isNull()
 
     // Alternate access APIs also work.
-    assertThat(request.tag(Any::class)).isSameAs(tag)
-    assertThat(request.tag<Any>()).isSameAs(tag)
+    assertThat(request.tag(Any::class)).isSameInstanceAs(tag)
+    assertThat(request.tag<Any>()).isSameInstanceAs(tag)
   }
 
   @Test
@@ -454,12 +454,12 @@ class RequestTest {
         .build()
     assertThat(request.tag()).isNull()
     assertThat(request.tag(Any::class.java)).isNull()
-    assertThat(request.tag(UUID::class.java)).isSameAs(uuidTag)
+    assertThat(request.tag(UUID::class.java)).isSameInstanceAs(uuidTag)
     assertThat(request.tag(String::class.java)).isNull()
 
     // Alternate access APIs also work.
-    assertThat(request.tag(UUID::class)).isSameAs(uuidTag)
-    assertThat(request.tag<UUID>()).isSameAs(uuidTag)
+    assertThat(request.tag(UUID::class)).isSameInstanceAs(uuidTag)
+    assertThat(request.tag<UUID>()).isSameInstanceAs(uuidTag)
   }
 
   @Test
@@ -473,12 +473,12 @@ class RequestTest {
         .build()
     assertThat(request.tag()).isNull()
     assertThat(request.tag<Any>()).isNull()
-    assertThat(request.tag<UUID>()).isSameAs(uuidTag)
+    assertThat(request.tag<UUID>()).isSameInstanceAs(uuidTag)
     assertThat(request.tag<String>()).isNull()
 
     // Alternate access APIs also work.
-    assertThat(request.tag(UUID::class.java)).isSameAs(uuidTag)
-    assertThat(request.tag(UUID::class)).isSameAs(uuidTag)
+    assertThat(request.tag(UUID::class.java)).isSameInstanceAs(uuidTag)
+    assertThat(request.tag(UUID::class)).isSameInstanceAs(uuidTag)
   }
 
   @Test
@@ -492,12 +492,12 @@ class RequestTest {
         .build()
     assertThat(request.tag()).isNull()
     assertThat(request.tag(Any::class)).isNull()
-    assertThat(request.tag(UUID::class)).isSameAs(uuidTag)
+    assertThat(request.tag(UUID::class)).isSameInstanceAs(uuidTag)
     assertThat(request.tag(String::class)).isNull()
 
     // Alternate access APIs also work.
-    assertThat(request.tag(UUID::class.java)).isSameAs(uuidTag)
-    assertThat(request.tag<UUID>()).isSameAs(uuidTag)
+    assertThat(request.tag(UUID::class.java)).isSameInstanceAs(uuidTag)
+    assertThat(request.tag<UUID>()).isSameInstanceAs(uuidTag)
   }
 
   @Test
@@ -511,7 +511,7 @@ class RequestTest {
         .tag(UUID::class.java, uuidTag1)
         .tag(UUID::class.java, uuidTag2)
         .build()
-    assertThat(request.tag(UUID::class.java)).isSameAs(uuidTag2)
+    assertThat(request.tag(UUID::class.java)).isSameInstanceAs(uuidTag2)
   }
 
   @Test
@@ -529,11 +529,11 @@ class RequestTest {
         .tag(String::class.java, stringTag)
         .tag(Long::class.javaObjectType, longTag)
         .build()
-    assertThat(request.tag()).isSameAs(objectTag)
-    assertThat(request.tag(Any::class.java)).isSameAs(objectTag)
-    assertThat(request.tag(UUID::class.java)).isSameAs(uuidTag)
-    assertThat(request.tag(String::class.java)).isSameAs(stringTag)
-    assertThat(request.tag(Long::class.javaObjectType)).isSameAs(longTag)
+    assertThat(request.tag()).isSameInstanceAs(objectTag)
+    assertThat(request.tag(Any::class.java)).isSameInstanceAs(objectTag)
+    assertThat(request.tag(UUID::class.java)).isSameInstanceAs(uuidTag)
+    assertThat(request.tag(String::class.java)).isSameInstanceAs(stringTag)
+    assertThat(request.tag(Long::class.javaObjectType)).isSameInstanceAs(longTag)
   }
 
   /** Confirm that we don't accidentally share the backing map between objects. */
@@ -546,9 +546,9 @@ class RequestTest {
     val requestA = builder.tag(String::class.java, "a").build()
     val requestB = builder.tag(String::class.java, "b").build()
     val requestC = requestA.newBuilder().tag(String::class.java, "c").build()
-    assertThat(requestA.tag(String::class.java)).isSameAs("a")
-    assertThat(requestB.tag(String::class.java)).isSameAs("b")
-    assertThat(requestC.tag(String::class.java)).isSameAs("c")
+    assertThat(requestA.tag(String::class.java)).isSameInstanceAs("a")
+    assertThat(requestB.tag(String::class.java)).isSameInstanceAs("b")
+    assertThat(requestC.tag(String::class.java)).isSameInstanceAs("c")
   }
 
   @Test

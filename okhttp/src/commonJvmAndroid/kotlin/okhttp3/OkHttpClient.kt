@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@file:OptIn(OkHttpInternalApi::class)
+
 package okhttp3
 
 import java.net.Proxy
@@ -30,6 +32,7 @@ import javax.net.ssl.X509TrustManager
 import kotlin.time.Duration as KotlinDuration
 import okhttp3.Protocol.HTTP_1_1
 import okhttp3.Protocol.HTTP_2
+import okhttp3.internal.OkHttpInternalApi
 import okhttp3.internal.asFactory
 import okhttp3.internal.checkDuration
 import okhttp3.internal.concurrent.TaskRunner
@@ -601,7 +604,7 @@ open class OkHttpClient internal constructor(
     internal var proxy: Proxy? = null
     internal var proxySelector: ProxySelector? = null
     internal var proxyAuthenticator: Authenticator = Authenticator.NONE
-    internal var socketFactory: SocketFactory = SocketFactory.getDefault()
+    internal var socketFactory: SocketFactory = Platform.get().socketFactory
     internal var sslSocketFactoryOrNull: SSLSocketFactory? = null
     internal var x509TrustManagerOrNull: X509TrustManager? = null
     internal var connectionSpecs: List<ConnectionSpec> = DEFAULT_CONNECTION_SPECS
@@ -1105,6 +1108,7 @@ open class OkHttpClient internal constructor(
      *
      * The default value is 0 which imposes no timeout.
      */
+    @Suppress("NewApi")
     @IgnoreJRERequirement
     fun callTimeout(duration: Duration) =
       apply {
@@ -1147,6 +1151,7 @@ open class OkHttpClient internal constructor(
      * The connect timeout is applied when connecting a TCP socket to the target host. The default
      * value is 10 seconds.
      */
+    @Suppress("NewApi")
     @IgnoreJRERequirement
     fun connectTimeout(duration: Duration) =
       apply {
@@ -1192,6 +1197,7 @@ open class OkHttpClient internal constructor(
      * @see Socket.setSoTimeout
      * @see Source.timeout
      */
+    @Suppress("NewApi")
     @IgnoreJRERequirement
     fun readTimeout(duration: Duration) =
       apply {
@@ -1238,6 +1244,7 @@ open class OkHttpClient internal constructor(
      *
      * @see Sink.timeout
      */
+    @Suppress("NewApi")
     @IgnoreJRERequirement
     fun writeTimeout(duration: Duration) =
       apply {
@@ -1291,6 +1298,7 @@ open class OkHttpClient internal constructor(
      *
      * The default value of 0 disables client-initiated pings.
      */
+    @Suppress("NewApi")
     @IgnoreJRERequirement
     fun pingInterval(duration: Duration) =
       apply {
@@ -1338,6 +1346,7 @@ open class OkHttpClient internal constructor(
      * wait for a graceful shutdown. If the server doesn't respond the web socket will be canceled.
      * The default value is 60 seconds.
      */
+    @Suppress("NewApi")
     @IgnoreJRERequirement
     fun webSocketCloseTimeout(duration: Duration) =
       apply {

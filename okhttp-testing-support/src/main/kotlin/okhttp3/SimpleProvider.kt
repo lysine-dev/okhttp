@@ -21,6 +21,7 @@ import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.ArgumentsProvider
 
 abstract class SimpleProvider : ArgumentsProvider {
+  @Suppress("OVERRIDE_DEPRECATION")
   override fun provideArguments(context: ExtensionContext) = arguments().map { Arguments.of(it) }.stream()
 
   @Throws(Exception::class)

@@ -1,15 +1,28 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
   id("org.graalvm.buildtools.native")
   kotlin("jvm")
+  id("okhttp.jvm-conventions")
+  id("okhttp.quality-conventions")
+  id("okhttp.testing-conventions")
 }
 
-animalsniffer {
-  isIgnoreFailures = true
+tasks.withType<KotlinCompile>().configureEach {
+  compilerOptions {
+    jvmTarget.set(JvmTarget.JVM_17)
+  }
+}
+
+tasks.withType<JavaCompile>().configureEach {
+  sourceCompatibility = JvmTarget.JVM_17.target
+  targetCompatibility = JvmTarget.JVM_17.target
 }
 
 // TODO reenable other tests
-// https://github.com/square/okhttp/issues/8901
-//sourceSets {
+// https://github.com/lysine-dev/okhttp/issues/8901
+// sourceSets {
 //  test {
 //    java.srcDirs(
 //      "../okhttp-brotli/src/test/java",
@@ -18,7 +31,7 @@ animalsniffer {
 //      "../okhttp-sse/src/test/java",
 //    )
 //  }
-//}
+// }
 
 dependencies {
   implementation(projects.okhttp)

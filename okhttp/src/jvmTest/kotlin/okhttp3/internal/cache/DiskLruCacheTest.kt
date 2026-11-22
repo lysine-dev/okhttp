@@ -20,7 +20,7 @@ import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
 import assertk.assertions.isNull
-import assertk.assertions.isSameAs
+import assertk.assertions.isSameInstanceAs
 import assertk.assertions.isTrue
 import assertk.fail
 import java.io.File
@@ -722,7 +722,7 @@ class DiskLruCacheTest(
   fun readingTheSameStreamMultipleTimes() {
     set("a", "a", "b")
     val snapshot = cache["a"]!!
-    assertThat(snapshot.getSource(0)).isSameAs(snapshot.getSource(0))
+    assertThat(snapshot.getSource(0)).isSameInstanceAs(snapshot.getSource(0))
     snapshot.close()
   }
 
@@ -1390,7 +1390,7 @@ class DiskLruCacheTest(
 
   /**
    * We had a bug where the cache was left in an inconsistent state after a journal write failed.
-   * https://github.com/square/okhttp/issues/1211
+   * https://github.com/lysine-dev/okhttp/issues/1211
    */
   @Test
   fun journalWriteFailsDuringEditorCommit() {

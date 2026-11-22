@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@file:OptIn(OkHttpInternalApi::class)
+
 package okhttp3.internal.connection
 
 import java.io.InterruptedIOException
@@ -21,10 +23,15 @@ import java.security.cert.CertificateException
 import javax.net.ssl.SSLException
 import javax.net.ssl.SSLHandshakeException
 import javax.net.ssl.SSLPeerUnverifiedException
+import okhttp3.internal.OkHttpInternalApi
+import okhttp3.internal.ech.EchUntrustedException
 import okio.IOException
 
-/** Returns true if a TLS connection should be retried after [e]. */
-fun retryTlsHandshake(e: IOException): Boolean =
+/** Returns true if another connection should be attempted to any IP address. */
+internal fun attemptAnotherConnection(e: IOException): Boolean = e !is EchUntrustedException
+
+/** Returns true if the next [okhttp3.ConnectionSpec] should be attempted to the same IP address. */
+fun attemptAnotherConnectionSpec(e: IOException): Boolean =
   when {
     // If there was a protocol problem, don't recover.
     e is ProtocolException -> false

@@ -1,5 +1,19 @@
 plugins {
   `kotlin-dsl`
+  alias(libs.plugins.android.lint)
+  alias(libs.plugins.spotless)
+}
+
+configure<com.diffplug.gradle.spotless.SpotlessExtension> {
+  kotlin {
+    target("src/**/*.kt")
+    ktlint()
+  }
+  kotlinGradle {
+    target("*.kts")
+    targetExclude("build/**/*.kts")
+    ktlint()
+  }
 }
 
 repositories {
@@ -15,6 +29,15 @@ dependencies {
   implementation(libs.gradlePlugin.binaryCompatibilityValidator)
   implementation(libs.gradlePlugin.android)
   implementation(libs.gradlePlugin.bnd)
-  implementation(libs.kotlin.gradle.plugin.api)
+  implementation(libs.aqute.bnd)
+  implementation(libs.gradlePlugin.animalsniffer)
+  implementation(libs.gradlePlugin.spotless)
+  implementation(libs.gradlePlugin.shadow)
+  implementation(libs.gradlePlugin.graalvm)
+  implementation(libs.gradlePlugin.ksp)
   implementation(libs.gradlePlugin.mrjar)
+  implementation(libs.gradlePlugin.tapmoc)
+  implementation(libs.kotlin.gradle.plugin.api)
+
+  lintChecks(libs.androidx.lint.gradle)
 }

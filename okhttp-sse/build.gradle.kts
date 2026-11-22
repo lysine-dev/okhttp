@@ -1,15 +1,14 @@
-import com.vanniktech.maven.publish.JavadocJar
-import com.vanniktech.maven.publish.KotlinJvm
-
 plugins {
   kotlin("jvm")
   id("okhttp.publish-conventions")
-  id("binary-compatibility-validator")
+  id("okhttp.jvm-conventions")
+  id("okhttp.quality-conventions")
+  id("okhttp.testing-conventions")
 }
 
 project.applyOsgi(
   "Export-Package: okhttp3.sse",
-  "Bundle-SymbolicName: com.squareup.okhttp3.sse"
+  "Bundle-SymbolicName: com.squareup.okhttp3.sse",
 )
 
 project.applyJavaModules("okhttp3.sse")
@@ -21,8 +20,4 @@ dependencies {
   testImplementation(projects.mockwebserver3)
   testImplementation(projects.mockwebserver3Junit5)
   testImplementation(libs.junit)
-}
-
-mavenPublishing {
-  configure(KotlinJvm(javadocJar = JavadocJar.Empty()))
 }
