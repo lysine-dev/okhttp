@@ -21,7 +21,7 @@ dependencies {
   testRuntimeOnly(library("junit-platform-launcher"))
 }
 
-tasks.withType<Test> {
+tasks.withType<Test>().configureEach {
   useJUnitPlatform()
   jvmArgs("-Dokhttp.platform=$platform")
 
