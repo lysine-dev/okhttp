@@ -122,6 +122,9 @@ class SocketChannelTest {
 
     if (socketMode is TlsInstance) {
       assumeTrue((socketMode.provider == CONSCRYPT) == platform.isConscrypt())
+      if (socketMode.tlsVersion == TLS_1_3) {
+        platform.assumeNotJdk8Alpn()
+      }
     }
 
     val client =
