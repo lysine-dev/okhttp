@@ -42,17 +42,18 @@ class InsecureHandshaker : Handshaker {
         .firstOrNull { it in client.protocols.orEmpty() }
 
     // For more accuracy, we should pick the key type based on the cipher suite.
-    val keyType = "EC"
+    // Also support BC alternative names
+    val keyTypes = listOf("EC", "ECDHE_ECDSA", "RSA", "ECDHE_RSA")
 
     val clientCertificates =
       when (server.clientAuth) {
         Handshaker.ClientAuth.Required -> {
-          client.keyManager.clientCertificatesOrNull(keyType)
+          client.keyManager.clientCertificatesOrNull(keyTypes)
             ?: throw SSLHandshakeException("required client certificates not sent")
         }
 
         Handshaker.ClientAuth.Requested -> {
-          client.keyManager.clientCertificatesOrNull(keyType)
+          client.keyManager.clientCertificatesOrNull(keyTypes)
             ?: listOf()
         }
 
@@ -61,7 +62,7 @@ class InsecureHandshaker : Handshaker {
         }
       }
 
-    val serverCertificates = server.keyManager.serverCertificates(keyType)
+    val serverCertificates = server.keyManager.serverCertificates(keyTypes)
 
     val (clientSocket, serverSocket) = inMemorySocketPair(maxBufferSize = 1024 * 1024)
 
@@ -86,19 +87,17 @@ class InsecureHandshaker : Handshaker {
     )
   }
 
-  private fun X509KeyManager.serverCertificates(keyType: String): List<X509Certificate> {
+  private fun X509KeyManager.serverCertificates(keyTypes: List<String>): List<X509Certificate> {
     val alias =
-      getServerAliases(keyType, null)
-        .firstOrNull()
-        ?: throw SSLHandshakeException("no server aliases for $keyType")
+      keyTypes.firstNotNullOfOrNull { getServerAliases(it, null)?.firstOrNull() }
+        ?: throw SSLHandshakeException("no server aliases for $keyTypes")
 
     return getCertificateChain(alias).toList()
   }
 
-  private fun X509KeyManager.clientCertificatesOrNull(keyType: String): List<X509Certificate>? {
+  private fun X509KeyManager.clientCertificatesOrNull(keyTypes: List<String>): List<X509Certificate>? {
     val alias =
-      getClientAliases(keyType, null)
-        .firstOrNull()
+      keyTypes.firstNotNullOfOrNull { getClientAliases(it, null)?.firstOrNull() }
         ?: return null
 
     return getCertificateChain(alias).toList()

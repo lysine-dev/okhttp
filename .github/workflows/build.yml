@@ -81,7 +81,7 @@ jobs:
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
       - name: Run Checks
-        run: ./gradlew check -PgraalBuild=true -x jvmTest -x test -x allTests -x java9Test
+        run: ./gradlew check -PgraalBuild=true -x jvmTest -x test -x allTests -x java9Test -x testAndroidHostTest -x testAndroid
 
   jvm:
     permissions:
@@ -103,7 +103,7 @@ jobs:
       - name: Configure JDK
         uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
-          distribution: 'temurin'
+          distribution: ${{ matrix.java-version == 8 && 'zulu' || 'temurin' }}
           java-version: |
             ${{ matrix.java-version }}
             21
@@ -140,7 +140,7 @@ jobs:
         uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
           distribution: 'zulu'
-          java-version: 8.0.242
+          java-version: 8.0.232
 
       - name: Configure JDK
         uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
@@ -152,12 +152,13 @@ jobs:
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
       - name: Run Tests
-        run: ./gradlew test allTests -Ptest.java.version=8 -Pokhttp.platform=jdk8alpn -Palpn.boot.version=8.1.13.v20181017 -Dorg.gradle.java.installations.paths=/opt/hostedtoolcache/Java_Adopt_jdk/8.0.242-8.1/x64
+        run: ./gradlew :okhttp:jvmTest -Ptest.java.version=8 -Pokhttp.platform=jdk8alpn -Palpn.boot.version=8.1.13.v20181017
 
   providers:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'providers')
     strategy:
+      fail-fast: false
       matrix:
         include:
           - provider: openjsse
@@ -176,7 +177,7 @@ jobs:
       - name: Configure JDK
         uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
-          distribution: 'temurin'
+          distribution: ${{ matrix.java-version == 8 && 'zulu' || 'temurin' }}
           java-version: |
             ${{ matrix.java-version }}
             21

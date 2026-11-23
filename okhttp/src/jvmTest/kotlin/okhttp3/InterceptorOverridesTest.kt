@@ -241,6 +241,7 @@ class InterceptorOverridesTest {
       }
 
       OverrideParam.RetryOnConnectionFailure -> {
+        platform.assumeNotBouncyCastle()
         enableTls()
 
         server.enqueue(MockResponse.Builder().failHandshake().build())

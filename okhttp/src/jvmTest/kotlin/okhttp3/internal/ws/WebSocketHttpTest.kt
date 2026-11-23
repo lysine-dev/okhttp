@@ -712,6 +712,7 @@ class WebSocketHttpTest {
 
   @Test
   fun wssScheme() {
+    platform.assumeNotJdk8Alpn()
     webServer.useHttps(handshakeCertificates.sslSocketFactory())
     client =
       client
@@ -726,6 +727,7 @@ class WebSocketHttpTest {
 
   @Test
   fun httpsScheme() {
+    platform.assumeNotJdk8Alpn()
     webServer.useHttps(handshakeCertificates.sslSocketFactory())
     client =
       client

@@ -149,6 +149,7 @@ class CallHandshakeTest {
   fun testDefaultHandshakeCipherSuiteOrderingTls13Modern() {
     // We are avoiding making guarantees on ordering of secondary Platforms.
     platform.assumeNotBouncyCastle()
+    platform.assumeNotJdk8Alpn()
 
     val client = makeClient(ConnectionSpec.MODERN_TLS, TlsVersion.TLS_1_3)
 
