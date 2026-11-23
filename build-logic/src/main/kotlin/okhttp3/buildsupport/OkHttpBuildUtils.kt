@@ -37,3 +37,5 @@ val Project.robolectricEnabled: Boolean
       .getOrElse(
         platform == "jdk9" &&
           testJavaVersion == 21 &&
+          !(providers.systemProperty("os.name").orNull ?: "").startsWith("Windows", ignoreCase = true),
+      )
