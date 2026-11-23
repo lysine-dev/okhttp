@@ -2,6 +2,7 @@
 
 import okhttp3.buildsupport.alpnBootVersion
 import okhttp3.buildsupport.platform
+import okhttp3.buildsupport.robolectricEnabled
 import okhttp3.buildsupport.testJavaVersion
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import ru.vyarus.gradle.plugin.animalsniffer.AnimalSniffer
@@ -78,7 +79,7 @@ kotlin {
     // SDK 35 needs 17, for now avoid trying to run on
     // multiple robolectric versions, since device tests
     // do that
-    if (testJavaVersion >= 17) {
+    if (robolectricEnabled) {
       withHostTest {
         isIncludeAndroidResources = true
       }
@@ -186,7 +187,7 @@ kotlin {
       }
     }
 
-    if (testJavaVersion >= 17) {
+    if (robolectricEnabled) {
       named("androidHostTest") {
         dependencies {
           implementation(libs.androidx.junit)
