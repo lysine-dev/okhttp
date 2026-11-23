@@ -320,7 +320,10 @@ class RetryConnectionTest {
    *
    * https://www.rfc-editor.org/rfc/rfc9849.html#section-1
    */
-  private fun createEchSocket(): SSLSocket = createSocketWithEnabledProtocols(TlsVersion.TLS_1_3, TlsVersion.TLS_1_2)
+  private fun createEchSocket(): SSLSocket {
+    platform.assumeNotJdk8Alpn()
+    return createSocketWithEnabledProtocols(TlsVersion.TLS_1_3, TlsVersion.TLS_1_2)
+  }
 
   private fun createSocketWithEnabledProtocols(vararg tlsVersions: TlsVersion): SSLSocket =
     (handshakeCertificates.sslSocketFactory().createSocket() as SSLSocket).apply {

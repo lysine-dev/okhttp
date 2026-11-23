@@ -65,6 +65,7 @@ open class FakeNetworkOkHttpTest {
 
   @Test
   fun `happy path with TLS`() {
+    platformRule.assumeNotJdk8Alpn()
     enableTls()
     makeRequest()
   }
