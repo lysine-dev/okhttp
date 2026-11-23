@@ -28,3 +28,12 @@ val Project.androidBuild: Boolean
 
 val Project.alpnBootVersion: String?
   get() = findProperty("alpn.boot.version")?.toString()
+
+val Project.robolectricEnabled: Boolean
+  get() =
+    providers
+      .gradleProperty("robolectric")
+      .map { it.toBoolean() }
+      .getOrElse(
+        platform == "jdk9" &&
+          testJavaVersion == 21 &&

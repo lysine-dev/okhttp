@@ -1,5 +1,6 @@
 import de.mannodermaus.gradle.plugins.junit5.dsl.UnsupportedDeviceBehavior
 import okhttp3.buildsupport.androidBuild
+import okhttp3.buildsupport.robolectricEnabled
 
 plugins {
   id("okhttp.base-conventions")
@@ -48,6 +49,7 @@ android {
     // Robolectric 4.17 reflects into JDK internals, which JDK 17+ blocks by default.
     // https://robolectric.org/getting-started/
     unitTests.all {
+      it.enabled = robolectricEnabled
       it.jvmArgs(
         "--add-opens=java.base/java.lang=ALL-UNNAMED",
         "--add-opens=java.base/java.util=ALL-UNNAMED",
