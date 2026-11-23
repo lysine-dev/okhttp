@@ -157,6 +157,8 @@ class EchOnFakeNetworkTest {
 
   @BeforeEach
   fun setUp() {
+    platformRule.assumeNotJdk8Alpn()
+
     server =
       MockWebServer()
         .apply {
@@ -177,7 +179,9 @@ class EchOnFakeNetworkTest {
 
   @AfterEach
   fun tearDown() {
-    server.close()
+    if (::server.isInitialized) {
+      server.close()
+    }
   }
 
   @Test

@@ -275,6 +275,7 @@ open class ConnectionListenerTest {
       assertThat(event.exception.message).isIn(
         "Unexpected handshake message: client_hello",
         "(unexpected_message) Unexpected handshake message: client_hello",
+        "Handshake message sequence violation, 1",
       )
     }
   }
