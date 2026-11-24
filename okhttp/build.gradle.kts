@@ -16,6 +16,7 @@ plugins {
   id("okhttp.jvm-conventions")
   id("okhttp.quality-conventions")
   id("okhttp.testing-conventions")
+  id("okhttp.robolectric-conventions")
   id("app.cash.burst")
   alias(libs.plugins.maven.sympathy)
 }

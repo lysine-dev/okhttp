@@ -5,6 +5,7 @@ import okhttp3.buildsupport.robolectricEnabled
 plugins {
   id("okhttp.base-conventions")
   id("com.android.library")
+  id("okhttp.robolectric-conventions")
   id("de.mannodermaus.android-junit5")
   id("app.cash.burst")
 }
