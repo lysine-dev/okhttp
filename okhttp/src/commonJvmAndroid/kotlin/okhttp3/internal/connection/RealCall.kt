@@ -215,6 +215,7 @@ class RealCall(
     interceptors += BridgeInterceptor()
     interceptors += CacheInterceptor()
     interceptors += ConnectInterceptor
+    val networkInterceptorsStart = interceptors.size
     if (!forWebSocket) {
       interceptors += client.networkInterceptors
     }
@@ -227,6 +228,7 @@ class RealCall(
         index = 0,
         exchange = null,
         request = originalRequest,
+        networkInterceptorsStart = networkInterceptorsStart,
       )
 
     var calledNoMoreExchanges = false
