@@ -32,6 +32,7 @@ import okhttp3.internal.url.FRAGMENT_ENCODE_SET
 import okhttp3.internal.url.FRAGMENT_ENCODE_SET_URI
 import okhttp3.internal.url.PASSWORD_ENCODE_SET
 import okhttp3.internal.url.PATH_SEGMENT_ENCODE_SET
+import okhttp3.internal.url.PATH_SEGMENT_ENCODE_SET_RAW
 import okhttp3.internal.url.PATH_SEGMENT_ENCODE_SET_URI
 import okhttp3.internal.url.QUERY_COMPONENT_ENCODE_SET
 import okhttp3.internal.url.QUERY_COMPONENT_ENCODE_SET_URI
@@ -1045,7 +1046,7 @@ class HttpUrl private constructor(
       index: Int,
       pathSegment: String,
     ) = apply {
-      val canonicalPathSegment = pathSegment.canonicalize(encodeSet = PATH_SEGMENT_ENCODE_SET)
+      val canonicalPathSegment = pathSegment.canonicalize(encodeSet = PATH_SEGMENT_ENCODE_SET_RAW)
       require(!isDot(canonicalPathSegment) && !isDotDot(canonicalPathSegment)) {
         "unexpected path segment: $pathSegment"
       }
@@ -1547,7 +1548,7 @@ class HttpUrl private constructor(
         input.canonicalize(
           pos = pos,
           limit = limit,
-          encodeSet = PATH_SEGMENT_ENCODE_SET,
+          encodeSet = if (alreadyEncoded) PATH_SEGMENT_ENCODE_SET else PATH_SEGMENT_ENCODE_SET_RAW,
           alreadyEncoded = alreadyEncoded,
         )
       if (isDot(segment)) {
