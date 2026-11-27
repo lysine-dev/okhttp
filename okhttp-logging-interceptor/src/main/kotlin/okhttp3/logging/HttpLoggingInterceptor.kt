@@ -358,7 +358,8 @@ class HttpLoggingInterceptor
     private fun bodyHasUnknownEncoding(headers: Headers): Boolean {
       val contentEncoding = headers["Content-Encoding"] ?: return false
       return !contentEncoding.equals("identity", ignoreCase = true) &&
-        !contentEncoding.equals("gzip", ignoreCase = true)
+        !contentEncoding.equals("gzip", ignoreCase = true) &&
+        !contentEncoding.equals("br", ignoreCase = true)
     }
 
     private fun bodyIsStreaming(response: Response): Boolean {
