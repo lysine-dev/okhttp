@@ -136,6 +136,20 @@ class Headers internal constructor(
   fun newBuilder(): Builder = commonNewBuilder()
 
   /**
+   * Returns a new headers instance that combines the headers of this instance with `other`. If
+   * this instance has no headers, then `other` is returned. If `other` has no headers, then this
+   * instance is returned. Otherwise, the headers of this instance followed by the headers of
+   * `other` are returned.
+   */
+  @JvmName("combine")
+  operator fun plus(other: Headers): Headers =
+    when {
+      this.size == 0 -> other
+      other.size == 0 -> this
+      else -> Headers(this.namesAndValues + other.namesAndValues)
+    }
+
+  /**
    * Returns true if `other` is a `Headers` object with the same headers, with the same casing, in
    * the same order. Note that two headers instances may be *semantically* equal but not equal
    * according to this method. In particular, none of the following sets of headers are equal
@@ -263,6 +277,11 @@ class Headers internal constructor(
      */
     fun addAll(headers: Headers) = commonAddAll(headers)
 
+    @JvmSynthetic
+    operator fun plusAssign(headers: Headers) {
+      addAll(headers)
+    }
+
     /**
      * Add a header with the specified name and formatted date. Does validation of header names and
      * value.
@@ -310,6 +329,11 @@ class Headers internal constructor(
     ) = commonAddLenient(name, value)
 
     fun removeAll(name: String) = commonRemoveAll(name)
+
+    @JvmSynthetic
+    operator fun minusAssign(name: String) {
+      removeAll(name)
+    }
 
     /**
      * Set a field with the specified value. If the field is not found, it is added. If the field is
