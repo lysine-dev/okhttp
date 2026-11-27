@@ -65,6 +65,9 @@ class Http2ExchangeCodec(
   @Volatile
   private var canceled = false
 
+  @Volatile
+  private var streamCreationInFlight = false
+
   override val isResponseComplete: Boolean
     get() = stream?.isSourceComplete == true
 
@@ -81,12 +84,17 @@ class Http2ExchangeCodec(
 
     val hasRequestBody = request.body != null
     val requestHeaders = http2HeadersList(request)
-    stream = http2Connection.newStream(requestHeaders, hasRequestBody)
-    // We may have been asked to cancel while creating the new stream and sending the request
-    // headers, but there was still no stream to close.
-    if (canceled) {
-      stream!!.closeLater(ErrorCode.CANCEL)
-      throw IOException("Canceled")
+    streamCreationInFlight = true
+    try {
+      stream = http2Connection.newStream(requestHeaders, hasRequestBody)
+      // We may have been asked to cancel while creating the new stream and sending the request
+      // headers, but there was still no stream to close.
+      if (canceled) {
+        stream!!.closeLater(ErrorCode.CANCEL)
+        throw IOException("Canceled")
+      }
+    } finally {
+      streamCreationInFlight = false
     }
     stream!!.readTimeout().timeout(chain.readTimeoutMillis.toLong(), TimeUnit.MILLISECONDS)
     stream!!.writeTimeout().timeout(chain.writeTimeoutMillis.toLong(), TimeUnit.MILLISECONDS)
@@ -123,7 +131,12 @@ class Http2ExchangeCodec(
 
   override fun cancel() {
     canceled = true
-    stream?.closeLater(ErrorCode.CANCEL)
+    val stream = stream
+    if (stream != null) {
+      stream.closeLater(ErrorCode.CANCEL)
+    } else if (streamCreationInFlight) {
+      http2Connection.cancel()
+    }
   }
 
   companion object {
