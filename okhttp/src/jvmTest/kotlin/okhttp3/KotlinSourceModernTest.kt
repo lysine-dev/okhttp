@@ -343,6 +343,7 @@ class KotlinSourceModernTest {
     val path: String = cookie.path
     val httpOnly: Boolean = cookie.httpOnly
     val secure: Boolean = cookie.secure
+    val partitioned: Boolean = cookie.partitioned
     val matches: Boolean = cookie.matches("".toHttpUrl())
     val parsedCookie: Cookie? = Cookie.parse("".toHttpUrl(), "")
     val cookies: List<Cookie> = Cookie.parseAll("".toHttpUrl(), headersOf())
@@ -360,6 +361,7 @@ class KotlinSourceModernTest {
     builder = builder.secure()
     builder = builder.httpOnly()
     builder = builder.sameSite("None")
+    builder = builder.partitioned()
     val cookie: Cookie = builder.build()
   }
 
