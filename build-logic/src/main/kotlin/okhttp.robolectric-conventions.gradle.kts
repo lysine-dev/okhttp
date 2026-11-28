@@ -14,9 +14,9 @@ mapOf(
   35 to "15-robolectric-13954326-i7",
   36 to "16-robolectric-13921718-i7",
   37 to "17-robolectric-15733970-i7",
-).forEach { (sdk, version) ->
+).forEach { (sdk, jarVersion) ->
   val robolectric = configurations.dependencyScope("robolectric$sdk") {
-    dependencies.add(project.dependencies.create("org.robolectric:android-all-instrumented:$version"))
+    dependencies.add(project.dependencies.create("org.robolectric:android-all-instrumented:$jarVersion"))
   }
 
   robolectricJars.from(
