@@ -19,6 +19,7 @@ import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.Socket
 import java.net.UnknownServiceException
+import java.util.concurrent.TimeUnit
 import okhttp3.Address
 import okhttp3.ConnectionSpec
 import okhttp3.HttpUrl
@@ -58,6 +59,13 @@ class RealRoutePlanner internal constructor(
   private var nextRouteToTry: Route? = null
 
   override val deferredPlans = ArrayDeque<Plan>()
+
+  override val callTimeoutMillis: Int
+    get() {
+      val timeoutNanos = call.timeout().timeoutNanos()
+      if (timeoutNanos == 0L) return 0
+      return TimeUnit.NANOSECONDS.toMillis(timeoutNanos).toInt()
+    }
 
   override fun isCanceled(): Boolean = call.isCanceled()
 

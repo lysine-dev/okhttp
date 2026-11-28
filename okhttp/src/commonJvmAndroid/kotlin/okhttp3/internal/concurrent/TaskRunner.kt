@@ -252,7 +252,13 @@ class TaskRunner(
     if (executeCallCount > runCallCount) return // A thread is still starting.
 
     executeCallCount++
-    backend.execute(this@TaskRunner, runnable)
+    try {
+      backend.execute(this@TaskRunner, runnable)
+    } catch (e: Throwable) {
+      // When thread creation fails, an Error will be thrown, and the counter must be properly released at this time.
+      executeCallCount--
+      throw e
+    }
   }
 
   fun newQueue(): TaskQueue {

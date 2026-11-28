@@ -51,6 +51,9 @@ import okhttp3.internal.OkHttpInternalApi
 interface RoutePlanner {
   val address: Address
 
+  /** The call timeout in milliseconds, or 0 for no timeout. */
+  val callTimeoutMillis: Int
+
   /** Follow-ups for failed plans and plans that lost a race. */
   val deferredPlans: ArrayDeque<Plan>
 

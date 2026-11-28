@@ -16,6 +16,7 @@
 package okhttp3.internal.connection
 
 import java.io.IOException
+import java.io.InterruptedIOException
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.TimeUnit
@@ -35,6 +36,18 @@ internal class FastFallbackExchangeFinder(
   override val routePlanner: RoutePlanner,
   private val taskRunner: TaskRunner,
 ) : ExchangeFinder {
+  /**
+   * Absolute deadline for the whole find process, or [Long.MAX_VALUE] if the call has no timeout.
+   */
+  private val findDeadlineNanos: Long =
+    routePlanner.callTimeoutMillis.let { timeoutMillis ->
+      if (timeoutMillis == 0) {
+        Long.MAX_VALUE
+      } else {
+        taskRunner.backend.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis.toLong())
+      }
+    }
+
   private val connectDelayNanos = TimeUnit.MILLISECONDS.toNanos(250L)
   private var nextTcpConnectAtNanos = Long.MIN_VALUE
 
@@ -55,6 +68,7 @@ internal class FastFallbackExchangeFinder(
     try {
       while (tcpConnectsInFlight.isNotEmpty() || routePlanner.hasNext()) {
         if (routePlanner.isCanceled()) throw IOException("Canceled")
+        throwIfPastDeadline()
 
         // Launch a new connection if we're ready to.
         val now = taskRunner.backend.nanoTime()
@@ -68,7 +82,8 @@ internal class FastFallbackExchangeFinder(
 
         // Wait for an in-flight connect to complete or fail.
         if (connectResult == null) {
-          connectResult = awaitTcpConnect(awaitTimeoutNanos, TimeUnit.NANOSECONDS) ?: continue
+          val waitNanos = minOf(awaitTimeoutNanos, findDeadlineNanos - now)
+          connectResult = awaitTcpConnect(waitNanos, TimeUnit.NANOSECONDS) ?: continue
         }
 
         if (connectResult.isSuccess) {
@@ -139,24 +154,37 @@ internal class FastFallbackExchangeFinder(
     // Connect TCP asynchronously.
     tcpConnectsInFlight += plan
     val taskName = "$okHttpName connect ${routePlanner.address.url.redact()}"
-    taskRunner.newQueue().schedule(
-      object : Task(taskName) {
-        override fun runOnce(): Long {
-          val connectResult =
-            try {
-              plan.connectTcp()
-            } catch (e: Throwable) {
-              ConnectResult(plan, throwable = e)
+    try {
+      taskRunner.newQueue().schedule(
+        object : Task(taskName) {
+          override fun runOnce(): Long {
+            val connectResult =
+              try {
+                plan.connectTcp()
+              } catch (e: Throwable) {
+                ConnectResult(plan, throwable = e)
+              }
+            // Only post a result if this hasn't since been canceled.
+            if (plan in tcpConnectsInFlight) {
+              connectResults.put(connectResult)
             }
-          // Only post a result if this hasn't since been canceled.
-          if (plan in tcpConnectsInFlight) {
-            connectResults.put(connectResult)
+            return -1L
           }
-          return -1L
-        }
-      },
-    )
+        },
+      )
+    } catch (e: Throwable) {
+      // When thread creation fails, undo our bookkeeping and report this plan's TCP connect as failed.
+      tcpConnectsInFlight.remove(plan)
+      plan.cancel()
+      return ConnectResult(plan, throwable = e)
+    }
     return null
+  }
+
+  private fun throwIfPastDeadline() {
+    if (findDeadlineNanos == Long.MAX_VALUE) return
+    if (taskRunner.backend.nanoTime() - findDeadlineNanos < 0L) return
+    throw InterruptedIOException("timeout")
   }
 
   private fun awaitTcpConnect(
@@ -164,6 +192,8 @@ internal class FastFallbackExchangeFinder(
     unit: TimeUnit,
   ): ConnectResult? {
     if (tcpConnectsInFlight.isEmpty()) return null
+
+    if (timeout <= 0L) return null
 
     val result = connectResults.poll(timeout, unit) ?: return null
 

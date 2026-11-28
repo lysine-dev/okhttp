@@ -41,6 +41,8 @@ class FakeRoutePlanner(
 
   override val address = factory.newAddress("example.com")
 
+  override val callTimeoutMillis = 0
+
   fun addPlan(): FakePlan =
     FakePlan(nextPlanId++).also {
       plans += it
